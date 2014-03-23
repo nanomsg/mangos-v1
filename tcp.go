@@ -73,22 +73,22 @@ func (t *TCPTransport) Scheme() string {
 
 // NewDialer implements the Transport NewDialer method.
 func (t *TCPTransport) NewDialer(url string, proto uint16) (PipeDialer, error) {
+	var err error
 	if !strings.HasPrefix(url, t.Scheme()) {
 		return nil, EBadAddr
 	}
 	url = url[len(t.Scheme()):]
 	d := new(TCPDialer)
 	d.proto = proto
-	if addr, err := net.ResolveTCPAddr("tcp", url); err != nil {
+	if d.addr, err = net.ResolveTCPAddr("tcp", url); err != nil {
 		return nil, err
-	} else {
-		d.addr = addr
 	}
 	return d, nil
 }
 
 // NewAccepter implements the Transport NewAccepter method.
 func (t *TCPTransport) NewAccepter(url string, proto uint16) (PipeAccepter, error) {
+	var err error
 	if !strings.HasPrefix(url, t.Scheme()) {
 		return nil, EBadAddr
 	}
@@ -97,15 +97,12 @@ func (t *TCPTransport) NewAccepter(url string, proto uint16) (PipeAccepter, erro
 
 	// skip over the tcp:// scheme prefix
 	url = url[len(t.Scheme()):]
-	if addr, err := net.ResolveTCPAddr("tcp", url); err != nil {
+	if a.addr, err = net.ResolveTCPAddr("tcp", url); err != nil {
 		return nil, err
-	} else {
-		a.addr = addr
 	}
-	if listener, err := net.ListenTCP("tcp", a.addr); err != nil {
+
+	if a.listener, err = net.ListenTCP("tcp", a.addr); err != nil {
 		return nil, err
-	} else {
-		a.listener = listener
 	}
 
 	return a, nil

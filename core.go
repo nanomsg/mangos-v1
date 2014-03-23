@@ -219,19 +219,19 @@ func newCoreSocket() *coreSocket {
 	return s
 }
 
-func (s *coreSocket) lock() {
-	s.lk.Lock()
+func (sock *coreSocket) lock() {
+	sock.lk.Lock()
 }
 
-func (s *coreSocket) unlock() {
-	s.lk.Unlock()
+func (sock *coreSocket) unlock() {
+	sock.lk.Unlock()
 }
 
-func (s *coreSocket) signal() {
+func (sock *coreSocket) signal() {
 	// We try to send just a single message on the wakeq.
 	// If one is already there, then there is no need to do so again.
 	select {
-	case s.wakeq <- true:
+	case sock.wakeq <- true:
 	default:
 	}
 }
@@ -241,25 +241,25 @@ func (s *coreSocket) signal() {
 // Process function, but we take care to keep doing so until it claims to
 // have performed no new work.  Then we wait until some event arrives
 // indicating a state change.
-func (s *coreSocket) processor() {
+func (sock *coreSocket) processor() {
 	for {
-		s.lock()
-		if s.closed {
-			s.unlock()
+		sock.lock()
+		if sock.closed {
+			sock.unlock()
 			return
 		}
-		s.hndl.work = false
-		s.proto.Process()
-		if s.hndl.work {
-			s.unlock()
+		sock.hndl.work = false
+		sock.proto.Process()
+		if sock.hndl.work {
+			sock.unlock()
 			continue
 		}
-		s.unlock()
+		sock.unlock()
 
 		select {
-		case <-s.wakeq:
+		case <-sock.wakeq:
 			continue
-		case <-s.closeq:
+		case <-sock.closeq:
 			return
 		}
 	}
@@ -298,17 +298,18 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 	for {
 		var p *corePipe
 		var e *list.Element
-		var l *list.List = h.s.cansend
+		var l = h.s.cansend
 		// Look for a pipe to send to.  Note that this should only
 		// be called in the context of the Process routine, so
 		// we can reasonably assume that we are holding the lock.
 
 		if e = l.Front(); e == nil {
 			return 0, EPipeFull
-		} else {
-			p = l.Remove(e).(*corePipe)
-			p.cansend = nil
 		}
+
+		p = l.Remove(e).(*corePipe)
+		p.cansend = nil
+
 		select {
 		case p.wq <- msg:
 			// move the element to the end of the list
@@ -372,17 +373,18 @@ func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 	for {
 		var p *corePipe
 		var e *list.Element
-		var l *list.List = h.s.canrecv
+		var l = h.s.canrecv
 		// Look for a pipe to recv from.  Note that this should only
 		// be called in the context of the Process routine, so
 		// we can reasonably assume that we are holding the lock.
 
 		if e = l.Front(); e == nil {
 			return nil, 0, EPipeEmpty
-		} else {
-			p = l.Remove(e).(*corePipe)
-			p.canrecv = nil
 		}
+
+		p = l.Remove(e).(*corePipe)
+		p.canrecv = nil
+
 		select {
 		case msg := <-p.rq:
 			// move the element to the end of the list
@@ -414,97 +416,97 @@ func (h *coreHandle) IsOpen(key PipeKey) bool {
 // presented to applications.
 //
 
-func (s *coreSocket) Close() {
+func (sock *coreSocket) Close() {
 	// XXX: flushq's?  linger?
 	// Arguably we could/should close the write pipe as well.
 	// It would be an error for any caller to issue any further
 	// operations on the socket after Close -- results in panic.
-	s.lock()
-	defer s.unlock()
+	sock.lock()
+	defer sock.unlock()
 
-	if s.closed {
+	if sock.closed {
 		return
 	}
-	s.closed = true
+	sock.closed = true
 
-	for e := s.accepters.Front(); e != nil; e = s.accepters.Front() {
+	for e := sock.accepters.Front(); e != nil; e = sock.accepters.Front() {
 		a := e.Value.(PipeAccepter)
 		a.Close()
-		s.accepters.Remove(e)
+		sock.accepters.Remove(e)
 	}
 
-	for k, p := range s.pipes {
-		s.pipes[k] = nil
+	for k, p := range sock.pipes {
+		sock.pipes[k] = nil
 		if !p.closed {
 			p.closed = true
 			p.pipe.Close()
 			close(p.closeq)
 		}
 		if p.cansend != nil {
-			s.cansend.Remove(p.cansend)
+			sock.cansend.Remove(p.cansend)
 			p.cansend = nil
 		}
 		if p.canrecv != nil {
-			s.canrecv.Remove(p.canrecv)
+			sock.canrecv.Remove(p.canrecv)
 			p.canrecv = nil
 		}
 	}
 
-	close(s.closeq)
-	s.signal()
+	close(sock.closeq)
+	sock.signal()
 }
 
-func (s *coreSocket) SendMsg(msg *Message) error {
-	s.lock()
-	ok := s.proto.SendHook(msg)
-	s.unlock()
+func (sock *coreSocket) SendMsg(msg *Message) error {
+	sock.lock()
+	ok := sock.proto.SendHook(msg)
+	sock.unlock()
 	if !ok {
 		// just drop it silently
 		return nil
 	}
-	timeout := mkTimer(s.wdeadline)
+	timeout := mkTimer(sock.wdeadline)
 	for {
 		select {
 		case <-timeout:
 			return ESendTimeout
-		case <-s.closeq:
+		case <-sock.closeq:
 			return EClosed
-		case s.uwq <- msg:
-			s.signal()
+		case sock.uwq <- msg:
+			sock.signal()
 			return nil
 		}
 	}
 }
 
-func (s *coreSocket) Send(b []byte) error {
+func (sock *coreSocket) Send(b []byte) error {
 	msg := new(Message)
 	msg.Body = b
 	msg.Header = make([]byte, 0)
-	return s.SendMsg(msg)
+	return sock.SendMsg(msg)
 }
 
-func (s *coreSocket) RecvMsg() (*Message, error) {
-	timeout := mkTimer(s.rdeadline)
+func (sock *coreSocket) RecvMsg() (*Message, error) {
+	timeout := mkTimer(sock.rdeadline)
 
 	for {
 		select {
 		case <-timeout:
 			return nil, ERecvTimeout
-		case msg := <-s.urq:
-			s.lock()
-			ok := s.proto.RecvHook(msg)
-			s.unlock()
+		case msg := <-sock.urq:
+			sock.lock()
+			ok := sock.proto.RecvHook(msg)
+			sock.unlock()
 			if ok {
 				return msg, nil
 			} // else loop
-		case <-s.closeq:
+		case <-sock.closeq:
 			return nil, EClosed
 		}
 	}
 }
 
-func (s *coreSocket) Recv() ([]byte, error) {
-	msg, err := s.RecvMsg()
+func (sock *coreSocket) Recv() ([]byte, error) {
+	msg, err := sock.RecvMsg()
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +514,7 @@ func (s *coreSocket) Recv() ([]byte, error) {
 }
 
 // Dial implements the Socket Dial method.
-func (s *coreSocket) Dial(addr string) error {
+func (sock *coreSocket) Dial(addr string) error {
 	// This function should fire off a dialer goroutine.  The dialer
 	// will monitor the connection state, and when it becomes closed
 	// will redial.
@@ -520,59 +522,59 @@ func (s *coreSocket) Dial(addr string) error {
 	if t == nil {
 		return EBadTran
 	}
-	d, err := t.NewDialer(addr, s.proto.Number())
+	d, err := t.NewDialer(addr, sock.proto.Number())
 	if err != nil {
 		return err
 	}
-	go s.dialer(d)
+	go sock.dialer(d)
 	return nil
 }
 
 // dialer is used to dial or redial from a goroutine.
-func (s *coreSocket) dialer(d PipeDialer) {
+func (sock *coreSocket) dialer(d PipeDialer) {
 	for {
 		p, err := d.Dial()
 		if err == nil {
-			s.addPipe(p)
+			sock.addPipe(p)
 			cp := p.GetCoreData().(*corePipe)
 
 			select {
-			case <-s.closeq: // parent socket closed
+			case <-sock.closeq: // parent socket closed
 			case <-cp.closeq: // disconnect event
 			}
 		}
 
 		// we're redialing here
 		select {
-		case <-s.closeq: // exit if parent socket closed
+		case <-sock.closeq: // exit if parent socket closed
 			return
-		case <-time.After(s.reconntime):
+		case <-time.After(sock.reconntime):
 			continue
 		}
 	}
 }
 
 // serve spins in a loop, calling the accepter's Accept routine.
-func (s *coreSocket) serve(a PipeAccepter) {
+func (sock *coreSocket) serve(a PipeAccepter) {
 	for {
-		s.lock()
+		sock.lock()
 		// check to see if the application has closed the socket
-		if s.closed {
-			s.unlock()
+		if sock.closed {
+			sock.unlock()
 			return
 		}
-		s.unlock()
+		sock.unlock()
 
 		// note that if the underlying Accepter is closed, then
 		// we expect to return back with an error.
 		if pipe, err := a.Accept(); err == nil {
-			s.addPipe(pipe)
+			sock.addPipe(pipe)
 		}
 	}
 }
 
 // Listen implements the Socket Listen method.
-func (s *coreSocket) Listen(addr string) error {
+func (sock *coreSocket) Listen(addr string) error {
 	// This function sets up a goroutine to accept inbound connections.
 	// The accepted connection will be added to a list of accepted
 	// connections.  The Listener just needs to listen continuously,
@@ -582,11 +584,11 @@ func (s *coreSocket) Listen(addr string) error {
 	if t == nil {
 		return EBadTran
 	}
-	a, err := t.NewAccepter(addr, s.proto.Number())
+	a, err := t.NewAccepter(addr, sock.proto.Number())
 	if err != nil {
 		return err
 	}
-	s.accepters.PushBack(a)
-	go s.serve(a)
+	sock.accepters.PushBack(a)
+	go sock.serve(a)
 	return nil
 }

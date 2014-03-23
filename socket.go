@@ -14,6 +14,10 @@
 
 package sp
 
+// Socket is the main access handle applications use to access the SP
+// system.  It is an abstraction of an application's "connection" to a
+// messaging topology.  Applications can have more than one Socket open
+// at a time.
 type Socket interface {
 	// Close closes the open Socket.  It is an error (panic) to call
 	// other operations on the Socket once it has been closed.

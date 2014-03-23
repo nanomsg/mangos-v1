@@ -51,7 +51,7 @@ type ConnPipe struct {
 // a 64-bit size (network byte order) followed by the message itself.
 func (p *ConnPipe) Recv() (*Message, error) {
 
-	var sz uint64 = 0
+	var sz uint64
 	h := make([]byte, 8)
 
 	// prevent interleaved reads

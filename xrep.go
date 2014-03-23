@@ -19,6 +19,7 @@ type XRep struct {
 	handle ProtocolHandle
 }
 
+// Init implements the Protocol Init method.
 func (p *XRep) Init(handle ProtocolHandle) {
 	p.handle = handle
 }

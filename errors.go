@@ -21,7 +21,7 @@ type SPError struct {
 	tmp bool
 }
 
-// Error implements the error interface.
+// SPError implements the error interface.
 func (e *SPError) Error() string {
 	return e.err
 }

@@ -19,6 +19,9 @@ import (
 	"sync"
 )
 
+// PipeKey is the "key" or identifier used to match to an underlying
+// connection channel.  For example, a given key will correspond to a single
+// TCP or UNIX domain connected socket.
 type PipeKey uint32
 
 // Protocol implementations handle the "meat" of protocol processing.  Each

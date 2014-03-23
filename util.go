@@ -63,7 +63,7 @@ func mkTimer(deadline time.Time) <-chan time.Time {
 	return time.After(dur)
 }
 
-var debug bool = true
+var debug = true
 
 func debugf(format string, args ...interface{}) {
 	if debug {
