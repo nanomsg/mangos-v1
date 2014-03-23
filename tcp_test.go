@@ -219,7 +219,7 @@ func TestTCPSendRecv(t *testing.T) {
 	case nrep := <-ch:
 		if !bytes.Equal(nrep.Body, rep.Body) ||
 			!bytes.Equal(rep.Header, nrep.Header) {
-			t.Error("Client forward mismatch: %v, %v", nrep, rep)
+			t.Errorf("Client forward mismatch: %v, %v", nrep, rep)
 			return
 		}
 	case <-time.After(5 * time.Second):

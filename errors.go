@@ -14,14 +14,14 @@
 
 package sp
 
-// Standard errors for SP
+// SPError is our private error implementation.
 type SPError struct {
 	err string
 	tmo bool
 	tmp bool
 }
 
-// SPError implements the error interface.
+// Error implements the error interface.
 func (e *SPError) Error() string {
 	return e.err
 }
