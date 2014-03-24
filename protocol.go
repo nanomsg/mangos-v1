@@ -24,6 +24,21 @@ import (
 // TCP or UNIX domain connected socket.
 type PipeKey uint32
 
+// OptionHandler provides a standard interface for setting or getting
+// protocol specific options.
+type ProtocolOptionHandler interface {
+
+	// SetOption is used to set an option.  EBadOption is returned if
+	// the option name is not recognized, EBadValue if the value is
+	// invalid.
+	SetOption(string, interface{}) error
+
+	// GetOption is used to retrieve the current value of an option.
+	// If the protocol doesn't recognize the option, EBadOption should
+	// be returned.
+	GetOption(string) (interface{}, error)
+}
+
 // Protocol implementations handle the "meat" of protocol processing.  Each
 // protocol type will implement one of these.  For protocol pairs (REP/REQ),
 // there will be one for each half of the protocol.
@@ -147,8 +162,12 @@ type ProtocolHandle interface {
 	// by the protocol handler.
 	WakeUp()
 
-	// GetOption
-	// SetOption (?)
+	// RegisterOptionHandler is intended to give protocols a chance to
+	// register handlers for option setting, or retrieval.  It should be
+	// executed during the protocol's Init handler.  This allows protocols
+	// to create option handlers, without requiring all protocols to
+	// cope with it.
+	RegisterOptionHandler(ProtocolOptionHandler)
 }
 
 var protocolsL sync.Mutex
@@ -171,7 +190,9 @@ func initProtocols() {
 		registerProtocol(&Req{})
 		registerProtocol(&Rep{})
 		registerProtocol(&XPub{})
+		registerProtocol(&XSub{})
 		registerProtocol(&Pub{})
+		registerProtocol(&Sub{})
 	}
 }
 

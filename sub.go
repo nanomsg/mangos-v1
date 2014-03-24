@@ -14,49 +14,50 @@
 
 package sp
 
-// Pub is an implementation of the Pub protocol.
-type Pub struct {
+// Sub is an implementation of the Sub protocol.
+type Sub struct {
 	handle ProtocolHandle
-	xpub   *XPub
+	xsub   *XSub
 }
 
 // Init implements the Protocol Init method.
-func (p *Pub) Init(handle ProtocolHandle) {
+func (p *Sub) Init(handle ProtocolHandle) {
 	p.handle = handle
-	p.xpub = &XPub{}
+	p.xsub = &XSub{}
+	p.xsub.Init(handle)
 }
 
 // Process implements the Protocol Process method.
-func (p *Pub) Process() {
-	p.xpub.Process()
+func (p *Sub) Process() {
+	p.xsub.Process()
 }
 
-// Name implements the Protocol Name method.  It returns "Pub".
-func (*Pub) Name() string {
-	return "Pub"
+// Name implements the Protocol Name method.  It returns "Sub".
+func (*Sub) Name() string {
+	return "Sub"
 }
 
 // Number implements the Protocol Number method.
-func (*Pub) Number() uint16 {
-	return ProtoPub
+func (*Sub) Number() uint16 {
+	return ProtoSub
 }
 
 // IsRaw implements the Protocol IsRaw method.
-func (*Pub) IsRaw() bool {
+func (*Sub) IsRaw() bool {
 	return false
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (p *Pub) ValidPeer(peer uint16) bool {
-	return p.xpub.ValidPeer(peer)
+func (p *Sub) ValidPeer(peer uint16) bool {
+	return p.xsub.ValidPeer(peer)
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*Pub) RecvHook(*Message) bool {
+func (*Sub) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*Pub) SendHook(*Message) bool {
+func (*Sub) SendHook(*Message) bool {
 	return true
 }

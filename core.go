@@ -70,6 +70,8 @@ type coreSocket struct {
 	canrecv *list.List // list of corePipes that can recv
 
 	accepters *list.List
+
+	ohandler ProtocolOptionHandler
 }
 
 func (sock *coreSocket) addPipe(pipe Pipe) {
@@ -270,7 +272,7 @@ func (sock *coreSocket) processor() {
 // API presented to Protocol implementations.
 //
 
-// PullDown implements the PipeHandle PullDown method.
+// PullDown implements the ProtocolHandle PullDown method.
 func (h *coreHandle) PullDown() *Message {
 	select {
 	case msg := <-h.s.uwq:
@@ -281,7 +283,7 @@ func (h *coreHandle) PullDown() *Message {
 	}
 }
 
-// PushUp implements the PipeHandle PushUp method.
+// PushUp implements the ProtocolHandle PushUp method.
 func (h *coreHandle) PushUp(msg *Message) bool {
 	select {
 	case h.s.urq <- msg:
@@ -292,7 +294,7 @@ func (h *coreHandle) PushUp(msg *Message) bool {
 	}
 }
 
-// Send implements the PipeHandle Send method.
+// Send implements the ProtocolHandle Send method.
 func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 	// Sends to an open Pipe, that is ready...
 	for {
@@ -323,7 +325,7 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 	// we should never get here
 }
 
-// SendTo implements the PipeHandle SendTo method.
+// SendTo implements the ProtocolHandle SendTo method.
 func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 	p := h.s.pipes[key]
 	if p == nil || p.closed {
@@ -348,7 +350,7 @@ func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 	}
 }
 
-// SendAll implements the PipeHandle SendAll method.
+// SendAll implements the ProtocolHandle SendAll method.
 func (h *coreHandle) SendAll(msg *Message) {
 	l := h.s.cansend
 	for e := l.Front(); e != nil; e = e.Next() {
@@ -367,7 +369,7 @@ func (h *coreHandle) SendAll(msg *Message) {
 	}
 }
 
-// Recv implements the PipeHandle Recv method.
+// Recv implements the ProtocolHandle Recv method.
 func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 
 	for {
@@ -398,17 +400,23 @@ func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 	}
 }
 
-// WakeUp implements the PipeHandle WakeUp method.
+// WakeUp implements the ProtocolHandle WakeUp method.
 func (h *coreHandle) WakeUp() {
 	h.s.signal()
 }
 
-// IsOpen implements the PipeHandle IsOpen method.
+// IsOpen implements the ProtocolHandle IsOpen method.
 func (h *coreHandle) IsOpen(key PipeKey) bool {
 	if p, ok := h.s.pipes[key]; ok == true && !p.closed {
 		return true
 	}
 	return false
+}
+
+// RegisterProtocolOptionHandler implements the ProtocolHandle
+// RegisterProtocolOptionHandler method.
+func (h *coreHandle) RegisterOptionHandler(o ProtocolOptionHandler) {
+	h.s.ohandler = o
 }
 
 //
@@ -591,4 +599,29 @@ func (sock *coreSocket) Listen(addr string) error {
 	sock.accepters.PushBack(a)
 	go sock.serve(a)
 	return nil
+}
+
+// SetOption implements the Socket SetOption method.
+func (sock *coreSocket) SetOption(name string, value interface{}) error {
+	// XXX: Add "core" methods for TCP, etc.
+	if sock.ohandler != nil {
+		err := sock.ohandler.SetOption(name, value)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return EBadOption
+}
+
+// GetOption implements the Socket GetOption method.
+func (sock *coreSocket) GetOption(name string) (interface{}, error) {
+	if sock.ohandler != nil {
+		val, err := sock.ohandler.GetOption(name)
+		if err != nil {
+			return nil, err
+		}
+		return val, nil
+	}
+	return nil, EBadOption
 }

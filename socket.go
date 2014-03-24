@@ -51,6 +51,12 @@ type Socket interface {
 	// the Socket.  The accepter logic is run in a separate goroutine.
 	// The only error possible is if the address is invalid.
 	Listen(addr string) error
+
+	// GetOption is used to retrieve an option for a socket.
+	GetOption(name string) (interface{}, error)
+
+	// SetOption is used to set an option for a socket.
+	SetOption(name string, value interface{}) error
 }
 
 // NewSocket creates a new Socket using the specified protocol.
@@ -60,7 +66,7 @@ func NewSocket(protocol string) (Socket, error) {
 		return nil, EBadProto
 	}
 	sock := newCoreSocket()
-	proto.Init(&sock.hndl)
 	sock.proto = proto
+	proto.Init(&sock.hndl)
 	return sock, nil
 }

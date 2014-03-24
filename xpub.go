@@ -14,7 +14,7 @@
 
 package sp
 
-// XRep is an implementation of the XRep protocol.
+// XPub is an implementation of the XPub protocol.
 type XPub struct {
 	handle ProtocolHandle
 }
