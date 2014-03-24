@@ -170,6 +170,8 @@ func initProtocols() {
 		registerProtocol(&XRep{})
 		registerProtocol(&Req{})
 		registerProtocol(&Rep{})
+		registerProtocol(&XPub{})
+		registerProtocol(&Pub{})
 	}
 }
 
