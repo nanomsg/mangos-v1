@@ -12,7 +12,7 @@ The design is intended to make it easy to add new transports with almost
 trivial effort, as well as new topologies ("protocols" in SP terminology.)
 
 At present, only Req/Rep over TCP and IPC are supported, but that will probably
-change very quickly.
+change very quickly.  Pub/Sub code is present, but untested.  YMMV.
 
 Basic interoperability with nanomsg has been tested with nanocat.
 
