@@ -72,16 +72,6 @@ func (*XRep) ValidPeer(peer uint16) bool {
 	return false
 }
 
-// SetOption implements the Protocol SetOption method.  We have no options.
-func (*XRep) SetOption(name string, val interface{}) error {
-	return EBadOption
-}
-
-// GetOption implements the Protocol GetOption method.  We have no options.
-func (*XRep) GetOption(name string) (interface{}, error) {
-	return nil, EBadOption
-}
-
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
 func (*XRep) RecvHook(*Message) bool {
 	return true
