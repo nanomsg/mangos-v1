@@ -1,0 +1,107 @@
+// Copyright 2014 Garrett D'Amore
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use file except in compliance with the License.
+// You may obtain a copy of the license at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package sp
+
+import (
+	"net"
+	"strings"
+)
+
+// IPCDialer implements the PipeDialer interface.
+type IPCDialer struct {
+	addr  *net.UnixAddr
+	proto uint16
+}
+
+// Dial implements the the Dialer Dial method.
+func (d *IPCDialer) Dial() (Pipe, error) {
+
+	conn, err := net.DialUnix("unix", nil, d.addr)
+	if err != nil {
+		return nil, err
+	}
+	return NewConnPipe(conn, d.proto)
+}
+
+// IPCAccepter implements the PipeAccepter interface.
+// In addition to handling Accept(), it also arranges to set up a
+// Unix Domain socket listener.
+type IPCAccepter struct {
+	addr     *net.UnixAddr
+	proto    uint16
+	listener *net.UnixListener
+}
+
+// Accept implements the the PipeAccepter Accept method.
+func (a *IPCAccepter) Accept() (Pipe, error) {
+
+	conn, err := a.listener.AcceptUnix()
+	if err != nil {
+		return nil, err
+	}
+	return NewConnPipe(conn, a.proto)
+}
+
+// Close implements the PipeAccepter Close method.
+func (a *IPCAccepter) Close() error {
+	a.listener.Close()
+	return nil
+}
+
+// IPCTransport implements the Transport interface.
+type IPCTransport struct {
+}
+
+// Scheme implements the Transport Scheme method.
+func (t *IPCTransport) Scheme() string {
+	return "ipc://"
+}
+
+// NewDialer implements the Transport NewDialer method.
+func (t *IPCTransport) NewDialer(url string, proto uint16) (PipeDialer, error) {
+	var err error
+	if !strings.HasPrefix(url, t.Scheme()) {
+		return nil, EBadAddr
+	}
+	url = url[len(t.Scheme()):]
+	d := new(IPCDialer)
+	d.proto = proto
+	if d.addr, err = net.ResolveUnixAddr("unix", url); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// NewAccepter implements the Transport NewAccepter method.
+func (t *IPCTransport) NewAccepter(url string, proto uint16) (PipeAccepter, error) {
+	var err error
+	if !strings.HasPrefix(url, t.Scheme()) {
+		return nil, EBadAddr
+	}
+	a := new(IPCAccepter)
+	a.proto = proto
+
+	// skip over the ipc:// scheme prefix
+	url = url[len(t.Scheme()):]
+	if a.addr, err = net.ResolveUnixAddr("unix", url); err != nil {
+		return nil, err
+	}
+
+	if a.listener, err = net.ListenUnix("unix", a.addr); err != nil {
+		return nil, err
+	}
+
+	return a, nil
+}

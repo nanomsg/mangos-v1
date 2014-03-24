@@ -15,6 +15,7 @@
 package sp
 
 import (
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -140,6 +141,10 @@ func initTransports() {
 
 		// Lets go ahead and pre-register the stock transports.
 		registerTransport(&TCPTransport{})
+		// IPC not supported on Windows (yet), sorry
+		if runtime.GOOS != "windows" {
+			registerTransport(&IPCTransport{})
+		}
 	}
 }
 

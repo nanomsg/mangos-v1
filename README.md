@@ -11,11 +11,15 @@ The reference implementation of the SP protocols is available as [nanomsg](http:
 The design is intended to make it easy to add new transports with almost
 trivial effort, as well as new topologies ("protocols" in SP terminology.)
 
-At present, only Req/Rep over TCP are supported, but that will probably
-change very quickly.  Likewise, no interoperability testing between nanomsg and
-this implementation has been made yet.  Again, expect that to change soon.
+At present, only Req/Rep over TCP and IPC are supported, but that will probably
+change very quickly.
+
+Basic interoperability with nanomsg has been tested with nanocat.
 
 Consider this a work-in-progress, and use at your own risk.
+
+If you find this useful, I would appreciate knowing about it.  I can be reached
+via my email address, garrett -at- damore -dot- org
 
 ## Installing
 
@@ -23,7 +27,7 @@ Consider this a work-in-progress, and use at your own risk.
 
     $ go get bitbucket.org/gdamore/sp
 
-After this command *chanstream* is ready to use. Its source will be in:
+After this command *sp* is ready to use. Its source will be in:
 
     $GOROOT/src/pkg/bitbucket.org/gdamore/sp
 

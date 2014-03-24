@@ -16,16 +16,23 @@ package sp
 
 import (
 	"bytes"
+	"runtime"
 	"testing"
 	"time"
 )
 
-var tcp = &TCPTransport{}
+var ipc = &IPCTransport{}
 
-func TestTCPListenAndAccept(t *testing.T) {
-	addr := "tcp://127.0.0.1:3333"
+func TestIPCListenAndAccept(t *testing.T) {
+
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	addr := "ipc:///tmp/ipc_test1"
 	t.Logf("Establishing accepter")
-	accepter, err := tcp.NewAccepter(addr, ProtoRep)
+	accepter, err := ipc.NewAccepter(addr, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -33,7 +40,7 @@ func TestTCPListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := tcp.NewDialer(addr, ProtoReq)
+		d, err := ipc.NewDialer(addr, ProtoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -65,17 +72,23 @@ func TestTCPListenAndAccept(t *testing.T) {
 	}
 }
 
-func TestTCPDuplicateListen(t *testing.T) {
-	url := "tcp://127.0.0.1:3333"
+func TestIPCDuplicateListen(t *testing.T) {
+
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	url := "ipc:///tmp/ipc_test2"
 	var err error
-	listener, err := tcp.NewAccepter(url, ProtoRep)
+	listener, err := ipc.NewAccepter(url, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = tcp.NewAccepter(url, ProtoReq)
+	_, err = ipc.NewAccepter(url, ProtoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -83,10 +96,16 @@ func TestTCPDuplicateListen(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestTCPConnRefused(t *testing.T) {
-	url := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
+func TestIPCConnRefused(t *testing.T) {
+
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	url := "ipc:///tmp/ipc_test3" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := tcp.NewDialer(url, ProtoReq)
+	d, err := ipc.NewDialer(url, ProtoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -98,15 +117,21 @@ func TestTCPConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestTCPSendRecv(t *testing.T) {
-	url := "tcp://127.0.0.1:3333"
+func TestIPCSendRecv(t *testing.T) {
+
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	url := "ipc:///tmp/ipc_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *Message)
 
 	t.Logf("Establishing listener")
-	listener, err := tcp.NewAccepter(url, ProtoRep)
+	listener, err := ipc.NewAccepter(url, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -118,7 +143,7 @@ func TestTCPSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := tcp.NewDialer(url, ProtoReq)
+		d, err := ipc.NewDialer(url, ProtoReq)
 
 		client, err := d.Dial()
 		if err != nil {
