@@ -359,7 +359,12 @@ func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 // SendAll implements the ProtocolHandle SendAll method.
 func (h *coreHandle) SendAll(msg *Message) {
 	l := h.s.cansend
-	for e := l.Front(); e != nil; e = e.Next() {
+
+	var n, e *list.Element
+	for e = l.Front(); e != nil; e = n {
+		// We have to save the next node for the next iteration,
+		// because we might remove the node from the list.
+		n = e.Next()
 		p := e.Value.(*corePipe)
 		select {
 		case p.wq <- msg:

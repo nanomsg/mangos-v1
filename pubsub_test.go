@@ -24,6 +24,7 @@ func TestPubSub(t *testing.T) {
 
 	clich := make(chan bool, 1)
 	srvch := make(chan bool, 1)
+	rdych := make(chan bool, 1)
 
 	var srvsock Socket
 
@@ -59,8 +60,35 @@ func TestPubSub(t *testing.T) {
 		}
 		t.Logf("Server listening")
 
+		tmout := time.After(3 * time.Second)
+		for stok := false; !stok; {
+			// We are going to keep broadcasting "START" to
+			// client until it claims to have received it.
+			// This allows us to notice when it connects.  Its
+			// necessary because of slow-start behavior, where
+			// we might wind up sending messages faster than
+			// client can connect.
+			select {
+			case <-rdych:
+				// client is ready now
+				t.Logf("Client indicates ready to receive")
+				stok = true
+
+			case <-tmout:
+				t.Error("Client failed to become ready")
+				return
+			default:
+				// Send "START" to start test
+				t.Logf("Server publishing START")
+				srvsock.Send([]byte("START"))
+			}
+
+			// Sleep a little bit to give client a chance to react
+			time.Sleep(10 * time.Millisecond)
+		}
+
 		// Lets sleep a short bit, to make sure the client starts up
-		time.Sleep(200 * time.Millisecond)
+		//time.Sleep(200 * time.Millisecond)
 
 		for i, m := range publish {
 
@@ -70,8 +98,8 @@ func TestPubSub(t *testing.T) {
 				t.Errorf("Server send failed: %v", err)
 				return
 			}
-
-			// another tiny sleep before sending the next one
+			// We have to wait a while, else we might flood the
+			// subscriber's buffer and cause lost messages.
 			time.Sleep(10 * time.Millisecond)
 		}
 
@@ -103,7 +131,7 @@ func TestPubSub(t *testing.T) {
 
 		err = clisock.SetOption(SubOptionSubscribe, []byte("/rain"))
 		if err != nil {
-			t.Errorf("Failed")
+			t.Errorf("Failed subscribing to the rain: %v", err)
 			return
 		}
 
@@ -113,7 +141,35 @@ func TestPubSub(t *testing.T) {
 		}
 		t.Logf("Client dial complete")
 
+		// Now try to synch with publisher... look for START message
+		err = clisock.SetOption(SubOptionSubscribe, []byte("START"))
+		if err != nil {
+			t.Errorf("Failed to subscribe to START: %v", err)
+			return
+		}
+
+		rep, err = clisock.RecvMsg()
+		if err != nil {
+			t.Errorf("Receive(START) failed: %v", err)
+		}
+		if string(rep.Body) != "START" {
+			t.Errorf("Message received wasn't START?!?: %v", rep)
+			return
+		}
+
+		// ready!
+		t.Logf("Client got START message!")
+		t.Logf("Waking server")
+		close(rdych)
+
+		err = clisock.SetOption(SubOptionUnsubscribe, []byte("START"))
+		if err != nil {
+			t.Logf("Failed to unsubscribe from START: %v", err)
+			return
+		}
+
 		for !end {
+			t.Log("Client wait to receive")
 			if rep, err = clisock.RecvMsg(); err != nil {
 				t.Errorf("Client receive failed: %v", err)
 				return
@@ -121,6 +177,9 @@ func TestPubSub(t *testing.T) {
 			str := string(rep.Body)
 			t.Logf("Client received pub %s", str)
 			switch {
+			case str == "START":
+				t.Log("Got extra START message")
+				// This *can* happen
 			case str == "END":
 				end = true
 			case str == "/rainbow":
