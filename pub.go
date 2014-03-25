@@ -24,6 +24,7 @@ type pub struct {
 func (p *pub) Init(handle ProtocolHandle) {
 	p.handle = handle
 	p.xpub = XPubFactory.NewProtocol()
+	p.xpub.Init(handle)
 }
 
 // Process implements the Protocol Process method.

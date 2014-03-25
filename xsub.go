@@ -15,8 +15,8 @@
 package sp
 
 import (
+	"bytes"
 	"container/list"
-	"strings"
 	"sync"
 )
 
@@ -51,7 +51,7 @@ func (p *xsub) Process() {
 	if m != nil && err == nil {
 		p.lk.Lock()
 		for e := p.subs.Front(); e != nil; e = e.Next() {
-			if strings.HasPrefix(string(m.Body), e.Value.(string)) {
+			if bytes.HasPrefix(m.Body, e.Value.([]byte)) {
 				// Matched, send it up
 				h.PushUp(m)
 				break
@@ -107,28 +107,28 @@ func (p *xsub) SetOption(name string, value interface{}) error {
 	p.lk.Lock()
 	defer p.lk.Unlock()
 
-	var vstr string
+	var vb []byte
 
 	switch value.(type) {
-	case string:
-		vstr = value.(string)
+	case []byte:
+		vb = value.([]byte)
 	default:
 		return ErrBadValue
 	}
 	switch {
 	case name == XSubOptionSubscribe:
 		for e := p.subs.Front(); e != nil; e = e.Next() {
-			if e.Value.(string) == vstr {
+			if bytes.Equal(e.Value.([]byte), vb) {
 				// Already present
 				return nil
 			}
 		}
-		p.subs.PushBack(vstr)
+		p.subs.PushBack(vb)
 		return nil
 
 	case name == XSubOptionUnsubscribe:
 		for e := p.subs.Front(); e != nil; e = e.Next() {
-			if e.Value.(string) == vstr {
+			if bytes.Equal(e.Value.([]byte), vb) {
 				p.subs.Remove(e)
 				return nil
 			}

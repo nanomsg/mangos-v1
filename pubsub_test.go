@@ -15,15 +15,12 @@
 package sp
 
 import (
-	"bytes"
 	"testing"
 	"time"
 )
 
-func TestReqRep(t *testing.T) {
+func TestPubSub(t *testing.T) {
 	url := "tcp://127.0.0.1:3535"
-	ping := []byte("REQUEST_MESSAGE")
-	ack := []byte("RESPONSE_MESSAGE")
 
 	clich := make(chan bool, 1)
 	srvch := make(chan bool, 1)
@@ -35,10 +32,17 @@ func TestReqRep(t *testing.T) {
 	t.Log("Starting server")
 	go func() {
 		var err error
-		var req, rep *Message
+		publish := []string{
+			"/some/like/it/hot",
+			"/some/where",
+			"/over/the",
+			"/rainbow",
+			"\\\\C\\SPOT\\RUN",
+			"The Quick Brown Fox",
+			"END"}
 
 		defer close(srvch)
-		srvsock, err = NewSocket(RepName)
+		srvsock, err = NewSocket(PubName)
 		if err != nil || srvsock == nil {
 			t.Errorf("Failed creating server socket: %v", err)
 			return
@@ -55,25 +59,20 @@ func TestReqRep(t *testing.T) {
 		}
 		t.Logf("Server listening")
 
-		if req, err = srvsock.RecvMsg(); err != nil {
-			t.Errorf("Server receive failed: %v", err)
-			return
-		}
-		t.Logf("Server got message")
+		// Lets sleep a short bit, to make sure the client starts up
+		time.Sleep(200 * time.Millisecond)
 
-		if !bytes.Equal(req.Body, ping) {
-			t.Errorf("Server recd bad message: %v", req)
-			return
-		}
+		for i, m := range publish {
 
-		t.Logf("Server sending reply")
-		rep = new(Message)
-		rep.Body = make([]byte, 0, 20)
-		rep.Body = append(rep.Body, ack...)
-		rep.Header = make([]byte, 0)
-		if err = srvsock.SendMsg(rep); err != nil {
-			t.Errorf("Server send failed: %v", err)
-			return
+			t.Logf("Server publishing #%d: %s", i, m)
+
+			if err = srvsock.Send([]byte(m)); err != nil {
+				t.Errorf("Server send failed: %v", err)
+				return
+			}
+
+			// another tiny sleep before sending the next one
+			time.Sleep(10 * time.Millisecond)
 		}
 
 		t.Logf("Server OK")
@@ -85,41 +84,55 @@ func TestReqRep(t *testing.T) {
 	go func() {
 		var clisock Socket
 		var err error
-		var req, rep *Message
+		var rep *Message
+		var rain = 0
+		var end = false
 
 		defer close(clich)
-		clisock, err = NewSocket(ReqName)
+		clisock, err = NewSocket(SubName)
 		if err != nil || clisock == nil {
 			t.Errorf("Failed creating client socket: %v", err)
 			return
 		}
 		defer clisock.Close()
+		err = clisock.SetOption(SubOptionSubscribe, []byte("END"))
+		if err != nil {
+			t.Errorf("Failed to subscribe to END: %v", err)
+			return
+		}
+
+		err = clisock.SetOption(SubOptionSubscribe, []byte("/rain"))
+		if err != nil {
+			t.Errorf("Failed")
+			return
+		}
 
 		if err = clisock.Dial(url); err != nil {
 			t.Errorf("Client dial failed: %v", err)
 			return
 		}
-
 		t.Logf("Client dial complete")
 
-		req = new(Message)
-		req.Body = make([]byte, 0, 20)
-		req.Body = append(req.Body, ping...)
-		req.Header = make([]byte, 0)
-		if err = clisock.SendMsg(req); err != nil {
-			t.Errorf("Client send failed: %v", err)
-			return
+		for !end {
+			if rep, err = clisock.RecvMsg(); err != nil {
+				t.Errorf("Client receive failed: %v", err)
+				return
+			}
+			str := string(rep.Body)
+			t.Logf("Client received pub %s", str)
+			switch {
+			case str == "END":
+				end = true
+			case str == "/rainbow":
+				rain++
+			default:
+				t.Errorf("Got unexpected pub %v", rep)
+				return
+			}
 		}
-		t.Logf("Sent client request")
 
-		if rep, err = clisock.RecvMsg(); err != nil {
-			t.Errorf("Client receive failed: %v", err)
-			return
-		}
-		t.Logf("Client received reply")
-
-		if !bytes.Equal(rep.Body, ack) {
-			t.Errorf("Client recd bad message: %v", req)
+		if rain != 1 {
+			t.Errorf("Got wrong number of rainbows")
 			return
 		}
 
@@ -151,15 +164,12 @@ func TestReqRep(t *testing.T) {
 	case pass, ok = <-clich:
 		if !ok {
 			t.Error("Client aborted")
-			return
 		}
 		if !pass {
 			t.Error("Client reported failure")
-			return
 		}
 	case <-time.After(5 * time.Second):
 		t.Error("Timeout waiting for client")
-		return
 	}
 
 	srvsock.Close()

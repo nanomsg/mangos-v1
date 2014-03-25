@@ -25,6 +25,7 @@ func (p *sub) Init(handle ProtocolHandle) {
 	p.handle = handle
 	p.xsub = new(xsub)
 	p.xsub.Init(handle)
+	handle.RegisterOptionHandler(p)
 }
 
 // Process implements the Protocol Process method.
@@ -60,6 +61,31 @@ func (*sub) RecvHook(*Message) bool {
 // SendHook implements the Protocol SendHook method.  It is a no-op.
 func (*sub) SendHook(*Message) bool {
 	return true
+}
+
+const (
+	// SubOptionSubscribe is the name of the subscribe option.
+	SubOptionSubscribe = "SUB.SUBSCRIBE"
+
+	// SubOptionUnsubscribe is the name of the unsubscribe option
+	SubOptionUnsubscribe = "SUB.UNSUBSCRIBE"
+)
+
+func (p *sub) SetOption(name string, value interface{}) error {
+	switch {
+	case name == SubOptionSubscribe:
+		return p.xsub.SetOption(XSubOptionSubscribe, value)
+	case name == SubOptionUnsubscribe:
+		return p.xsub.SetOption(XSubOptionUnsubscribe, value)
+	}
+	return ErrBadOption
+}
+
+// GetOption well, we don't really support this at present.
+// XXX: What would it mean to "GetOption" the list of subscriptions.
+// Probably this is some sort of list that should be returned?
+func (p *sub) GetOption(name string) (interface{}, error) {
+	return nil, ErrBadOption
 }
 
 type subFactory int
