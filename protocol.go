@@ -24,7 +24,7 @@ import (
 // TCP or UNIX domain connected socket.
 type PipeKey uint32
 
-// OptionHandler provides a standard interface for setting or getting
+// ProtocolOptionHandler provides a standard interface for setting or getting
 // protocol specific options.
 type ProtocolOptionHandler interface {
 

@@ -19,6 +19,9 @@ import (
 	"net"
 )
 
+// TLSOptionConfig is the name of the configuration option.  The value
+// associated with it is a *tls.Config which provides all the information
+// to configure the TLS security parameters.
 const TLSOptionConfig = "TLS.CONFIG"
 
 type tlsDialer struct {

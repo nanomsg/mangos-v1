@@ -156,7 +156,7 @@ type TransportFactory interface {
 	NewTransport() Transport
 }
 
-// RegisterTransport registers a new Transport.
+// RegisterTransportFactory registers a new TransportFactory.
 // Note that the Transport might already be registered.  We don't warn about
 // this as an error.  You can override a built-in transport this way.
 // Use this at your own risk!  The "scheme" is the name of the scheme, with

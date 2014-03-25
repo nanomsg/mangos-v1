@@ -88,4 +88,6 @@ func (xrepFactory) NewProtocol() Protocol {
 	return new(xrep)
 }
 
+// XRepFactory implements the Protocol Factory for the XREP protocol.
+// The XREP Protocol is the raw form of the REP (Reply) protocol.
 var XRepFactory xrepFactory
