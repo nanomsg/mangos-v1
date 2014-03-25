@@ -14,50 +14,59 @@
 
 package sp
 
-// Sub is an implementation of the Sub protocol.
-type Sub struct {
+// sub is an implementation of the Sub protocol.
+type sub struct {
 	handle ProtocolHandle
-	xsub   *XSub
+	xsub   *xsub
 }
 
 // Init implements the Protocol Init method.
-func (p *Sub) Init(handle ProtocolHandle) {
+func (p *sub) Init(handle ProtocolHandle) {
 	p.handle = handle
-	p.xsub = &XSub{}
+	p.xsub = new(xsub)
 	p.xsub.Init(handle)
 }
 
 // Process implements the Protocol Process method.
-func (p *Sub) Process() {
+func (p *sub) Process() {
 	p.xsub.Process()
 }
 
 // Name implements the Protocol Name method.  It returns "Sub".
-func (*Sub) Name() string {
-	return "Sub"
+func (*sub) Name() string {
+	return SubName
 }
 
 // Number implements the Protocol Number method.
-func (*Sub) Number() uint16 {
+func (*sub) Number() uint16 {
 	return ProtoSub
 }
 
 // IsRaw implements the Protocol IsRaw method.
-func (*Sub) IsRaw() bool {
+func (*sub) IsRaw() bool {
 	return false
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (p *Sub) ValidPeer(peer uint16) bool {
+func (p *sub) ValidPeer(peer uint16) bool {
 	return p.xsub.ValidPeer(peer)
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*Sub) RecvHook(*Message) bool {
+func (*sub) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*Sub) SendHook(*Message) bool {
+func (*sub) SendHook(*Message) bool {
 	return true
 }
+
+type subFactory int
+
+func (subFactory) NewProtocol() Protocol {
+	return new(sub)
+}
+
+// SubFactory implements the Protocol Factory for the SUB (Subscribe) protocol.
+var SubFactory subFactory

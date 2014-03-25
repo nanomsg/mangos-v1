@@ -171,54 +171,61 @@ type ProtocolHandle interface {
 }
 
 var protocolsL sync.Mutex
-var protocols map[string]Protocol
+var protocols map[string]ProtocolFactory
 
-func registerProtocol(p Protocol) {
+func registerProtocolFactory(name string, f ProtocolFactory) {
 	// This version assumes the lock is already held
-	protocols[strings.ToLower(p.Name())] = p
+	protocols[strings.ToLower(name)] = f
 }
 
 func initProtocols() {
 	protocolsL.Lock()
 	defer protocolsL.Unlock()
 	if protocols == nil {
-		protocols = make(map[string]Protocol)
+		protocols = make(map[string]ProtocolFactory)
 
 		// Lets go ahead and pre-register the stock transports.
-		registerProtocol(&XReq{})
-		registerProtocol(&XRep{})
-		registerProtocol(&Req{})
-		registerProtocol(&Rep{})
-		registerProtocol(&XPub{})
-		registerProtocol(&XSub{})
-		registerProtocol(&Pub{})
-		registerProtocol(&Sub{})
+		registerProtocolFactory(XReqName, XReqFactory)
+		registerProtocolFactory(XRepName, XRepFactory)
+		registerProtocolFactory(ReqName, ReqFactory)
+		registerProtocolFactory(RepName, RepFactory)
+		registerProtocolFactory(XPubName, XPubFactory)
+		registerProtocolFactory(XSubName, XSubFactory)
+		registerProtocolFactory(PubName, PubFactory)
+		registerProtocolFactory(SubName, SubFactory)
 	}
 }
 
-// RegisterProtocol registers a new Protocol.
-// Note that the Protocol might already be registered.  We don't warn about
-// this as an error.  You can override a built-in protocol this way.
-// Use this at your own risk!  (The Name() is used as the lookup key for
+// ProtocolFactory implements the factory pattern for Protocol instances.
+type ProtocolFactory interface {
+	// NewProtocol creates a new instance of the Protocol.
+	NewProtocol() Protocol
+}
+
+// RegisterProtocolFactory registers a new ProtocolFactory.
+// Note that the ProtocolFactory might already be registered.
+// We don't warn about this as an error.  You can override a built-in
+// protocol this way.  Use this at your own risk!
+// (The name is used as the lookup key for
 // protocols, but is converted to lower case first.)
-func RegisterProtocol(p Protocol) {
+func RegisterProtocolFactory(name string, f ProtocolFactory) {
 
 	initProtocols()
 
 	protocolsL.Lock()
-	registerProtocol(p)
+	registerProtocolFactory(name, f)
 	protocolsL.Unlock()
 }
 
-// GetProtocol looks up a Protocol by name.  The lookup is case-insensitive.
-func GetProtocol(name string) Protocol {
+// getProtocol instantiates a Protocol by name.  The lookup is case-insensitive.
+func getProtocol(name string) Protocol {
 	initProtocols()
 
 	protocolsL.Lock()
-	p := protocols[strings.ToLower(name)]
+	f := protocols[strings.ToLower(name)]
 	protocolsL.Unlock()
 
-	return p
+	return f.NewProtocol()
 }
 
 // Useful constants for protocol numbers.  Note that the major protocol number
@@ -235,4 +242,19 @@ const (
 	ProtoSurveyor   = (6 * 16)
 	ProtoRespondent = (6 * 16) + 1
 	ProtoBus        = (7 * 16)
+)
+
+// Protocol names.  These correlate to specific Protocol implementations.
+const (
+	PairName = "PAIR" // Pair Protoco
+	ReqName  = "REQ"  // Request Protocol
+	RepName  = "REP"  // Reply Protocol
+	PubName  = "PUB"  // Publish Protocol
+	SubName  = "SUB"  // Subscribe Protocol
+	BusName  = "BUS"  // Bus Protocol
+	XReqName = "XREQ" // Raw Request Protocol
+	XRepName = "XREP" // Raw Reply Protocol
+	XPubName = "XPUB" // Raw Publish Protocol
+	XSubName = "XSUB" // Raw Subscribe Protocol
+	XBusName = "XBUS" // Raw Bus Protocol
 )

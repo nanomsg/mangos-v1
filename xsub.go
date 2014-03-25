@@ -21,21 +21,21 @@ import (
 )
 
 // XSub is an implementation of the XSub protocol.
-type XSub struct {
+type xsub struct {
 	handle ProtocolHandle
-	L      sync.Mutex
+	lk     sync.Mutex
 	subs   *list.List
 }
 
 // Init implements the Protocol Init method.
-func (p *XSub) Init(handle ProtocolHandle) {
+func (p *xsub) Init(handle ProtocolHandle) {
 	p.handle = handle
 	p.subs = list.New()
 	handle.RegisterOptionHandler(p)
 }
 
 // Process implements the Protocol Process method.
-func (p *XSub) Process() {
+func (p *xsub) Process() {
 
 	h := p.handle
 
@@ -49,7 +49,7 @@ func (p *XSub) Process() {
 	// a better structure.
 	m, _, err := h.Recv()
 	if m != nil && err == nil {
-		p.L.Lock()
+		p.lk.Lock()
 		for e := p.subs.Front(); e != nil; e = e.Next() {
 			if strings.HasPrefix(string(m.Body), e.Value.(string)) {
 				// Matched, send it up
@@ -57,27 +57,27 @@ func (p *XSub) Process() {
 				break
 			}
 		}
-		p.L.Unlock()
+		p.lk.Unlock()
 	}
 }
 
 // Name implements the Protocol Name method.  It returns "XRep".
-func (*XSub) Name() string {
-	return "XSub"
+func (*xsub) Name() string {
+	return XSubName
 }
 
 // Number implements the Protocol Number method.
-func (*XSub) Number() uint16 {
+func (*xsub) Number() uint16 {
 	return ProtoSub
 }
 
 // IsRaw implements the Protocol IsRaw method.
-func (*XSub) IsRaw() bool {
+func (*xsub) IsRaw() bool {
 	return true
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (*XSub) ValidPeer(peer uint16) bool {
+func (*xsub) ValidPeer(peer uint16) bool {
 	if peer == ProtoSub {
 		return true
 	}
@@ -85,19 +85,27 @@ func (*XSub) ValidPeer(peer uint16) bool {
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*XSub) RecvHook(*Message) bool {
+func (*xsub) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*XSub) SendHook(*Message) bool {
+func (*xsub) SendHook(*Message) bool {
 	return true
 }
 
+const (
+	// XSubOptionSubscribe is the name of the subscribe option.
+	XSubOptionSubscribe = "XSUB.SUBSCRIBE"
+
+	// XSubOptionUnsubscribe is the name of the unsubscribe option
+	XSubOptionUnsubscribe = "XSUB.UNSUBSCRIBE"
+)
+
 // SetOption implements the ProtocolOptionHandler SetOption method.
-func (p *XSub) SetOption(name string, value interface{}) error {
-	p.L.Lock()
-	defer p.L.Unlock()
+func (p *xsub) SetOption(name string, value interface{}) error {
+	p.lk.Lock()
+	defer p.lk.Unlock()
 
 	var vstr string
 
@@ -105,10 +113,10 @@ func (p *XSub) SetOption(name string, value interface{}) error {
 	case string:
 		vstr = value.(string)
 	default:
-		return EBadValue
+		return ErrBadValue
 	}
 	switch {
-	case name == "XSub.SUB":
+	case name == XSubOptionSubscribe:
 		for e := p.subs.Front(); e != nil; e = e.Next() {
 			if e.Value.(string) == vstr {
 				// Already present
@@ -118,7 +126,7 @@ func (p *XSub) SetOption(name string, value interface{}) error {
 		p.subs.PushBack(vstr)
 		return nil
 
-	case name == "XSub.UNSUB":
+	case name == XSubOptionUnsubscribe:
 		for e := p.subs.Front(); e != nil; e = e.Next() {
 			if e.Value.(string) == vstr {
 				p.subs.Remove(e)
@@ -126,16 +134,26 @@ func (p *XSub) SetOption(name string, value interface{}) error {
 			}
 		}
 		// Subscription not present
-		return EBadValue
+		return ErrBadValue
 
 	default:
-		return EBadOption
+		return ErrBadOption
 	}
 }
 
 // GetOption well, we don't really support this at present.
 // XXX: What would it mean to "GetOption" the list of subscriptions.
 // Probably this is some sort of list that should be returned?
-func (p *XSub) GetOption(name string) (interface{}, error) {
-	return nil, EBadOption
+func (p *xsub) GetOption(name string) (interface{}, error) {
+	return nil, ErrBadOption
 }
+
+type xsubFactory int
+
+func (xsubFactory) NewProtocol() Protocol {
+	return new(xsub)
+}
+
+// XSubFactory implements the Protocol Factory for the XSUB protocol.
+// The XSUB Protocol is the raw form of the SUB (Subscribe) protocol.
+var XSubFactory xsubFactory

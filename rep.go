@@ -16,45 +16,44 @@ package sp
 
 import ()
 
-// Rep is an implementation of the Rep protocol.
-type Rep struct {
+// Rep is an implementation of the REP Protocol.
+type rep struct {
 	handle ProtocolHandle
 
 	backtrace []byte
 	key       PipeKey // pipe we got the request on
-	xrep      *XRep
+	xrep      Protocol
 }
 
 // Init implements the Protocol Init method.
-func (p *Rep) Init(handle ProtocolHandle) {
+func (p *rep) Init(handle ProtocolHandle) {
 	p.handle = handle
-	p.xrep = new(XRep)
+	p.xrep = XRepFactory.NewProtocol()
 	p.xrep.Init(handle)
 }
 
 // Process implements the Protocol Process method.
-func (p *Rep) Process() {
-
+func (p *rep) Process() {
 	p.xrep.Process()
 }
 
-// Name implements the Protocol Name method.  It returns "Req".
-func (*Rep) Name() string {
-	return "Rep"
+// Name implements the Protocol Name method.
+func (*rep) Name() string {
+	return RepName
 }
 
 // Number implements the Protocol Number method.
-func (*Rep) Number() uint16 {
+func (*rep) Number() uint16 {
 	return ProtoReq
 }
 
 // IsRaw implements the Protocol Raw method.
-func (*Rep) IsRaw() bool {
+func (*rep) IsRaw() bool {
 	return false
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (*Rep) ValidPeer(peer uint16) bool {
+func (*rep) ValidPeer(peer uint16) bool {
 	if peer == ProtoReq {
 		return true
 	}
@@ -65,14 +64,14 @@ func (*Rep) ValidPeer(peer uint16) bool {
 // We save the backtrace from this message.  This means that if the app calls
 // Recv before calling Send, the saved backtrace will be lost.  This is how
 // the application discards / cancels a request to which it declines to reply.
-func (p *Rep) RecvHook(m *Message) bool {
+func (p *rep) RecvHook(m *Message) bool {
 	p.backtrace = m.Header
 	m.Header = nil
 	return true
 }
 
 // SendHook implements the Protocol SendHook Method.
-func (p *Rep) SendHook(m *Message) bool {
+func (p *rep) SendHook(m *Message) bool {
 	// Store our saved backtrace.  Note that if none was previously stored,
 	// there is no one to reply to, and we drop the message.
 	m.Header = p.backtrace
@@ -82,3 +81,12 @@ func (p *Rep) SendHook(m *Message) bool {
 	}
 	return true
 }
+
+type repFactory int
+
+func (repFactory) NewProtocol() Protocol {
+	return new(rep)
+}
+
+// RepFactory implements the Protocol Factory for the REP (reply) protocol.
+var RepFactory repFactory

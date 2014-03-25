@@ -29,26 +29,3 @@
 package sp
 
 import ()
-
-// SPAddr stores just the address, which will normally be something
-// like a path, but any valid string can be used as a key.  This implements
-// the net.Addr interface.  SP addresses look like URLs, and are independent
-// of the SP protocol.  For example, tcp://127.0.0.1:5050 represents TCP
-// port 5050 on localhost, and ipc:///var/run/mysock  is a reference to the
-// path /var/run/mysock which (on UNIX systems) would be a UNIX domain socket.
-// The inproc:// scheme is also supported, and the string that follows is just
-// an arbitrary key.
-type SPAddr struct {
-	name string
-}
-
-// String returns the name of the end point -- the listen address.  This
-// is just an arbitrary string used as a lookup key.
-func (a *SPAddr) String() string {
-	return a.name
-}
-
-// Network returns the scheme such as "ipc", "tcp", "inproc", etc.
-func (a *SPAddr) Network() string {
-	return "TBD"
-}

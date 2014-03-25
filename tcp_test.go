@@ -20,10 +20,10 @@ import (
 	"time"
 )
 
-var tcp = &TCPTransport{}
+var tcp = TCPFactory.NewTransport()
 
 func TestTCPListenAndAccept(t *testing.T) {
-	addr := "tcp://127.0.0.1:3333"
+	addr := "127.0.0.1:3333"
 	t.Logf("Establishing accepter")
 	accepter, err := tcp.NewAccepter(addr, ProtoRep)
 	if err != nil {
@@ -66,16 +66,16 @@ func TestTCPListenAndAccept(t *testing.T) {
 }
 
 func TestTCPDuplicateListen(t *testing.T) {
-	url := "tcp://127.0.0.1:3333"
+	addr := "127.0.0.1:3333"
 	var err error
-	listener, err := tcp.NewAccepter(url, ProtoRep)
+	listener, err := tcp.NewAccepter(addr, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = tcp.NewAccepter(url, ProtoReq)
+	_, err = tcp.NewAccepter(addr, ProtoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -84,29 +84,29 @@ func TestTCPDuplicateListen(t *testing.T) {
 }
 
 func TestTCPConnRefused(t *testing.T) {
-	url := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
+	addr := "127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := tcp.NewDialer(url, ProtoReq)
+	d, err := tcp.NewDialer(addr, ProtoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
 	c, err := d.Dial()
 	if err == nil || c != nil {
-		t.Errorf("Connection not refused (%s)!", url)
+		t.Errorf("Connection not refused (%s)!", addr)
 		return
 	}
 	t.Logf("Got expected error: %v", err)
 }
 
 func TestTCPSendRecv(t *testing.T) {
-	url := "tcp://127.0.0.1:3333"
+	addr := "127.0.0.1:3333"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *Message)
 
 	t.Logf("Establishing listener")
-	listener, err := tcp.NewAccepter(url, ProtoRep)
+	listener, err := tcp.NewAccepter(addr, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -118,7 +118,7 @@ func TestTCPSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := tcp.NewDialer(url, ProtoReq)
+		d, err := tcp.NewDialer(addr, ProtoReq)
 
 		client, err := d.Dial()
 		if err != nil {

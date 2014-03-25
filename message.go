@@ -35,7 +35,7 @@ type Message struct {
 // getUint32 retrieves a 32-bit value from the message header.
 func (m *Message) getUint32() (uint32, error) {
 	if len(m.Header) < 4 {
-		return 0, EShort
+		return 0, ErrTooShort
 	}
 	v := binary.BigEndian.Uint32(m.Header)
 	m.Header = m.Header[4:]
@@ -66,7 +66,7 @@ func (m *Message) putPipeKey(v PipeKey) {
 func (m *Message) getPipeKey() (PipeKey, error) {
 	if len(m.Header) < 4 {
 		// oops!
-		return 0, EShort
+		return 0, ErrTooShort
 	}
 	key := PipeKey(getUint32(m.Header))
 	m.Header = m.Header[4:]
@@ -77,7 +77,7 @@ func (m *Message) getPipeKey() (PipeKey, error) {
 // the header.  No check of the value is done.
 func (m *Message) trimUint32() error {
 	if len(m.Body) < 4 {
-		return EGarbled
+		return ErrGarbled
 	}
 	m.Header = append(m.Header, m.Body[0], m.Body[1], m.Body[2], m.Body[3])
 	m.Body = m.Body[4:]

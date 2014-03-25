@@ -17,6 +17,7 @@ package sp
 import (
 	"container/list"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 )
@@ -70,6 +71,8 @@ type coreSocket struct {
 	canrecv *list.List // list of corePipes that can recv
 
 	accepters *list.List
+
+	transports map[string]Transport
 
 	ohandler ProtocolOptionHandler
 }
@@ -204,6 +207,8 @@ func (p *corePipe) notifyRecv() {
 func newCoreSocket() *coreSocket {
 	s := new(coreSocket)
 	s.lk = new(sync.Mutex)
+	// Load all Transports so that SetOption & GetOption work right away.
+	s.loadTransports()
 	s.uwq = make(chan *Message, 1000)
 	s.urq = make(chan *Message, 100)
 	s.closeq = make(chan bool)
@@ -217,6 +222,7 @@ func newCoreSocket() *coreSocket {
 	rnum := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// We only consider the lower 31 bits.
 	s.nextkey = PipeKey(rnum.Uint32() & 0x7fffffff)
+
 	go s.processor()
 	return s
 }
@@ -306,7 +312,7 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 		// we can reasonably assume that we are holding the lock.
 
 		if e = l.Front(); e == nil {
-			return 0, EPipeFull
+			return 0, ErrPipeFull
 		}
 
 		p = l.Remove(e).(*corePipe)
@@ -329,10 +335,10 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 	p := h.s.pipes[key]
 	if p == nil || p.closed {
-		return EClosed
+		return ErrClosed
 	}
 	if p.cansend == nil {
-		return EPipeFull
+		return ErrPipeFull
 	}
 	l := h.s.cansend
 	l.Remove(p.cansend)
@@ -346,7 +352,7 @@ func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 		h.work = true
 		return nil
 	default:
-		return EPipeFull
+		return ErrPipeFull
 	}
 }
 
@@ -381,7 +387,7 @@ func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 		// we can reasonably assume that we are holding the lock.
 
 		if e = l.Front(); e == nil {
-			return nil, 0, EPipeEmpty
+			return nil, 0, ErrPipeEmpty
 		}
 
 		p = l.Remove(e).(*corePipe)
@@ -476,9 +482,9 @@ func (sock *coreSocket) SendMsg(msg *Message) error {
 	for {
 		select {
 		case <-timeout:
-			return ESendTimeout
+			return ErrSendTimeout
 		case <-sock.closeq:
-			return EClosed
+			return ErrClosed
 		case sock.uwq <- msg:
 			sock.signal()
 			return nil
@@ -499,7 +505,7 @@ func (sock *coreSocket) RecvMsg() (*Message, error) {
 	for {
 		select {
 		case <-timeout:
-			return nil, ERecvTimeout
+			return nil, ErrRecvTimeout
 		case msg := <-sock.urq:
 			sock.lock()
 			ok := sock.proto.RecvHook(msg)
@@ -508,7 +514,7 @@ func (sock *coreSocket) RecvMsg() (*Message, error) {
 				return msg, nil
 			} // else loop
 		case <-sock.closeq:
-			return nil, EClosed
+			return nil, ErrClosed
 		}
 	}
 }
@@ -521,15 +527,55 @@ func (sock *coreSocket) Recv() ([]byte, error) {
 	return msg.Body, nil
 }
 
+func (sock *coreSocket) getTransport(addr string) Transport {
+	var i int
+
+	sock.lock()
+	defer sock.unlock()
+
+	if i = strings.Index(addr, "://"); i < 0 {
+		return nil
+	}
+	scheme := addr[:i]
+	t, ok := sock.transports[scheme]
+	if t != nil && ok {
+		return t
+	}
+	return nil
+}
+
+// loadTransports is required to handle the case where an option is
+// accessed for a specific Transport, before that Transport has been bound
+// to the Socket.  Basically, if someone calls SetOption, we're going to
+// instantiate *all* transports we know about.  It turns out that this is
+// a pretty cheap operation since Transports generally have very very little
+// state associated with them.
+func (sock *coreSocket) loadTransports() {
+
+	initTransports()
+
+	sock.transports = make(map[string]Transport)
+
+	for scheme, factory := range transports {
+		if _, ok := sock.transports[scheme]; ok == true {
+			continue
+		}
+
+		sock.transports[scheme] = factory.NewTransport()
+	}
+}
+
 // Dial implements the Socket Dial method.
 func (sock *coreSocket) Dial(addr string) error {
 	// This function should fire off a dialer goroutine.  The dialer
 	// will monitor the connection state, and when it becomes closed
 	// will redial.
-	t := GetTransport(addr)
+	t := sock.getTransport(addr)
 	if t == nil {
-		return EBadTran
+		return ErrBadTran
 	}
+	// skip the tcp:// or ipc:// or whatever
+	addr = addr[len(t.Scheme())+len("://"):]
 	d, err := t.NewDialer(addr, sock.proto.Number())
 	if err != nil {
 		return err
@@ -588,10 +634,12 @@ func (sock *coreSocket) Listen(addr string) error {
 	// connections.  The Listener just needs to listen continuously,
 	// as we assume that we want to continue to receive inbound
 	// connections without limit.
-	t := GetTransport(addr)
+	t := sock.getTransport(addr)
 	if t == nil {
-		return EBadTran
+		return ErrBadTran
 	}
+	// skip the tcp:// or ipc:// or whatever
+	addr = addr[len(t.Scheme())+len("://"):]
 	a, err := t.NewAccepter(addr, sock.proto.Number())
 	if err != nil {
 		return err
@@ -603,25 +651,46 @@ func (sock *coreSocket) Listen(addr string) error {
 
 // SetOption implements the Socket SetOption method.
 func (sock *coreSocket) SetOption(name string, value interface{}) error {
-	// XXX: Add "core" methods for TCP, etc.
 	if sock.ohandler != nil {
 		err := sock.ohandler.SetOption(name, value)
-		if err != nil {
+		if err == nil {
+			return nil
+		}
+		if err != ErrBadOption {
 			return err
 		}
-		return nil
 	}
-	return EBadOption
+	for _, t := range sock.transports {
+		err := t.SetOption(name, value)
+		if err == nil {
+			return nil
+		}
+		if err != ErrBadOption {
+			return err
+		}
+	}
+	return ErrBadOption
 }
 
 // GetOption implements the Socket GetOption method.
 func (sock *coreSocket) GetOption(name string) (interface{}, error) {
 	if sock.ohandler != nil {
 		val, err := sock.ohandler.GetOption(name)
-		if err != nil {
+		if err == nil {
+			return val, nil
+		}
+		if err != ErrBadOption {
 			return nil, err
 		}
-		return val, nil
 	}
-	return nil, EBadOption
+	for _, t := range sock.transports {
+		val, err := t.GetOption(name)
+		if err == nil {
+			return val, nil
+		}
+		if err != ErrBadOption {
+			return nil, err
+		}
+	}
+	return nil, ErrBadOption
 }

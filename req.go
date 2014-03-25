@@ -19,13 +19,13 @@ import (
 	"time"
 )
 
-// Req is an implementation of the Req protocol.
-type Req struct {
+// req is an implementation of the Req protocol.
+type req struct {
 	handle ProtocolHandle
 	nextid uint32
 	retry  time.Duration
 	waker  *time.Timer
-	xreq   *XReq
+	xreq   Protocol
 
 	// fields describing the outstanding request
 	reqmsg  *Message
@@ -40,17 +40,17 @@ type Req struct {
 }
 
 // Init implements the Protocol Init method.
-func (p *Req) Init(handle ProtocolHandle) {
+func (p *req) Init(handle ProtocolHandle) {
 	p.handle = handle
 	p.nextid = rand.New(rand.NewSource(time.Now().UnixNano())).Uint32()
 	// Look this up on the handle?
 	p.retry = time.Minute * 1 // retry after a minute
-	p.xreq = new(XReq)
+	p.xreq = XReqFactory.NewProtocol()
 	p.xreq.Init(handle)
 }
 
 // nextID returns the next request ID.
-func (p *Req) nextID() uint32 {
+func (p *req) nextID() uint32 {
 	// The high order bit is "special", and must always be set.  (This is
 	// how the peer will detect the end of the backtrace.)
 	v := p.nextid | 0x80000000
@@ -59,7 +59,7 @@ func (p *Req) nextID() uint32 {
 }
 
 // cancel cancels any outstanding request, and resend timers.
-func (p *Req) cancel() {
+func (p *req) cancel() {
 	if p.waker != nil {
 		p.waker.Stop()
 		p.waker = nil
@@ -68,7 +68,7 @@ func (p *Req) cancel() {
 
 // reschedule arranges for the existing request to be rescheduled for delivery
 // after the configured resend time has passed.
-func (p *Req) reschedule() {
+func (p *req) reschedule() {
 	if p.waker != nil {
 		p.waker.Stop()
 	}
@@ -81,7 +81,7 @@ func (p *Req) reschedule() {
 
 // needresend returns true whenever either the timer has expired,
 // or the pipe we sent it on has been closed.
-func (p *Req) needresend() bool {
+func (p *req) needresend() bool {
 	if p.reqmsg == nil {
 		return false
 	}
@@ -95,7 +95,7 @@ func (p *Req) needresend() bool {
 }
 
 // Process implements the Protocol Process method.
-func (p *Req) Process() {
+func (p *req) Process() {
 
 	h := p.handle
 
@@ -120,23 +120,23 @@ func (p *Req) Process() {
 	p.xreq.Process()
 }
 
-// Name implements the Protocol Name method.  It returns "Req".
-func (*Req) Name() string {
-	return "Req"
+// Name implements the Protocol Name method.
+func (*req) Name() string {
+	return ReqName
 }
 
 // Number implements the Protocol Number method.
-func (*Req) Number() uint16 {
+func (*req) Number() uint16 {
 	return ProtoReq
 }
 
 // IsRaw implements the Protocol Raw method.
-func (*Req) IsRaw() bool {
+func (*req) IsRaw() bool {
 	return false
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (*Req) ValidPeer(peer uint16) bool {
+func (*req) ValidPeer(peer uint16) bool {
 	if peer == ProtoRep {
 		return true
 	}
@@ -144,7 +144,7 @@ func (*Req) ValidPeer(peer uint16) bool {
 }
 
 // SendHook implements the Protocol SendHook method.
-func (p *Req) SendHook(msg *Message) bool {
+func (p *req) SendHook(msg *Message) bool {
 
 	// We only support a single outstanding request at a time.
 	// If any other message was pending, cancel it.
@@ -163,7 +163,7 @@ func (p *Req) SendHook(msg *Message) bool {
 }
 
 // RecvHook implements the Protocol RecvHook method.
-func (p *Req) RecvHook(msg *Message) bool {
+func (p *req) RecvHook(msg *Message) bool {
 	if p.reqmsg == nil {
 		return false
 	}
@@ -175,3 +175,12 @@ func (p *Req) RecvHook(msg *Message) bool {
 	p.reqid = 0
 	return true
 }
+
+type reqFactory int
+
+func (reqFactory) NewProtocol() Protocol {
+	return new(req)
+}
+
+// ReqFactory implements the Protocol Factory for the REQ (request) protocol.
+var ReqFactory reqFactory

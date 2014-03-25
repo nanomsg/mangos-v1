@@ -72,7 +72,7 @@ func (p *ConnPipe) Recv() (*Message, error) {
 	// any more space than our peer says we need to.
 	if sz > 1024*1024 {
 		p.conn.Close()
-		return nil, ETooLong
+		return nil, ErrTooLong
 	}
 	b := make([]byte, sz)
 	if err := p.recvAll(b); err != nil {
@@ -143,16 +143,6 @@ func (p *ConnPipe) GetCoreData() interface{} {
 	return p.cdata
 }
 
-// SetProtocolData implements the Pipe SetProtocolData method.
-func (p *ConnPipe) SetProtocolData(data interface{}) {
-	p.pdata = data
-}
-
-// GetProtocolData implements the Pipe GetProtooclData method.
-func (p *ConnPipe) GetProtocolData() interface{} {
-	return p.pdata
-}
-
 // NewConnPipe allocates a new ConnPipe, and initializes it.
 // It also performs the handshake.
 func NewConnPipe(conn net.Conn, lproto uint16) (*ConnPipe, error) {
@@ -209,12 +199,12 @@ func (p *ConnPipe) handshake() error {
 	}
 	if h[0] != 0 || h[1] != 'S' || h[2] != 'P' || h[6] != 0 || h[7] != 0 {
 		p.conn.Close()
-		return EBadHeader
+		return ErrBadHeader
 	}
 	// The only version number we support at present is "0", at offset 3.
 	if h[3] != 0 {
 		p.conn.Close()
-		return EBadVersion
+		return ErrBadVersion
 	}
 
 	// The protocol number lives as 16-bits (big-endian) at offset 4.

@@ -14,18 +14,18 @@
 
 package sp
 
-// XRep is an implementation of the XRep protocol.
-type XRep struct {
+// xrep is an implementation of the XREP Protocol.
+type xrep struct {
 	handle ProtocolHandle
 }
 
 // Init implements the Protocol Init method.
-func (p *XRep) Init(handle ProtocolHandle) {
+func (p *xrep) Init(handle ProtocolHandle) {
 	p.handle = handle
 }
 
 // Process implements the Protocol Process method.
-func (p *XRep) Process() {
+func (p *xrep) Process() {
 
 	h := p.handle
 	if msg := h.PullDown(); msg != nil {
@@ -50,22 +50,22 @@ func (p *XRep) Process() {
 }
 
 // Name implements the Protocol Name method.  It returns "XRep".
-func (*XRep) Name() string {
-	return "XRep"
+func (*xrep) Name() string {
+	return XRepName
 }
 
 // Number implements the Protocol Number method.
-func (*XRep) Number() uint16 {
+func (*xrep) Number() uint16 {
 	return ProtoRep
 }
 
 // IsRaw implements the Protocol IsRaw method.
-func (*XRep) IsRaw() bool {
+func (*xrep) IsRaw() bool {
 	return true
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (*XRep) ValidPeer(peer uint16) bool {
+func (*xrep) ValidPeer(peer uint16) bool {
 	if peer == ProtoReq {
 		return true
 	}
@@ -73,11 +73,19 @@ func (*XRep) ValidPeer(peer uint16) bool {
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*XRep) RecvHook(*Message) bool {
+func (*xrep) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*XRep) SendHook(*Message) bool {
+func (*xrep) SendHook(*Message) bool {
 	return true
 }
+
+type xrepFactory int
+
+func (xrepFactory) NewProtocol() Protocol {
+	return new(xrep)
+}
+
+var XRepFactory xrepFactory

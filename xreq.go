@@ -16,25 +16,25 @@ package sp
 
 import ()
 
-// XReq is an implementation of the XReq protocol.
-type XReq struct {
+// xreq is an implementation of the XREQ protocol.
+type xreq struct {
 	handle ProtocolHandle
 }
 
 // Init implements the Protocol Init method.
-func (p *XReq) Init(handle ProtocolHandle) {
+func (p *xreq) Init(handle ProtocolHandle) {
 	p.handle = handle
 }
 
 // Process implements the Protocol Process method.
-func (p *XReq) Process() {
+func (p *xreq) Process() {
 
 	h := p.handle
 
 	if msg := h.PullDown(); msg != nil {
 		// Send sends unmolested.  If we can't due to lack of a
 		// connected peer, we drop it.  (Req protocol resends, but
-		// we don't in XReq.)  Note that it is expected that the
+		// we don't in xreq.)  Note that it is expected that the
 		// application will have written the request ID into the
 		// header at minimum, but possibly a full backtrace.  We
 		// don't bother to check.  (XXX: Perhaps we should, and
@@ -53,23 +53,23 @@ func (p *XReq) Process() {
 	}
 }
 
-// Name implements the Protocol Name method.  It returns "XReq".
-func (*XReq) Name() string {
-	return "XReq"
+// Name implements the Protocol Name method.
+func (*xreq) Name() string {
+	return XReqName
 }
 
 // Number implements the Protocol Number method.
-func (*XReq) Number() uint16 {
+func (*xreq) Number() uint16 {
 	return ProtoReq
 }
 
 // IsRaw implements the Protocol Raw method.
-func (*XReq) IsRaw() bool {
+func (*xreq) IsRaw() bool {
 	return true
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (*XReq) ValidPeer(peer uint16) bool {
+func (*xreq) ValidPeer(peer uint16) bool {
 	if peer == ProtoRep {
 		return true
 	}
@@ -77,11 +77,21 @@ func (*XReq) ValidPeer(peer uint16) bool {
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*XReq) RecvHook(*Message) bool {
+func (*xreq) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*XReq) SendHook(*Message) bool {
+func (*xreq) SendHook(*Message) bool {
 	return true
 }
+
+type xreqFactory int
+
+func (xreqFactory) NewProtocol() Protocol {
+	return new(xreq)
+}
+
+// XReqFactory implements the Protocol Factory for the XREQ protocol.
+// The XREQ Protocol is the raw form of the REQ (Request) protocol.
+var XReqFactory xreqFactory

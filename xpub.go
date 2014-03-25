@@ -14,18 +14,18 @@
 
 package sp
 
-// XPub is an implementation of the XPub protocol.
-type XPub struct {
+// xpub is an implementation of the XPub protocol.
+type xpub struct {
 	handle ProtocolHandle
 }
 
 // Init implements the Protocol Init method.
-func (p *XPub) Init(handle ProtocolHandle) {
+func (p *xpub) Init(handle ProtocolHandle) {
 	p.handle = handle
 }
 
 // Process implements the Protocol Process method.
-func (p *XPub) Process() {
+func (p *xpub) Process() {
 
 	h := p.handle
 	if msg := h.PullDown(); msg != nil {
@@ -42,22 +42,22 @@ func (p *XPub) Process() {
 }
 
 // Name implements the Protocol Name method.  It returns "XRep".
-func (*XPub) Name() string {
+func (*xpub) Name() string {
 	return "XPub"
 }
 
 // Number implements the Protocol Number method.
-func (*XPub) Number() uint16 {
+func (*xpub) Number() uint16 {
 	return ProtoPub
 }
 
 // IsRaw implements the Protocol IsRaw method.
-func (*XPub) IsRaw() bool {
+func (*xpub) IsRaw() bool {
 	return true
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (*XPub) ValidPeer(peer uint16) bool {
+func (*xpub) ValidPeer(peer uint16) bool {
 	if peer == ProtoSub {
 		return true
 	}
@@ -65,11 +65,21 @@ func (*XPub) ValidPeer(peer uint16) bool {
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*XPub) RecvHook(*Message) bool {
+func (*xpub) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*XPub) SendHook(*Message) bool {
+func (*xpub) SendHook(*Message) bool {
 	return true
 }
+
+type xpubFactory int
+
+func (xpubFactory) NewProtocol() Protocol {
+	return new(xpub)
+}
+
+// XPubFactory implements the Protocol Factory for the XPUB protocol.
+// The XPUB Protocol is the raw form of the PUB (Publish) protocol.
+var XPubFactory xpubFactory

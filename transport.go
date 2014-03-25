@@ -16,7 +16,6 @@ package sp
 
 import (
 	"runtime"
-	"strings"
 	"sync"
 )
 
@@ -68,14 +67,6 @@ type Pipe interface {
 
 	// GetCoreData returns the opaque data was stored with SetCoreData.
 	GetCoreData() interface{}
-
-	// SetProtocolData is provided so that the protocols can attach
-	// opaque data to the Pipe.
-	SetProtocolData(interface{})
-
-	// GetProtocolData returns the data that was stored with
-	// SetProtocolData.
-	GetProtocolData() interface{}
 }
 
 // PipeDialer represents the client side of a connection.  Clients initiate
@@ -123,57 +114,71 @@ type Transport interface {
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
 	NewAccepter(url string, protocol uint16) (PipeAccepter, error)
+
+	// SetOption allows for transports to handle transport specific
+	// options.  EBadOption should be returned if the Transport doesn't
+	// recognize the option.
+	SetOption(string, interface{}) error
+
+	// GetOption is used to retrieve the current value of an option.
+	// If the protocol doesn't recognize the option, EBadOption should
+	// be returned.
+	GetOption(string) (interface{}, error)
 }
 
 var transportsL sync.Mutex
-var transports map[string]Transport
+var transports map[string]TransportFactory
 
-func registerTransport(t Transport) {
+func registerTransportFactory(scheme string, f TransportFactory) {
 	// This version assumes the lock is already held
-	transports[t.Scheme()] = t
+	transports[scheme] = f
 }
 
 func initTransports() {
 	transportsL.Lock()
 	defer transportsL.Unlock()
 	if transports == nil {
-		transports = make(map[string]Transport)
+		transports = make(map[string]TransportFactory)
 
 		// Lets go ahead and pre-register the stock transports.
-		registerTransport(&TCPTransport{})
+		registerTransportFactory("tcp", TCPFactory)
 		// IPC not supported on Windows (yet), sorry
 		if runtime.GOOS != "windows" {
-			registerTransport(&IPCTransport{})
+			registerTransportFactory("ipc", IPCFactory)
 		}
+		registerTransportFactory("tls+tcp", TLSFactory)
 	}
+}
+
+// TransportFactory creates a new Transport instance.
+type TransportFactory interface {
+	// NewTransport allocates a transport instance.
+	NewTransport() Transport
 }
 
 // RegisterTransport registers a new Transport.
 // Note that the Transport might already be registered.  We don't warn about
 // this as an error.  You can override a built-in transport this way.
-// Use this at your own risk!  (The Scheme() is used as the lookup key for
-// transports.)
-func RegisterTransport(t Transport) {
+// Use this at your own risk!  The "scheme" is the name of the scheme, with
+// any trailing :// stripped, e.g. "tcp", "ipc", etc.
+func RegisterTransportFactory(scheme string, f TransportFactory) {
 
 	initTransports()
 
 	transportsL.Lock()
-	registerTransport(t)
+	registerTransportFactory(scheme, f)
 	transportsL.Unlock()
 }
 
-// GetTransport looks up a Transport for a given address.  This makes use of
-// the fact that addresses start with a "scheme" such as "tcp://" or "ipc://".
-func GetTransport(addr string) Transport {
-	i := strings.Index(addr, "://")
-	if i < 0 {
-		return nil
-	}
+// getTransportFactory looks up a TransportFactory for a given address scheme.
+// This makes use of the fact that addresses start with a "scheme" such as
+// "tcp://" or "ipc://".
+func getTransportFactory(scheme string) TransportFactory {
 	initTransports()
 
 	transportsL.Lock()
-	t := transports[addr[:i+3]]
+	f := transports[scheme]
 	transportsL.Unlock()
 
-	return t
+	return f
 }

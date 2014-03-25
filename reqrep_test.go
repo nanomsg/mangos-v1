@@ -46,7 +46,7 @@ func TestReqRep(t *testing.T) {
 		var req, rep *Message
 
 		defer close(srvch)
-		srvsock, err = NewSocket("Rep")
+		srvsock, err = NewSocket(RepName)
 		if err != nil || srvsock == nil {
 			t.Errorf("Failed creating server socket: %v", err)
 			return
@@ -96,7 +96,7 @@ func TestReqRep(t *testing.T) {
 		var req, rep *Message
 
 		defer close(clich)
-		clisock, err = NewSocket("Req")
+		clisock, err = NewSocket(ReqName)
 		if err != nil || clisock == nil {
 			t.Errorf("Failed creating client socket: %v", err)
 			return

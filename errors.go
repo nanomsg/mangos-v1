@@ -14,33 +14,24 @@
 
 package sp
 
-// SPError is our private error implementation.
-type SPError struct {
-	err string
-	tmo bool
-	tmp bool
-}
-
-// Error implements the error interface.
-func (e *SPError) Error() string {
-	return e.err
-}
+import (
+	"errors"
+)
 
 var (
-	EBadAddr       = &SPError{err: "Invalid Address"}
-	EBadHeader     = &SPError{err: "Invalid SP Header Received"}
-	EBadVersion    = &SPError{err: "Invalid SP Version Received"}
-	EShort         = &SPError{err: "Truncated Message"}
-	ETooLong       = &SPError{err: "Received Message Length Too Big"}
-	EClosed        = &SPError{err: "Connection Closed"}
-	ESendTimeout   = &SPError{err: "Send Time Out", tmo: true, tmp: true}
-	ERecvTimeout   = &SPError{err: "Receive Time Out", tmo: true, tmp: true}
-	EBadTran       = &SPError{err: "Invalid or Unsupported Transport"}
-	EBadProto      = &SPError{err: "Invalid or Unsupported Protocol"}
-	EProtoMismatch = &SPError{err: "Protocol Mismatch Received"}
-	EPipeFull      = &SPError{err: "Pipe Full", tmp: true}
-	EPipeEmpty     = &SPError{err: "Pipe Empty", tmp: true}
-	EBadOption     = &SPError{err: "Invalid or Unsupported Option"}
-	EBadValue      = &SPError{err: "Invalid Option Value"}
-	EGarbled       = &SPError{err: "Garbled Message"}
+	ErrBadAddr     = errors.New("invalid address")
+	ErrBadHeader   = errors.New("invalid header received")
+	ErrBadVersion  = errors.New("invalid protocol version")
+	ErrTooShort    = errors.New("message is too short")
+	ErrTooLong     = errors.New("message is too long")
+	ErrClosed      = errors.New("connection closed")
+	ErrSendTimeout = errors.New("send time out")
+	ErrRecvTimeout = errors.New("receive time out")
+	ErrBadTran     = errors.New("invalid or unsupported transport")
+	ErrBadProto    = errors.New("invalid or unsupported protocol")
+	ErrPipeFull    = errors.New("pipe full")
+	ErrPipeEmpty   = errors.New("pipe empty")
+	ErrBadOption   = errors.New("invalid or unsupported option")
+	ErrBadValue    = errors.New("invalid option value")
+	ErrGarbled     = errors.New("message garbled")
 )

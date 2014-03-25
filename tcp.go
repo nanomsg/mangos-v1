@@ -16,17 +16,16 @@ package sp
 
 import (
 	"net"
-	"strings"
 )
 
 // TCPDialer implements the PipeDialer interface.
-type TCPDialer struct {
+type tcpDialer struct {
 	addr  *net.TCPAddr
 	proto uint16
 }
 
 // Dial implements the the Dialer Dial method.
-func (d *TCPDialer) Dial() (Pipe, error) {
+func (d *tcpDialer) Dial() (Pipe, error) {
 
 	conn, err := net.DialTCP("tcp", nil, d.addr)
 	if err != nil {
@@ -36,17 +35,17 @@ func (d *TCPDialer) Dial() (Pipe, error) {
 	return NewConnPipe(conn, d.proto)
 }
 
-// TCPAccepter implements the PipeAccepter interface.
+// tcpAccepter implements the PipeAccepter interface.
 // In addition to handling Accept(), it also arranges to set up a TCP
 // listener.
-type TCPAccepter struct {
+type tcpAccepter struct {
 	addr     *net.TCPAddr
 	proto    uint16
 	listener *net.TCPListener
 }
 
 // Accept implements the the PipeAccepter Accept method.
-func (a *TCPAccepter) Accept() (Pipe, error) {
+func (a *tcpAccepter) Accept() (Pipe, error) {
 
 	conn, err := a.listener.AcceptTCP()
 	if err != nil {
@@ -57,47 +56,38 @@ func (a *TCPAccepter) Accept() (Pipe, error) {
 }
 
 // Close implements the PipeAccepter Close method.
-func (a *TCPAccepter) Close() error {
+func (a *tcpAccepter) Close() error {
 	a.listener.Close()
 	return nil
 }
 
-// TCPTransport implements the Transport interface.
-type TCPTransport struct {
+// tcpTran implements the Transport interface.
+type tcpTran struct {
 }
 
 // Scheme implements the Transport Scheme method.
-func (t *TCPTransport) Scheme() string {
-	return "tcp://"
+func (t *tcpTran) Scheme() string {
+	return "tcp"
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *TCPTransport) NewDialer(url string, proto uint16) (PipeDialer, error) {
+func (t *tcpTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
 	var err error
-	if !strings.HasPrefix(url, t.Scheme()) {
-		return nil, EBadAddr
-	}
-	url = url[len(t.Scheme()):]
-	d := new(TCPDialer)
+	d := new(tcpDialer)
 	d.proto = proto
-	if d.addr, err = net.ResolveTCPAddr("tcp", url); err != nil {
+	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *TCPTransport) NewAccepter(url string, proto uint16) (PipeAccepter, error) {
+func (t *tcpTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
 	var err error
-	if !strings.HasPrefix(url, t.Scheme()) {
-		return nil, EBadAddr
-	}
-	a := new(TCPAccepter)
+	a := new(tcpAccepter)
 	a.proto = proto
 
-	// skip over the tcp:// scheme prefix
-	url = url[len(t.Scheme()):]
-	if a.addr, err = net.ResolveTCPAddr("tcp", url); err != nil {
+	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
 
@@ -107,3 +97,25 @@ func (t *TCPTransport) NewAccepter(url string, proto uint16) (PipeAccepter, erro
 
 	return a, nil
 }
+
+// SetOption implements the Transport SetOption method.  No options are
+// supported at this time.
+func (*tcpTran) SetOption(string, interface{}) error {
+	// Likely we should support some options here...
+	return ErrBadOption
+}
+
+// GetOption implements the Transport GetOption method.  No options are
+// supported at this time.
+func (*tcpTran) GetOption(string) (interface{}, error) {
+	return nil, ErrBadOption
+}
+
+type tcpFactory int
+
+func (tcpFactory) NewTransport() Transport {
+	return new(tcpTran)
+}
+
+// TCPFactory is used by the core to create TCP Transport instances.
+var TCPFactory tcpFactory

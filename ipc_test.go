@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-var ipc = &IPCTransport{}
+var ipc = IPCFactory.NewTransport()
 
 func TestIPCListenAndAccept(t *testing.T) {
 
@@ -30,7 +30,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 		return
 	}
 
-	addr := "ipc:///tmp/ipc_test1"
+	addr := "/tmp/ipc_test1"
 	t.Logf("Establishing accepter")
 	accepter, err := ipc.NewAccepter(addr, ProtoRep)
 	if err != nil {
@@ -79,16 +79,16 @@ func TestIPCDuplicateListen(t *testing.T) {
 		return
 	}
 
-	url := "ipc:///tmp/ipc_test2"
+	addr := "/tmp/ipc_test2"
 	var err error
-	listener, err := ipc.NewAccepter(url, ProtoRep)
+	listener, err := ipc.NewAccepter(addr, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = ipc.NewAccepter(url, ProtoReq)
+	_, err = ipc.NewAccepter(addr, ProtoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -103,15 +103,15 @@ func TestIPCConnRefused(t *testing.T) {
 		return
 	}
 
-	url := "ipc:///tmp/ipc_test3" // Port 19 is chargen, rarely in use
+	addr := "/tmp/ipc_test3"
 	var err error
-	d, err := ipc.NewDialer(url, ProtoReq)
+	d, err := ipc.NewDialer(addr, ProtoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
 	c, err := d.Dial()
 	if err == nil || c != nil {
-		t.Errorf("Connection not refused (%s)!", url)
+		t.Errorf("Connection not refused (%s)!", addr)
 		return
 	}
 	t.Logf("Got expected error: %v", err)
@@ -124,14 +124,14 @@ func TestIPCSendRecv(t *testing.T) {
 		return
 	}
 
-	url := "ipc:///tmp/ipc_test4"
+	addr := "/tmp/ipc_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *Message)
 
 	t.Logf("Establishing listener")
-	listener, err := ipc.NewAccepter(url, ProtoRep)
+	listener, err := ipc.NewAccepter(addr, ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -143,7 +143,7 @@ func TestIPCSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := ipc.NewDialer(url, ProtoReq)
+		d, err := ipc.NewDialer(addr, ProtoReq)
 
 		client, err := d.Dial()
 		if err != nil {

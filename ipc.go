@@ -16,17 +16,15 @@ package sp
 
 import (
 	"net"
-	"strings"
 )
 
-// IPCDialer implements the PipeDialer interface.
-type IPCDialer struct {
+type ipcDialer struct {
 	addr  *net.UnixAddr
 	proto uint16
 }
 
-// Dial implements the the Dialer Dial method.
-func (d *IPCDialer) Dial() (Pipe, error) {
+// Dial implements the PipeDialer Dial method
+func (d *ipcDialer) Dial() (Pipe, error) {
 
 	conn, err := net.DialUnix("unix", nil, d.addr)
 	if err != nil {
@@ -35,17 +33,14 @@ func (d *IPCDialer) Dial() (Pipe, error) {
 	return NewConnPipe(conn, d.proto)
 }
 
-// IPCAccepter implements the PipeAccepter interface.
-// In addition to handling Accept(), it also arranges to set up a
-// Unix Domain socket listener.
-type IPCAccepter struct {
+type ipcAccepter struct {
 	addr     *net.UnixAddr
 	proto    uint16
 	listener *net.UnixListener
 }
 
 // Accept implements the the PipeAccepter Accept method.
-func (a *IPCAccepter) Accept() (Pipe, error) {
+func (a *ipcAccepter) Accept() (Pipe, error) {
 
 	conn, err := a.listener.AcceptUnix()
 	if err != nil {
@@ -55,47 +50,37 @@ func (a *IPCAccepter) Accept() (Pipe, error) {
 }
 
 // Close implements the PipeAccepter Close method.
-func (a *IPCAccepter) Close() error {
+func (a *ipcAccepter) Close() error {
 	a.listener.Close()
 	return nil
 }
 
-// IPCTransport implements the Transport interface.
-type IPCTransport struct {
+type ipcTran struct {
 }
 
 // Scheme implements the Transport Scheme method.
-func (t *IPCTransport) Scheme() string {
-	return "ipc://"
+func (t *ipcTran) Scheme() string {
+	return "ipc"
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *IPCTransport) NewDialer(url string, proto uint16) (PipeDialer, error) {
+func (t *ipcTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
 	var err error
-	if !strings.HasPrefix(url, t.Scheme()) {
-		return nil, EBadAddr
-	}
-	url = url[len(t.Scheme()):]
-	d := new(IPCDialer)
+	d := new(ipcDialer)
 	d.proto = proto
-	if d.addr, err = net.ResolveUnixAddr("unix", url); err != nil {
+	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *IPCTransport) NewAccepter(url string, proto uint16) (PipeAccepter, error) {
+func (t *ipcTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
 	var err error
-	if !strings.HasPrefix(url, t.Scheme()) {
-		return nil, EBadAddr
-	}
-	a := new(IPCAccepter)
+	a := new(ipcAccepter)
 	a.proto = proto
 
-	// skip over the ipc:// scheme prefix
-	url = url[len(t.Scheme()):]
-	if a.addr, err = net.ResolveUnixAddr("unix", url); err != nil {
+	if a.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
 
@@ -105,3 +90,22 @@ func (t *IPCTransport) NewAccepter(url string, proto uint16) (PipeAccepter, erro
 
 	return a, nil
 }
+
+// SetOption implements a stub Transport SetOption method.
+func (t *ipcTran) SetOption(string, interface{}) error {
+	return ErrBadOption
+}
+
+// GetOption implements a stub Transport GetOption method.
+func (t *ipcTran) GetOption(string) (interface{}, error) {
+	return nil, ErrBadOption
+}
+
+type ipcFactory int
+
+func (ipcFactory) NewTransport() Transport {
+	return new(ipcTran)
+}
+
+// IPCFactory is used by the core to create new IPC Transport instances.
+var IPCFactory ipcFactory

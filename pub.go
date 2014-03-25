@@ -14,49 +14,58 @@
 
 package sp
 
-// Pub is an implementation of the Pub protocol.
-type Pub struct {
+// pub is an implementation of the PUB protocol.
+type pub struct {
 	handle ProtocolHandle
-	xpub   *XPub
+	xpub   Protocol
 }
 
 // Init implements the Protocol Init method.
-func (p *Pub) Init(handle ProtocolHandle) {
+func (p *pub) Init(handle ProtocolHandle) {
 	p.handle = handle
-	p.xpub = &XPub{}
+	p.xpub = XPubFactory.NewProtocol()
 }
 
 // Process implements the Protocol Process method.
-func (p *Pub) Process() {
+func (p *pub) Process() {
 	p.xpub.Process()
 }
 
-// Name implements the Protocol Name method.  It returns "Pub".
-func (*Pub) Name() string {
-	return "Pub"
+// Name implements the Protocol Name method.
+func (*pub) Name() string {
+	return PubName
 }
 
 // Number implements the Protocol Number method.
-func (*Pub) Number() uint16 {
+func (*pub) Number() uint16 {
 	return ProtoPub
 }
 
 // IsRaw implements the Protocol IsRaw method.
-func (*Pub) IsRaw() bool {
+func (*pub) IsRaw() bool {
 	return false
 }
 
 // ValidPeer implements the Protocol ValidPeer method.
-func (p *Pub) ValidPeer(peer uint16) bool {
+func (p *pub) ValidPeer(peer uint16) bool {
 	return p.xpub.ValidPeer(peer)
 }
 
 // RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*Pub) RecvHook(*Message) bool {
+func (*pub) RecvHook(*Message) bool {
 	return true
 }
 
 // SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*Pub) SendHook(*Message) bool {
+func (*pub) SendHook(*Message) bool {
 	return true
 }
+
+type pubFactory int
+
+func (pubFactory) NewProtocol() Protocol {
+	return new(pub)
+}
+
+// PubFactory implements the Protocol Factory for the PUB (Publish) protocol.
+var PubFactory pubFactory

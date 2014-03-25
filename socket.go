@@ -61,9 +61,9 @@ type Socket interface {
 
 // NewSocket creates a new Socket using the specified protocol.
 func NewSocket(protocol string) (Socket, error) {
-	proto := GetProtocol(protocol)
+	proto := getProtocol(protocol)
 	if proto == nil {
-		return nil, EBadProto
+		return nil, ErrBadProto
 	}
 	sock := newCoreSocket()
 	sock.proto = proto
