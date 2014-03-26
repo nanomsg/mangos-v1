@@ -38,6 +38,7 @@ func (p *xrep) Process() {
 	// Check to see if we have a message ready to send up (receiver)
 	if msg, key, err := sock.RecvAnyPipe(); err == nil && msg != nil {
 		msg.putPipeKey(key)
+
 		if msg.trimBackTrace() == nil {
 			// Send it up.  If the application can't receive it
 			// (pipe full, etc.) just drop it.   The peer will

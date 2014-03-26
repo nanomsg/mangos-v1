@@ -140,7 +140,6 @@ func (p *corePipe) receiver() {
 			return
 		}
 
-		// Now try to send
 		select {
 		case p.rq <- msg:
 			p.notifyRecv()
@@ -296,6 +295,7 @@ func (sock *socket) PushUp(msg *Message) bool {
 		sock.work = true
 		return true
 	default:
+		// Droppped message!
 		return false
 	}
 }
@@ -519,7 +519,7 @@ func (sock *socket) SendMsg(msg *Message) error {
 func (sock *socket) Send(b []byte) error {
 	msg := new(Message)
 	msg.Body = b
-	msg.Header = make([]byte, 0)
+	msg.Header = nil
 	return sock.SendMsg(msg)
 }
 

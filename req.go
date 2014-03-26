@@ -93,7 +93,6 @@ func (p *req) needresend() bool {
 	return false
 }
 
-// Process implements the Protocol Process method.
 func (p *req) Process() {
 
 	h := p.sock
@@ -119,22 +118,18 @@ func (p *req) Process() {
 	p.xreq.Process()
 }
 
-// Name implements the Protocol Name method.
 func (*req) Name() string {
 	return ReqName
 }
 
-// Number implements the Protocol Number method.
 func (*req) Number() uint16 {
 	return ProtoReq
 }
 
-// IsRaw implements the Protocol Raw method.
 func (*req) IsRaw() bool {
 	return false
 }
 
-// ValidPeer implements the Protocol ValidPeer method.
 func (*req) ValidPeer(peer uint16) bool {
 	if peer == ProtoRep {
 		return true
@@ -142,7 +137,6 @@ func (*req) ValidPeer(peer uint16) bool {
 	return false
 }
 
-// SendHook implements the Protocol SendHook method.
 func (p *req) SendHook(msg *Message) bool {
 
 	// We only support a single outstanding request at a time.
@@ -161,7 +155,6 @@ func (p *req) SendHook(msg *Message) bool {
 	return true
 }
 
-// RecvHook implements the Protocol RecvHook method.
 func (p *req) RecvHook(msg *Message) bool {
 	if p.reqmsg == nil {
 		return false

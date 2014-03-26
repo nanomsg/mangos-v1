@@ -25,6 +25,7 @@ var (
 	ErrTooShort    = errors.New("message is too short")
 	ErrTooLong     = errors.New("message is too long")
 	ErrClosed      = errors.New("connection closed")
+	ErrConnRefused = errors.New("connection refused")
 	ErrSendTimeout = errors.New("send time out")
 	ErrRecvTimeout = errors.New("receive time out")
 	ErrBadTran     = errors.New("invalid or unsupported transport")
@@ -34,4 +35,5 @@ var (
 	ErrBadOption   = errors.New("invalid or unsupported option")
 	ErrBadValue    = errors.New("invalid option value")
 	ErrGarbled     = errors.New("message garbled")
+	ErrAddrInUse   = errors.New("address in use")
 )

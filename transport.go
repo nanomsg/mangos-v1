@@ -131,6 +131,7 @@ func init() {
 	transports = make(map[string]TransportFactory)
 
 	// Lets go ahead and pre-register the stock transports.
+	registerTransportFactory("inproc", InprocFactory)
 	registerTransportFactory("tcp", TCPFactory)
 	// IPC not supported on Windows (yet), sorry
 	if runtime.GOOS != "windows" {

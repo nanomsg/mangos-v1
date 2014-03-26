@@ -14,8 +14,6 @@
 
 package sp
 
-import ()
-
 // Rep is an implementation of the REP Protocol.
 type rep struct {
 	backtrace []byte

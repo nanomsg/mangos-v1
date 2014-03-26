@@ -30,8 +30,6 @@ type connPipe struct {
 	rproto uint16
 	lproto uint16
 	open   bool
-	cdata  interface{}
-	pdata  interface{}
 }
 
 // Recv implements the Pipe Recv method.  The message received is expected as
