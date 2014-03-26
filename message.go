@@ -44,17 +44,8 @@ func (m *Message) getUint32() (uint32, error) {
 
 // putUint32 inserts a 32-bit value into the message header.
 func (m *Message) putUint32(v uint32) {
-	if len(m.Header) == 0 {
-		// usual case, this is easiest - no copying
-		m.Header = append(m.Header,
-			byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
-	} else {
-		// slow path, we have to copy the header
-		h := make([]byte, 0, len(m.Header)+4)
-		h = append(h, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
-		h = append(h, m.Header...)
-		m.Header = h
-	}
+	m.Header = append(m.Header,
+		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 }
 
 // putPipeKey inserts a 32-bit pipe key into the front of the header.

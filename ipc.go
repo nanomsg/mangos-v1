@@ -55,8 +55,7 @@ func (a *ipcAccepter) Close() error {
 	return nil
 }
 
-type ipcTran struct {
-}
+type ipcTran struct{}
 
 // Scheme implements the Transport Scheme method.
 func (t *ipcTran) Scheme() string {

@@ -16,18 +16,7 @@ package sp
 
 // pub is an implementation of the PUB protocol.
 type pub struct {
-	xpub Protocol
-}
-
-// Init implements the Protocol Init method.
-func (p *pub) Init(sock ProtocolSocket) {
-	p.xpub = XPubFactory.NewProtocol()
-	p.xpub.Init(sock)
-}
-
-// Process implements the Protocol Process method.
-func (p *pub) Process() {
-	p.xpub.Process()
+	xpub
 }
 
 // Name implements the Protocol Name method.
@@ -35,19 +24,9 @@ func (*pub) Name() string {
 	return PubName
 }
 
-// Number implements the Protocol Number method.
-func (*pub) Number() uint16 {
-	return ProtoPub
-}
-
 // IsRaw implements the Protocol IsRaw method.
 func (*pub) IsRaw() bool {
 	return false
-}
-
-// ValidPeer implements the Protocol ValidPeer method.
-func (p *pub) ValidPeer(peer uint16) bool {
-	return p.xpub.ValidPeer(peer)
 }
 
 type pubFactory int

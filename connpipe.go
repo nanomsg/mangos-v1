@@ -65,15 +65,14 @@ func (p *connPipe) Recv() (*Message, error) {
 	if err := p.recvAll(b); err != nil {
 		return nil, err
 	}
-	msg := new(Message)
-	msg.Header = make([]byte, 0, 32) // Header empty, but room to grow
-	msg.Body = b                     // The whole payload is the body
+	msg := &Message{Header: make([]byte, 0, 32)}
+	msg.Body = b
 	return msg, nil
 }
 
 // Send implements the Pipe Send method.  The message is sent as a 64-bit
 // size (network byte order) followed by the message itself.
-func (p *connPipe) Send(msg *Message) (err error) {
+func (p *connPipe) Send(msg *Message) error {
 
 	h := make([]byte, 8)
 	l := uint64(len(msg.Header) + len(msg.Body))
@@ -84,19 +83,16 @@ func (p *connPipe) Send(msg *Message) (err error) {
 	defer p.wlock.Unlock()
 
 	// send length header
-	err = p.sendAll(h)
-	if err != nil {
-		return
+	if err := p.sendAll(h); err != nil {
+		return err
 	}
-	err = p.sendAll(msg.Header)
-	if err != nil {
-		return
+	if err := p.sendAll(msg.Header); err != nil {
+		return err
 	}
-	err = p.sendAll(msg.Body)
-	if err != nil {
-		return
+	if err := p.sendAll(msg.Body); err != nil {
+		return err
 	}
-	return
+	return nil
 }
 
 // LocalProtocol returns our local protocol number.
@@ -130,11 +126,7 @@ func (p *connPipe) IsOpen() bool {
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
 func NewConnPipe(conn net.Conn, lproto uint16) (Pipe, error) {
-	p := new(connPipe)
-	p.conn = conn
-	p.lproto = lproto
-	p.rproto = 0
-
+	p := &connPipe{conn: conn, lproto: lproto}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}

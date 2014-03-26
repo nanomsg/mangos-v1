@@ -127,20 +127,16 @@ func registerTransportFactory(scheme string, f TransportFactory) {
 	transports[scheme] = f
 }
 
-func initTransports() {
-	transportsL.Lock()
-	defer transportsL.Unlock()
-	if transports == nil {
-		transports = make(map[string]TransportFactory)
+func init() {
+	transports = make(map[string]TransportFactory)
 
-		// Lets go ahead and pre-register the stock transports.
-		registerTransportFactory("tcp", TCPFactory)
-		// IPC not supported on Windows (yet), sorry
-		if runtime.GOOS != "windows" {
-			registerTransportFactory("ipc", IPCFactory)
-		}
-		registerTransportFactory("tls+tcp", TLSFactory)
+	// Lets go ahead and pre-register the stock transports.
+	registerTransportFactory("tcp", TCPFactory)
+	// IPC not supported on Windows (yet), sorry
+	if runtime.GOOS != "windows" {
+		registerTransportFactory("ipc", IPCFactory)
 	}
+	registerTransportFactory("tls+tcp", TLSFactory)
 }
 
 // TransportFactory creates a new Transport instance.
@@ -155,9 +151,6 @@ type TransportFactory interface {
 // Use this at your own risk!  The "scheme" is the name of the scheme, with
 // any trailing :// stripped, e.g. "tcp", "ipc", etc.
 func RegisterTransportFactory(scheme string, f TransportFactory) {
-
-	initTransports()
-
 	transportsL.Lock()
 	registerTransportFactory(scheme, f)
 	transportsL.Unlock()
@@ -167,8 +160,6 @@ func RegisterTransportFactory(scheme string, f TransportFactory) {
 // This makes use of the fact that addresses start with a "scheme" such as
 // "tcp://" or "ipc://".
 func getTransportFactory(scheme string) TransportFactory {
-	initTransports()
-
 	transportsL.Lock()
 	f := transports[scheme]
 	transportsL.Unlock()

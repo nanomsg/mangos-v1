@@ -16,38 +16,15 @@ package sp
 
 // pair is an implementation of the Pair protocol.
 type pair struct {
-	xpair *xpair
+	xpair
 }
 
-// Init implements the Protocol Init method.
-func (p *pair) Init(sock ProtocolSocket) {
-	p.xpair = new(xpair)
-	p.xpair.Init(sock)
-}
-
-// Process implements the Protocol Process method.
-func (p *pair) Process() {
-	p.xpair.Process()
-}
-
-// Name implements the Protocol Name method.  It returns "Sub".
 func (*pair) Name() string {
 	return PairName
 }
 
-// Number implements the Protocol Number method.
-func (*pair) Number() uint16 {
-	return ProtoPair
-}
-
-// IsRaw implements the Protocol IsRaw method.
 func (*pair) IsRaw() bool {
 	return false
-}
-
-// ValidPeer implements the Protocol ValidPeer method.
-func (p *pair) ValidPeer(peer uint16) bool {
-	return p.xpair.ValidPeer(peer)
 }
 
 type pairFactory int

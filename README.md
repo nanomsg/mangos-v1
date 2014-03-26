@@ -35,7 +35,7 @@ implementation, I'd like to hear about it.
 
 After this command *sp* is ready to use. Its source will be in:
 
-    $GOROOT/src/pkg/bitbucket.org/gdamore/sp
+    $GOPATH/src/pkg/bitbucket.org/gdamore/sp
 
 You can use `go get -u -a` to update all installed packages.
 

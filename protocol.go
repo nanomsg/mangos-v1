@@ -194,24 +194,20 @@ func registerProtocolFactory(name string, f ProtocolFactory) {
 	protocols[strings.ToLower(name)] = f
 }
 
-func initProtocols() {
-	protocolsL.Lock()
-	defer protocolsL.Unlock()
-	if protocols == nil {
-		protocols = make(map[string]ProtocolFactory)
+func init() {
+	protocols = make(map[string]ProtocolFactory)
 
-		// Lets go ahead and pre-register the stock transports.
-		registerProtocolFactory(XReqName, XReqFactory)
-		registerProtocolFactory(XRepName, XRepFactory)
-		registerProtocolFactory(ReqName, ReqFactory)
-		registerProtocolFactory(RepName, RepFactory)
-		registerProtocolFactory(XPubName, XPubFactory)
-		registerProtocolFactory(XSubName, XSubFactory)
-		registerProtocolFactory(PubName, PubFactory)
-		registerProtocolFactory(SubName, SubFactory)
-		registerProtocolFactory(XPairName, XPairFactory)
-		registerProtocolFactory(PairName, PairFactory)
-	}
+	// Lets go ahead and pre-register the stock transports.
+	registerProtocolFactory(XReqName, XReqFactory)
+	registerProtocolFactory(XRepName, XRepFactory)
+	registerProtocolFactory(ReqName, ReqFactory)
+	registerProtocolFactory(RepName, RepFactory)
+	registerProtocolFactory(XPubName, XPubFactory)
+	registerProtocolFactory(XSubName, XSubFactory)
+	registerProtocolFactory(PubName, PubFactory)
+	registerProtocolFactory(SubName, SubFactory)
+	registerProtocolFactory(XPairName, XPairFactory)
+	registerProtocolFactory(PairName, PairFactory)
 }
 
 // ProtocolFactory implements the factory pattern for Protocol instances.
@@ -227,9 +223,6 @@ type ProtocolFactory interface {
 // (The name is used as the lookup key for
 // protocols, but is converted to lower case first.)
 func RegisterProtocolFactory(name string, f ProtocolFactory) {
-
-	initProtocols()
-
 	protocolsL.Lock()
 	registerProtocolFactory(name, f)
 	protocolsL.Unlock()
@@ -237,8 +230,6 @@ func RegisterProtocolFactory(name string, f ProtocolFactory) {
 
 // getProtocol instantiates a Protocol by name.  The lookup is case-insensitive.
 func getProtocol(name string) Protocol {
-	initProtocols()
-
 	protocolsL.Lock()
 	f := protocols[strings.ToLower(name)]
 	protocolsL.Unlock()

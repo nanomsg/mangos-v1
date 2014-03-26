@@ -21,12 +21,10 @@ type xreq struct {
 	sock ProtocolSocket
 }
 
-// Init implements the Protocol Init method.
 func (p *xreq) Init(socket ProtocolSocket) {
 	p.sock = socket
 }
 
-// Process implements the Protocol Process method.
 func (p *xreq) Process() {
 
 	sock := p.sock
@@ -53,22 +51,18 @@ func (p *xreq) Process() {
 	}
 }
 
-// Name implements the Protocol Name method.
 func (*xreq) Name() string {
 	return XReqName
 }
 
-// Number implements the Protocol Number method.
 func (*xreq) Number() uint16 {
 	return ProtoReq
 }
 
-// IsRaw implements the Protocol Raw method.
 func (*xreq) IsRaw() bool {
 	return true
 }
 
-// ValidPeer implements the Protocol ValidPeer method.
 func (*xreq) ValidPeer(peer uint16) bool {
 	if peer == ProtoRep {
 		return true

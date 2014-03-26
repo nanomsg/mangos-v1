@@ -20,18 +20,7 @@ import ()
 type rep struct {
 	backtrace []byte
 	key       PipeKey // pipe we got the request on
-	xrep      Protocol
-}
-
-// Init implements the Protocol Init method.
-func (p *rep) Init(sock ProtocolSocket) {
-	p.xrep = XRepFactory.NewProtocol()
-	p.xrep.Init(sock)
-}
-
-// Process implements the Protocol Process method.
-func (p *rep) Process() {
-	p.xrep.Process()
+	xrep
 }
 
 // Name implements the Protocol Name method.
@@ -39,21 +28,8 @@ func (*rep) Name() string {
 	return RepName
 }
 
-// Number implements the Protocol Number method.
-func (*rep) Number() uint16 {
-	return ProtoReq
-}
-
 // IsRaw implements the Protocol Raw method.
 func (*rep) IsRaw() bool {
-	return false
-}
-
-// ValidPeer implements the Protocol ValidPeer method.
-func (*rep) ValidPeer(peer uint16) bool {
-	if peer == ProtoReq {
-		return true
-	}
 	return false
 }
 

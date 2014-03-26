@@ -21,6 +21,8 @@ package sp
 type Socket interface {
 	// Close closes the open Socket.  It is an error (panic) to call
 	// other operations on the Socket once it has been closed.
+	// XXX: I think this works, the routines just get ErrClosed; verify
+	// and remove this comment if true.
 	Close()
 
 	// Send puts the message on the outbound send.  It always succeeds,

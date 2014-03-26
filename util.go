@@ -43,7 +43,7 @@ func appendUint32(b []byte, v uint32) []byte {
 }
 
 // mkTimer creates a timer based upon an absolute time.  If however
-// a zero valued time is passed, then then a nil channel is passed
+// a zero valued time is passed, then a nil channel is passed
 // i.e. never selectable.  This allows the output to be readily used
 // with deadlines in network connections, etc.
 func mkTimer(deadline time.Time) <-chan time.Time {

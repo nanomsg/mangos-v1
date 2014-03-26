@@ -27,5 +27,3 @@
 // into any real use at this point.  Use at your own risk!
 //
 package sp
-
-import ()

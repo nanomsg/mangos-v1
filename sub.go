@@ -16,38 +16,16 @@ package sp
 
 // sub is an implementation of the Sub protocol.
 type sub struct {
-	xsub *xsub
+	xsub
 }
 
-// Init implements the Protocol Init method.
-func (p *sub) Init(sock ProtocolSocket) {
-	p.xsub = new(xsub)
-	p.xsub.Init(sock)
-}
-
-// Process implements the Protocol Process method.
-func (p *sub) Process() {
-	p.xsub.Process()
-}
-
-// Name implements the Protocol Name method.  It returns "Sub".
 func (*sub) Name() string {
 	return SubName
-}
-
-// Number implements the Protocol Number method.
-func (*sub) Number() uint16 {
-	return ProtoSub
 }
 
 // IsRaw implements the Protocol IsRaw method.
 func (*sub) IsRaw() bool {
 	return false
-}
-
-// ValidPeer implements the Protocol ValidPeer method.
-func (p *sub) ValidPeer(peer uint16) bool {
-	return p.xsub.ValidPeer(peer)
 }
 
 const (

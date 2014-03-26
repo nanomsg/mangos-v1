@@ -30,14 +30,13 @@ type corePipe struct {
 	pipe    Pipe
 	rq      chan *Message // messages sent to user
 	wq      chan *Message // messages sent to wire
-	closeq  chan bool     // only closed, never passes data
+	closeq  chan struct{} // only closed, never passes data
 	key     PipeKey
 	cansend *list.Element // linkage to socket cansend
 	canrecv *list.Element // linkage to socket canrecv
 
-	s      *socket
-	lk     sync.Mutex // protect access - only close channels once
-	closed bool       // true if we were closed
+	s       *socket
+	closing bool // true if we were closed
 }
 
 // socket is the meaty part of the core information.
@@ -45,8 +44,7 @@ type socket struct {
 	proto   Protocol
 	nextkey PipeKey
 
-	lk *sync.Mutex
-	cv *sync.Cond
+	sync.Mutex
 
 	uwq    chan *Message // upper write queue
 	urq    chan *Message // upper read queue
@@ -76,15 +74,13 @@ type socket struct {
 }
 
 func (sock *socket) addPipe(pipe Pipe) *corePipe {
-	cp := new(corePipe)
+	cp := &corePipe{s: sock, pipe: pipe}
 	// queue depths are kind of arbitrary.  deep enough to avoid
 	// stalls, but hopefully shallow enough to avoid latency.
 	cp.rq = make(chan *Message, 5)
 	cp.wq = make(chan *Message, 5)
-	cp.closeq = make(chan bool)
-	cp.s = sock
-	cp.pipe = pipe
-	sock.lock()
+	cp.closeq = make(chan struct{})
+	sock.Lock()
 	for {
 		// PipeKey zero is special, it represents an unopen/unassigned
 		// PipeKey.  Therefore we must avoid it.  (XXX: Should we
@@ -107,23 +103,23 @@ func (sock *socket) addPipe(pipe Pipe) *corePipe {
 	cp.key = sock.nextkey
 	sock.nextkey++
 	sock.pipes[cp.key] = cp
-	sock.unlock()
+	sock.Unlock()
 	go cp.sender()
 	go cp.receiver()
 	cp.notifySend()
 	return cp
 }
 
-func (p *corePipe) close() {
+func (p *corePipe) shutdown() {
 	s := p.s
 	// We have to ensure that we only close any channels one time, so
 	// we use a lock to check this.  Its the only time we use this lock.
-	s.lock()
-	defer s.unlock()
-	if p.closed {
+	s.Lock()
+	defer s.Unlock()
+	if p.closing {
 		return
 	}
-	p.closed = true
+	p.closing = true
 	p.pipe.Close()
 	delete(s.pipes, p.key)
 	if p.canrecv != nil {
@@ -140,7 +136,7 @@ func (p *corePipe) receiver() {
 	var err error
 	for {
 		if msg, err = p.pipe.Recv(); err != nil {
-			p.close()
+			p.shutdown()
 			return
 		}
 
@@ -163,12 +159,12 @@ func (p *corePipe) sender() {
 			p.notifySend()
 			if msg != nil {
 				if err := p.pipe.Send(msg); err != nil {
-					p.close()
+					p.shutdown()
 					return
 				}
 			}
 			if ok == false {
-				p.close()
+				p.shutdown()
 				return
 			}
 
@@ -181,8 +177,8 @@ func (p *corePipe) sender() {
 // notifySend is called by a pipe to let its Socket know that it is ready
 // to send.
 func (p *corePipe) notifySend() {
-	p.s.lock()
-	defer p.s.unlock()
+	p.s.Lock()
+	defer p.s.Unlock()
 
 	if p.cansend == nil {
 		p.cansend = p.s.cansend.PushBack(p)
@@ -192,8 +188,8 @@ func (p *corePipe) notifySend() {
 
 // notifyRecv is called by a pipe to let its Socket know that it received data.
 func (p *corePipe) notifyRecv() {
-	p.s.lock()
-	defer p.s.unlock()
+	p.s.Lock()
+	defer p.s.Unlock()
 
 	if p.canrecv == nil {
 		p.canrecv = p.s.canrecv.PushBack(p)
@@ -203,7 +199,6 @@ func (p *corePipe) notifyRecv() {
 
 func newSocket(proto Protocol) *socket {
 	sock := new(socket)
-	sock.lk = new(sync.Mutex)
 	// Load all Transports so that SetOption & GetOption work right away.
 	sock.loadTransports()
 	sock.uwq = make(chan *Message, 1000)
@@ -240,14 +235,6 @@ func newSocket(proto Protocol) *socket {
 	return sock
 }
 
-func (sock *socket) lock() {
-	sock.lk.Lock()
-}
-
-func (sock *socket) unlock() {
-	sock.lk.Unlock()
-}
-
 func (sock *socket) signal() {
 	// We try to send just a single message on the wakeq.
 	// If one is already there, then there is no need to do so again.
@@ -264,18 +251,18 @@ func (sock *socket) signal() {
 // indicating a state change.
 func (sock *socket) processor() {
 	for {
-		sock.lock()
+		sock.Lock()
 		if sock.closed {
-			sock.unlock()
+			sock.Unlock()
 			return
 		}
 		sock.work = false
 		sock.proto.Process()
 		if sock.work {
-			sock.unlock()
+			sock.Unlock()
 			continue
 		}
-		sock.unlock()
+		sock.Unlock()
 
 		select {
 		case <-sock.wakeq:
@@ -342,12 +329,13 @@ func (sock *socket) SendAnyPipe(msg *Message) (PipeKey, error) {
 		}
 	}
 	// we should never get here
+	panic("fell off end of loop")
 }
 
 // SendToPipe implements the ProtocolHandle SendToPipe method.
 func (sock *socket) SendToPipe(msg *Message, key PipeKey) error {
 	p := sock.pipes[key]
-	if p == nil || p.closed {
+	if p == nil || p.closing {
 		return ErrClosed
 	}
 	if p.cansend == nil {
@@ -431,7 +419,7 @@ func (sock *socket) WakeUp() {
 
 // IsOpen implements the ProtocolHandle IsOpen method.
 func (sock *socket) IsOpen(key PipeKey) bool {
-	if p, ok := sock.pipes[key]; ok == true && !p.closed {
+	if p, ok := sock.pipes[key]; ok == true && !p.closing {
 		return true
 	}
 	return false
@@ -451,8 +439,8 @@ func (sock *socket) ClosePipe(key PipeKey) error {
 	if key == 0 {
 		return nil
 	}
-	if p, ok := sock.pipes[key]; ok == true && !p.closed {
-		p.closed = true
+	if p, ok := sock.pipes[key]; ok == true && !p.closing {
+		p.closing = true
 		p.pipe.Close()
 		close(p.closeq)
 		return nil
@@ -470,8 +458,8 @@ func (sock *socket) Close() {
 	// Arguably we could/should close the write pipe as well.
 	// It would be an error for any caller to issue any further
 	// operations on the socket after Close -- results in panic.
-	sock.lock()
-	defer sock.unlock()
+	sock.Lock()
+	defer sock.Unlock()
 
 	if sock.closed {
 		return
@@ -486,8 +474,8 @@ func (sock *socket) Close() {
 
 	for k, p := range sock.pipes {
 		sock.pipes[k] = nil
-		if !p.closed {
-			p.closed = true
+		if !p.closing {
+			p.closing = true
 			p.pipe.Close()
 			close(p.closeq)
 		}
@@ -507,9 +495,9 @@ func (sock *socket) Close() {
 
 func (sock *socket) SendMsg(msg *Message) error {
 	if sock.sendhook != nil {
-		sock.lock()
+		sock.Lock()
 		ok := sock.sendhook.SendHook(msg)
-		sock.unlock()
+		sock.Unlock()
 
 		if !ok {
 			// just drop it silently
@@ -546,9 +534,9 @@ func (sock *socket) RecvMsg() (*Message, error) {
 			return nil, ErrRecvTimeout
 		case msg := <-sock.urq:
 			if sock.recvhook != nil {
-				sock.lock()
+				sock.Lock()
 				ok := sock.recvhook.RecvHook(msg)
-				sock.unlock()
+				sock.Unlock()
 				if ok {
 					return msg, nil
 				} // else loop
@@ -572,8 +560,8 @@ func (sock *socket) Recv() ([]byte, error) {
 func (sock *socket) getTransport(addr string) Transport {
 	var i int
 
-	sock.lock()
-	defer sock.unlock()
+	sock.Lock()
+	defer sock.Unlock()
 
 	if i = strings.Index(addr, "://"); i < 0 {
 		return nil
@@ -593,9 +581,6 @@ func (sock *socket) getTransport(addr string) Transport {
 // a pretty cheap operation since Transports generally have very very little
 // state associated with them.
 func (sock *socket) loadTransports() {
-
-	initTransports()
-
 	sock.transports = make(map[string]Transport)
 
 	for scheme, factory := range transports {
@@ -652,13 +637,13 @@ func (sock *socket) dialer(d PipeDialer) {
 // serve spins in a loop, calling the accepter's Accept routine.
 func (sock *socket) serve(a PipeAccepter) {
 	for {
-		sock.lock()
+		sock.Lock()
 		// check to see if the application has closed the socket
 		if sock.closed {
-			sock.unlock()
+			sock.Unlock()
 			return
 		}
-		sock.unlock()
+		sock.Unlock()
 
 		// note that if the underlying Accepter is closed, then
 		// we expect to return back with an error.
