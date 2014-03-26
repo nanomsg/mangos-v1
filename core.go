@@ -89,10 +89,9 @@ func (sock *coreSocket) addPipe(pipe Pipe) {
 	cp.pipe = pipe
 	sock.lock()
 	for {
-		// We chose to avoid pipe key of zero.  There is nothing
-		// fundamental here, but avoiding such keys may help in
-		// debugging problems.  (XXX: Should we insist on a minimum
-		// value, e.g. avoid all keys less than 1000 or somesuch?)
+		// PipeKey zero is special, it represents an unopen/unassigned
+		// PipeKey.  Therefore we must avoid it.  (XXX: Should we
+		// insist on a minimum value, e.g. 1000 or somesuch?)
 		if sock.nextkey == 0 {
 			sock.nextkey++
 		}
@@ -422,6 +421,29 @@ func (h *coreHandle) IsOpen(key PipeKey) bool {
 		return true
 	}
 	return false
+}
+
+// OpenPipes implements the ProtocolHandle OpenPipes method.
+func (h *coreHandle) OpenPipes() []PipeKey {
+	pipes := make([]PipeKey, 0, len(h.s.pipes))
+	for _, v := range h.s.pipes {
+		pipes = append(pipes, v.key)
+	}
+	return pipes
+}
+
+// ClosePipe implements the ProtocolHandle ClosePipe method.
+func (h *coreHandle) ClosePipe(key PipeKey) error {
+	if key == 0 {
+		return nil
+	}
+	if p, ok := h.s.pipes[key]; ok == true && !p.closed {
+		p.closed = true
+		p.pipe.Close()
+		close(p.closeq)
+		return nil
+	}
+	return ErrClosed
 }
 
 // RegisterProtocolOptionHandler implements the ProtocolHandle

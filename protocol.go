@@ -21,7 +21,9 @@ import (
 
 // PipeKey is the "key" or identifier used to match to an underlying
 // connection channel.  For example, a given key will correspond to a single
-// TCP or UNIX domain connected socket.
+// TCP or UNIX domain connected socket.  PipeKey's are always non-zero if
+// associated with an actual Pipe; the zero value may be used as an invalid
+// value.
 type PipeKey uint32
 
 // ProtocolOptionHandler provides a standard interface for setting or getting
@@ -131,12 +133,12 @@ type ProtocolHandle interface {
 	// closed channels.)
 	Send(*Message) (PipeKey, error)
 
-	// Send sends to an explicit peer.  If the Pipe is not open, then
+	// SendTo sends to an explicit peer.  If the Pipe is not open, then
 	// EClosed is returned.  If the Pipe simply cannot accept more
 	// messages, then EPipeFull is returned.  Other errors are fatal.
 	SendTo(*Message, PipeKey) error
 
-	// Send attempts to broadcast the message to all Pipes.
+	// SendAll attempts to broadcast the message to all Pipes.
 	// Its quite possible that there are Pipes that cannot accept it.
 	// The message will only be delivered to those that are capable
 	// of sending or queueing it.  No status is returned.
@@ -152,7 +154,7 @@ type ProtocolHandle interface {
 
 	// IsOpen checks to see if the associated Pipe is open.  This way
 	// an immediate retransmit can be scheduled if an underlying connection
-	// is closed.
+	// is closed.  IsOpen returns false for the zero PipeKey.
 	IsOpen(PipeKey) bool
 
 	// WakeUp wakes the protocol handler (resulting in the Process()
@@ -161,6 +163,14 @@ type ProtocolHandle interface {
 	// purpose is to permit waking up from a retry timer established
 	// by the protocol handler.
 	WakeUp()
+
+	// OpenPipes returns a slice of PipeKeys for the open pipes.
+	OpenPipes() []PipeKey
+
+	// ClosePipe closes the underlying Pipe.  It can be used to terminate
+	// a connection that has had an error.  ClosePipe on a zero PipeKey
+	// always succeeds.
+	ClosePipe(PipeKey) error
 
 	// RegisterOptionHandler is intended to give protocols a chance to
 	// register handlers for option setting, or retrieval.  It should be
@@ -193,6 +203,8 @@ func initProtocols() {
 		registerProtocolFactory(XSubName, XSubFactory)
 		registerProtocolFactory(PubName, PubFactory)
 		registerProtocolFactory(SubName, SubFactory)
+		registerProtocolFactory(XPairName, XPairFactory)
+		registerProtocolFactory(PairName, PairFactory)
 	}
 }
 
@@ -246,15 +258,16 @@ const (
 
 // Protocol names.  These correlate to specific Protocol implementations.
 const (
-	PairName = "PAIR" // Pair Protoco
-	ReqName  = "REQ"  // Request Protocol
-	RepName  = "REP"  // Reply Protocol
-	PubName  = "PUB"  // Publish Protocol
-	SubName  = "SUB"  // Subscribe Protocol
-	BusName  = "BUS"  // Bus Protocol
-	XReqName = "XREQ" // Raw Request Protocol
-	XRepName = "XREP" // Raw Reply Protocol
-	XPubName = "XPUB" // Raw Publish Protocol
-	XSubName = "XSUB" // Raw Subscribe Protocol
-	XBusName = "XBUS" // Raw Bus Protocol
+	PairName  = "PAIR"  // Pair Protocol
+	ReqName   = "REQ"   // Request Protocol
+	RepName   = "REP"   // Reply Protocol
+	PubName   = "PUB"   // Publish Protocol
+	SubName   = "SUB"   // Subscribe Protocol
+	BusName   = "BUS"   // Bus Protocol
+	XPairName = "XPAIR" // Raw Pair Protocol
+	XReqName  = "XREQ"  // Raw Request Protocol
+	XRepName  = "XREP"  // Raw Reply Protocol
+	XPubName  = "XPUB"  // Raw Publish Protocol
+	XSubName  = "XSUB"  // Raw Subscribe Protocol
+	XBusName  = "XBUS"  // Raw Bus Protocol
 )
