@@ -27,8 +27,7 @@ import (
 
 // coreHandle implements the ProtocolHandle interface.
 type coreHandle struct {
-	s    *coreSocket
-	work bool // indicates some work was done
+	s *socket
 }
 
 // corePipe wraps the Pipe data structure with the stuff we need to keep
@@ -38,16 +37,16 @@ type corePipe struct {
 	wq      chan *Message // messages sent to wire
 	closeq  chan bool     // only closed, never passes data
 	key     PipeKey
-	cansend *list.Element // linkage to coreSocket cansend
-	canrecv *list.Element // linkage to coreSocket canrecv
+	cansend *list.Element // linkage to socket cansend
+	canrecv *list.Element // linkage to socket canrecv
 
-	s      *coreSocket
+	s      *socket
 	lk     sync.Mutex // protect access - only close channels once
 	closed bool       // true if we were closed
 }
 
-// coreSocket is the meaty part of the core information.
-type coreSocket struct {
+// socket is the meaty part of the core information.
+type socket struct {
 	hndl    coreHandle
 	proto   Protocol
 	nextkey PipeKey
@@ -61,6 +60,7 @@ type coreSocket struct {
 	wakeq  chan bool     // basically a semaphore/condvar
 
 	closed bool // true if Socket was closed at API level
+	work   bool // Used to track work progress in Process
 
 	rdeadline  time.Time
 	wdeadline  time.Time
@@ -77,7 +77,7 @@ type coreSocket struct {
 	ohandler ProtocolOptionHandler
 }
 
-func (sock *coreSocket) addPipe(pipe Pipe) *corePipe {
+func (sock *socket) addPipe(pipe Pipe) *corePipe {
 	cp := new(corePipe)
 	// queue depths are kind of arbitrary.  deep enough to avoid
 	// stalls, but hopefully shallow enough to avoid latency.
@@ -203,38 +203,40 @@ func (p *corePipe) notifyRecv() {
 	}
 }
 
-func newCoreSocket() *coreSocket {
-	s := new(coreSocket)
-	s.lk = new(sync.Mutex)
+func newSocket(proto Protocol) *socket {
+	sock := new(socket)
+	sock.lk = new(sync.Mutex)
 	// Load all Transports so that SetOption & GetOption work right away.
-	s.loadTransports()
-	s.uwq = make(chan *Message, 1000)
-	s.urq = make(chan *Message, 100)
-	s.closeq = make(chan bool)
-	s.wakeq = make(chan bool)
-	s.hndl.s = s
-	s.canrecv = list.New()
-	s.cansend = list.New()
-	s.accepters = list.New()
-	s.pipes = make(map[PipeKey]*corePipe)
-	s.reconntime = time.Second * 1 // make it a tunable?
+	sock.loadTransports()
+	sock.uwq = make(chan *Message, 1000)
+	sock.urq = make(chan *Message, 100)
+	sock.closeq = make(chan bool)
+	sock.wakeq = make(chan bool)
+	sock.hndl.s = sock
+	sock.canrecv = list.New()
+	sock.cansend = list.New()
+	sock.accepters = list.New()
+	sock.pipes = make(map[PipeKey]*corePipe)
+	sock.reconntime = time.Second * 1 // make it a tunable?
 	rnum := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// We only consider the lower 31 bits.
-	s.nextkey = PipeKey(rnum.Uint32() & 0x7fffffff)
+	sock.nextkey = PipeKey(rnum.Uint32() & 0x7fffffff)
+	sock.proto = proto
+	proto.Init(&sock.hndl)
 
-	go s.processor()
-	return s
+	go sock.processor()
+	return sock
 }
 
-func (sock *coreSocket) lock() {
+func (sock *socket) lock() {
 	sock.lk.Lock()
 }
 
-func (sock *coreSocket) unlock() {
+func (sock *socket) unlock() {
 	sock.lk.Unlock()
 }
 
-func (sock *coreSocket) signal() {
+func (sock *socket) signal() {
 	// We try to send just a single message on the wakeq.
 	// If one is already there, then there is no need to do so again.
 	select {
@@ -248,16 +250,16 @@ func (sock *coreSocket) signal() {
 // Process function, but we take care to keep doing so until it claims to
 // have performed no new work.  Then we wait until some event arrives
 // indicating a state change.
-func (sock *coreSocket) processor() {
+func (sock *socket) processor() {
 	for {
 		sock.lock()
 		if sock.closed {
 			sock.unlock()
 			return
 		}
-		sock.hndl.work = false
+		sock.work = false
 		sock.proto.Process()
-		if sock.hndl.work {
+		if sock.work {
 			sock.unlock()
 			continue
 		}
@@ -281,7 +283,7 @@ func (sock *coreSocket) processor() {
 func (h *coreHandle) PullDown() *Message {
 	select {
 	case msg := <-h.s.uwq:
-		h.work = true
+		h.s.work = true
 		return msg
 	default:
 		return nil
@@ -292,7 +294,7 @@ func (h *coreHandle) PullDown() *Message {
 func (h *coreHandle) PushUp(msg *Message) bool {
 	select {
 	case h.s.urq <- msg:
-		h.work = true
+		h.s.work = true
 		return true
 	default:
 		return false
@@ -322,7 +324,7 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 			// move the element to the end of the list
 			// for FIFO handling
 			p.cansend = l.PushBack(p)
-			h.work = true
+			h.s.work = true
 			return p.key, nil
 		default:
 		}
@@ -348,7 +350,7 @@ func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 		// move the element to the end of the list
 		// for FIFO handling
 		p.cansend = l.PushBack(p)
-		h.work = true
+		h.s.work = true
 		return nil
 	default:
 		return ErrPipeFull
@@ -402,7 +404,7 @@ func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 			// move the element to the end of the list
 			// for FIFO handling -- it might have more data
 			p.canrecv = l.PushBack(p)
-			h.work = true
+			h.s.work = true
 			return msg, p.key, nil
 		default:
 			// no data in pipe, remove it from the list
@@ -453,11 +455,11 @@ func (h *coreHandle) RegisterOptionHandler(o ProtocolOptionHandler) {
 }
 
 //
-// Implementation of Socket bits on coreSocket.  This is the upper API
+// Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
 //
 
-func (sock *coreSocket) Close() {
+func (sock *socket) Close() {
 	// XXX: flushq's?  linger?
 	// Arguably we could/should close the write pipe as well.
 	// It would be an error for any caller to issue any further
@@ -497,7 +499,7 @@ func (sock *coreSocket) Close() {
 	sock.signal()
 }
 
-func (sock *coreSocket) SendMsg(msg *Message) error {
+func (sock *socket) SendMsg(msg *Message) error {
 	sock.lock()
 	ok := sock.proto.SendHook(msg)
 	sock.unlock()
@@ -519,14 +521,14 @@ func (sock *coreSocket) SendMsg(msg *Message) error {
 	}
 }
 
-func (sock *coreSocket) Send(b []byte) error {
+func (sock *socket) Send(b []byte) error {
 	msg := new(Message)
 	msg.Body = b
 	msg.Header = make([]byte, 0)
 	return sock.SendMsg(msg)
 }
 
-func (sock *coreSocket) RecvMsg() (*Message, error) {
+func (sock *socket) RecvMsg() (*Message, error) {
 	timeout := mkTimer(sock.rdeadline)
 
 	for {
@@ -546,7 +548,7 @@ func (sock *coreSocket) RecvMsg() (*Message, error) {
 	}
 }
 
-func (sock *coreSocket) Recv() ([]byte, error) {
+func (sock *socket) Recv() ([]byte, error) {
 	msg, err := sock.RecvMsg()
 	if err != nil {
 		return nil, err
@@ -554,7 +556,7 @@ func (sock *coreSocket) Recv() ([]byte, error) {
 	return msg.Body, nil
 }
 
-func (sock *coreSocket) getTransport(addr string) Transport {
+func (sock *socket) getTransport(addr string) Transport {
 	var i int
 
 	sock.lock()
@@ -577,7 +579,7 @@ func (sock *coreSocket) getTransport(addr string) Transport {
 // instantiate *all* transports we know about.  It turns out that this is
 // a pretty cheap operation since Transports generally have very very little
 // state associated with them.
-func (sock *coreSocket) loadTransports() {
+func (sock *socket) loadTransports() {
 
 	initTransports()
 
@@ -593,7 +595,7 @@ func (sock *coreSocket) loadTransports() {
 }
 
 // Dial implements the Socket Dial method.
-func (sock *coreSocket) Dial(addr string) error {
+func (sock *socket) Dial(addr string) error {
 	// This function should fire off a dialer goroutine.  The dialer
 	// will monitor the connection state, and when it becomes closed
 	// will redial.
@@ -612,7 +614,7 @@ func (sock *coreSocket) Dial(addr string) error {
 }
 
 // dialer is used to dial or redial from a goroutine.
-func (sock *coreSocket) dialer(d PipeDialer) {
+func (sock *socket) dialer(d PipeDialer) {
 	for {
 		p, err := d.Dial()
 		if err == nil {
@@ -635,7 +637,7 @@ func (sock *coreSocket) dialer(d PipeDialer) {
 }
 
 // serve spins in a loop, calling the accepter's Accept routine.
-func (sock *coreSocket) serve(a PipeAccepter) {
+func (sock *socket) serve(a PipeAccepter) {
 	for {
 		sock.lock()
 		// check to see if the application has closed the socket
@@ -654,7 +656,7 @@ func (sock *coreSocket) serve(a PipeAccepter) {
 }
 
 // Listen implements the Socket Listen method.
-func (sock *coreSocket) Listen(addr string) error {
+func (sock *socket) Listen(addr string) error {
 	// This function sets up a goroutine to accept inbound connections.
 	// The accepted connection will be added to a list of accepted
 	// connections.  The Listener just needs to listen continuously,
@@ -676,7 +678,7 @@ func (sock *coreSocket) Listen(addr string) error {
 }
 
 // SetOption implements the Socket SetOption method.
-func (sock *coreSocket) SetOption(name string, value interface{}) error {
+func (sock *socket) SetOption(name string, value interface{}) error {
 	if sock.ohandler != nil {
 		err := sock.ohandler.SetOption(name, value)
 		if err == nil {
@@ -699,7 +701,7 @@ func (sock *coreSocket) SetOption(name string, value interface{}) error {
 }
 
 // GetOption implements the Socket GetOption method.
-func (sock *coreSocket) GetOption(name string) (interface{}, error) {
+func (sock *socket) GetOption(name string) (interface{}, error) {
 	if sock.ohandler != nil {
 		val, err := sock.ohandler.GetOption(name)
 		if err == nil {

@@ -65,8 +65,6 @@ func NewSocket(protocol string) (Socket, error) {
 	if proto == nil {
 		return nil, ErrBadProto
 	}
-	sock := newCoreSocket()
-	sock.proto = proto
-	proto.Init(&sock.hndl)
+	sock := newSocket(proto)
 	return sock, nil
 }
