@@ -23,20 +23,7 @@ import (
 // assumption is that transports using this have similar wire protocols,
 // and ConnPipe is meant to be used as a building block.
 //
-// In particular, these transports are expected to perform the same
-// SP-layer handshake, and to send messages as 64-bit messages in network
-// byte order, followed by the message body.
-//
-// As an example, a TCP implementation might declare:
-//
-//	type TCPPipe struct {
-//		ConnPipe
-//	}
-//
-// The TCP implementation would then need to implement PipeDialer, PipeAccepter,
-// and Transport interfaces, but would not need to concern itself with the
-// particulars of actually transporting messages.
-type ConnPipe struct {
+type connPipe struct {
 	conn   net.Conn
 	rlock  sync.Mutex
 	wlock  sync.Mutex
@@ -49,7 +36,7 @@ type ConnPipe struct {
 
 // Recv implements the Pipe Recv method.  The message received is expected as
 // a 64-bit size (network byte order) followed by the message itself.
-func (p *ConnPipe) Recv() (*Message, error) {
+func (p *connPipe) Recv() (*Message, error) {
 
 	var sz uint64
 	h := make([]byte, 8)
@@ -86,7 +73,7 @@ func (p *ConnPipe) Recv() (*Message, error) {
 
 // Send implements the Pipe Send method.  The message is sent as a 64-bit
 // size (network byte order) followed by the message itself.
-func (p *ConnPipe) Send(msg *Message) (err error) {
+func (p *connPipe) Send(msg *Message) (err error) {
 
 	h := make([]byte, 8)
 	l := uint64(len(msg.Header) + len(msg.Body))
@@ -113,40 +100,47 @@ func (p *ConnPipe) Send(msg *Message) (err error) {
 }
 
 // LocalProtocol returns our local protocol number.
-func (p *ConnPipe) LocalProtocol() uint16 {
+func (p *connPipe) LocalProtocol() uint16 {
 	return p.lproto
 }
 
 // RemoteProtocol returns our peer's protocol number.
-func (p *ConnPipe) RemoteProtocol() uint16 {
+func (p *connPipe) RemoteProtocol() uint16 {
 	return p.rproto
 }
 
 // Close implements the Pipe Close method.
-func (p *ConnPipe) Close() error {
+func (p *connPipe) Close() error {
 	p.open = false
 	return p.conn.Close()
 }
 
 // IsOpen implements the PipeIsOpen method.
-func (p *ConnPipe) IsOpen() bool {
+func (p *connPipe) IsOpen() bool {
 	return p.open
 }
 
 // SetCoreData implements the Pipe SetCoreData method.
-func (p *ConnPipe) SetCoreData(data interface{}) {
+func (p *connPipe) SetCoreData(data interface{}) {
 	p.cdata = data
 }
 
 // GetCoreData implements the Pipe GetCoreData method.
-func (p *ConnPipe) GetCoreData() interface{} {
+func (p *connPipe) GetCoreData() interface{} {
 	return p.cdata
 }
 
-// NewConnPipe allocates a new ConnPipe, and initializes it.
-// It also performs the handshake.
-func NewConnPipe(conn net.Conn, lproto uint16) (*ConnPipe, error) {
-	p := new(ConnPipe)
+// NewConnPipe allocates a new Pipe using the supplied net.Conn, and
+// initializes it.  It performs the handshake required at the SP layer,
+// only returning the Pipe once the SP layer negotiation is complete.
+//
+// Stream oriented transports can utilize this to implement a Transport.
+// The implementation will also need to implement PipeDialer, PipeAccepter,
+// and the Transport enclosing structure.   Using this layered interface,
+// the implementation needn't bother concerning itself with passing actual
+// SP messages once the lower layer connection is established.
+func NewConnPipe(conn net.Conn, lproto uint16) (Pipe, error) {
+	p := new(connPipe)
 	p.conn = conn
 	p.lproto = lproto
 	p.rproto = 0
@@ -159,7 +153,7 @@ func NewConnPipe(conn net.Conn, lproto uint16) (*ConnPipe, error) {
 }
 
 // sendAll sends until the array is sent or an error occurs.
-func (p *ConnPipe) sendAll(b []byte) (err error) {
+func (p *connPipe) sendAll(b []byte) (err error) {
 	sent := 0
 	for n := 0; sent < len(b) && err == nil; sent += n {
 		n, err = p.conn.Write(b[sent:])
@@ -171,7 +165,7 @@ func (p *ConnPipe) sendAll(b []byte) (err error) {
 }
 
 // recvAll receives until the array is filled or an error occurs.
-func (p *ConnPipe) recvAll(b []byte) (err error) {
+func (p *connPipe) recvAll(b []byte) (err error) {
 	recd := 0
 	for n := 0; recd < len(b) && err == nil; recd += n {
 		n, err = p.conn.Read(b[recd:])
@@ -185,7 +179,7 @@ func (p *ConnPipe) recvAll(b []byte) (err error) {
 // handshake establishes an SP connection between peers.  Both sides must
 // send the header, then both sides must wait for the peer's header.
 // As a side effect, the peer's protocol number is stored in the ConnPipe.
-func (p *ConnPipe) handshake() error {
+func (p *connPipe) handshake() error {
 	h := []byte{0, 'S', 'P', 0, 0, 0, 0, 0}
 	// include our protocol number - big endian
 	h[4] = byte(p.lproto >> 8) // type (high byte)
