@@ -25,11 +25,6 @@ import (
 // This file contains some of the "core" handling logic for the SP
 // implementation.  None of the interfaces here are to be exposed externally.
 
-// coreHandle implements the ProtocolHandle interface.
-type coreHandle struct {
-	s *socket
-}
-
 // corePipe wraps the Pipe data structure with the stuff we need to keep
 type corePipe struct {
 	pipe    Pipe
@@ -47,7 +42,6 @@ type corePipe struct {
 
 // socket is the meaty part of the core information.
 type socket struct {
-	hndl    coreHandle
 	proto   Protocol
 	nextkey PipeKey
 
@@ -212,7 +206,6 @@ func newSocket(proto Protocol) *socket {
 	sock.urq = make(chan *Message, 100)
 	sock.closeq = make(chan bool)
 	sock.wakeq = make(chan bool)
-	sock.hndl.s = sock
 	sock.canrecv = list.New()
 	sock.cansend = list.New()
 	sock.accepters = list.New()
@@ -222,7 +215,7 @@ func newSocket(proto Protocol) *socket {
 	// We only consider the lower 31 bits.
 	sock.nextkey = PipeKey(rnum.Uint32() & 0x7fffffff)
 	sock.proto = proto
-	proto.Init(&sock.hndl)
+	proto.Init(sock)
 
 	go sock.processor()
 	return sock
@@ -280,10 +273,10 @@ func (sock *socket) processor() {
 //
 
 // PullDown implements the ProtocolHandle PullDown method.
-func (h *coreHandle) PullDown() *Message {
+func (sock *socket) PullDown() *Message {
 	select {
-	case msg := <-h.s.uwq:
-		h.s.work = true
+	case msg := <-sock.uwq:
+		sock.work = true
 		return msg
 	default:
 		return nil
@@ -291,23 +284,23 @@ func (h *coreHandle) PullDown() *Message {
 }
 
 // PushUp implements the ProtocolHandle PushUp method.
-func (h *coreHandle) PushUp(msg *Message) bool {
+func (sock *socket) PushUp(msg *Message) bool {
 	select {
-	case h.s.urq <- msg:
-		h.s.work = true
+	case sock.urq <- msg:
+		sock.work = true
 		return true
 	default:
 		return false
 	}
 }
 
-// Send implements the ProtocolHandle Send method.
-func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
+// SendAnyPipe implements the ProtocolHandle SendAnyPipe method.
+func (sock *socket) SendAnyPipe(msg *Message) (PipeKey, error) {
 	// Sends to an open Pipe, that is ready...
 	for {
 		var p *corePipe
 		var e *list.Element
-		var l = h.s.cansend
+		var l = sock.cansend
 		// Look for a pipe to send to.  Note that this should only
 		// be called in the context of the Process routine, so
 		// we can reasonably assume that we are holding the lock.
@@ -324,7 +317,7 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 			// move the element to the end of the list
 			// for FIFO handling
 			p.cansend = l.PushBack(p)
-			h.s.work = true
+			sock.work = true
 			return p.key, nil
 		default:
 		}
@@ -332,16 +325,16 @@ func (h *coreHandle) Send(msg *Message) (PipeKey, error) {
 	// we should never get here
 }
 
-// SendTo implements the ProtocolHandle SendTo method.
-func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
-	p := h.s.pipes[key]
+// SendToPipe implements the ProtocolHandle SendToPipe method.
+func (sock *socket) SendToPipe(msg *Message, key PipeKey) error {
+	p := sock.pipes[key]
 	if p == nil || p.closed {
 		return ErrClosed
 	}
 	if p.cansend == nil {
 		return ErrPipeFull
 	}
-	l := h.s.cansend
+	l := sock.cansend
 	l.Remove(p.cansend)
 	p.cansend = nil
 
@@ -350,16 +343,16 @@ func (h *coreHandle) SendTo(msg *Message, key PipeKey) error {
 		// move the element to the end of the list
 		// for FIFO handling
 		p.cansend = l.PushBack(p)
-		h.s.work = true
+		sock.work = true
 		return nil
 	default:
 		return ErrPipeFull
 	}
 }
 
-// SendAll implements the ProtocolHandle SendAll method.
-func (h *coreHandle) SendAll(msg *Message) {
-	l := h.s.cansend
+// SendAllPipes implements the ProtocolHandle SendAllPipes method.
+func (sock *socket) SendAllPipes(msg *Message) {
+	l := sock.cansend
 
 	var n, e *list.Element
 	for e = l.Front(); e != nil; e = n {
@@ -381,13 +374,13 @@ func (h *coreHandle) SendAll(msg *Message) {
 	}
 }
 
-// Recv implements the ProtocolHandle Recv method.
-func (h *coreHandle) Recv() (*Message, PipeKey, error) {
+// RecvAnyPipe implements the ProtocolHandle RecvAnyPipe method.
+func (sock *socket) RecvAnyPipe() (*Message, PipeKey, error) {
 
 	for {
 		var p *corePipe
 		var e *list.Element
-		var l = h.s.canrecv
+		var l = sock.canrecv
 		// Look for a pipe to recv from.  Note that this should only
 		// be called in the context of the Process routine, so
 		// we can reasonably assume that we are holding the lock.
@@ -404,7 +397,7 @@ func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 			// move the element to the end of the list
 			// for FIFO handling -- it might have more data
 			p.canrecv = l.PushBack(p)
-			h.s.work = true
+			sock.work = true
 			return msg, p.key, nil
 		default:
 			// no data in pipe, remove it from the list
@@ -413,33 +406,33 @@ func (h *coreHandle) Recv() (*Message, PipeKey, error) {
 }
 
 // WakeUp implements the ProtocolHandle WakeUp method.
-func (h *coreHandle) WakeUp() {
-	h.s.signal()
+func (sock *socket) WakeUp() {
+	sock.signal()
 }
 
 // IsOpen implements the ProtocolHandle IsOpen method.
-func (h *coreHandle) IsOpen(key PipeKey) bool {
-	if p, ok := h.s.pipes[key]; ok == true && !p.closed {
+func (sock *socket) IsOpen(key PipeKey) bool {
+	if p, ok := sock.pipes[key]; ok == true && !p.closed {
 		return true
 	}
 	return false
 }
 
 // OpenPipes implements the ProtocolHandle OpenPipes method.
-func (h *coreHandle) OpenPipes() []PipeKey {
-	pipes := make([]PipeKey, 0, len(h.s.pipes))
-	for _, v := range h.s.pipes {
+func (sock *socket) OpenPipes() []PipeKey {
+	pipes := make([]PipeKey, 0, len(sock.pipes))
+	for _, v := range sock.pipes {
 		pipes = append(pipes, v.key)
 	}
 	return pipes
 }
 
 // ClosePipe implements the ProtocolHandle ClosePipe method.
-func (h *coreHandle) ClosePipe(key PipeKey) error {
+func (sock *socket) ClosePipe(key PipeKey) error {
 	if key == 0 {
 		return nil
 	}
-	if p, ok := h.s.pipes[key]; ok == true && !p.closed {
+	if p, ok := sock.pipes[key]; ok == true && !p.closed {
 		p.closed = true
 		p.pipe.Close()
 		close(p.closeq)
@@ -450,8 +443,8 @@ func (h *coreHandle) ClosePipe(key PipeKey) error {
 
 // RegisterProtocolOptionHandler implements the ProtocolHandle
 // RegisterProtocolOptionHandler method.
-func (h *coreHandle) RegisterOptionHandler(o ProtocolOptionHandler) {
-	h.s.ohandler = o
+func (sock *socket) RegisterOptionHandler(o ProtocolOptionHandler) {
+	sock.ohandler = o
 }
 
 //

@@ -16,34 +16,34 @@ package sp
 
 // xpub is an implementation of the XPub protocol.
 type xpub struct {
-	handle ProtocolHandle
+	sock ProtocolSocket
 }
 
 // Init implements the Protocol Init method.
-func (p *xpub) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *xpub) Init(sock ProtocolSocket) {
+	p.sock = sock
 }
 
 // Process implements the Protocol Process method.
 func (p *xpub) Process() {
 
-	h := p.handle
-	if msg := h.PullDown(); msg != nil {
+	sock := p.sock
+	if msg := sock.PullDown(); msg != nil {
 		// Just send it to the world.  Clients will filter.
-		h.SendAll(msg)
+		sock.SendAllPipes(msg)
 	}
 
 	// Check to see if we have a message ready to send up (receiver)
 	// We really don't expect to see any messages from subscribers!
-	// Possibly we should log this.  nanomsg takesa rather ... severe
+	// Possibly we should log this.  nanomsg takes a rather severe
 	// stance and asserts here.  We just silently drop.  But we do clear
 	// the buffers this way.
-	h.Recv()
+	sock.RecvAnyPipe()
 }
 
 // Name implements the Protocol Name method.  It returns "XRep".
 func (*xpub) Name() string {
-	return "XPub"
+	return XPubName
 }
 
 // Number implements the Protocol Number method.

@@ -18,20 +18,20 @@ import ()
 
 // xreq is an implementation of the XREQ protocol.
 type xreq struct {
-	handle ProtocolHandle
+	sock ProtocolSocket
 }
 
 // Init implements the Protocol Init method.
-func (p *xreq) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *xreq) Init(socket ProtocolSocket) {
+	p.sock = socket
 }
 
 // Process implements the Protocol Process method.
 func (p *xreq) Process() {
 
-	h := p.handle
+	sock := p.sock
 
-	if msg := h.PullDown(); msg != nil {
+	if msg := sock.PullDown(); msg != nil {
 		// Send sends unmolested.  If we can't due to lack of a
 		// connected peer, we drop it.  (Req protocol resends, but
 		// we don't in xreq.)  Note that it is expected that the
@@ -39,16 +39,16 @@ func (p *xreq) Process() {
 		// header at minimum, but possibly a full backtrace.  We
 		// don't bother to check.  (XXX: Perhaps we should, and
 		// drop any message that lacks at least a minimal header?)
-		h.Send(msg)
+		sock.SendAnyPipe(msg)
 	}
 
-	if msg, _, _ := h.Recv(); msg != nil {
+	if msg, _, _ := sock.RecvAnyPipe(); msg != nil {
 		// When we receive a message, we expect to have the request
 		// ID in the header.  We strip that out into the header.
 		if msg.trimUint32() == nil {
 			// If app can't receive (should never happen), just
 			// drop it.  App will need to resend request.
-			h.PushUp(msg)
+			sock.PushUp(msg)
 		}
 	}
 }

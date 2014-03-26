@@ -49,7 +49,7 @@ type Protocol interface {
 	// Init is called by the core to allow the protocol to perform
 	// any initialization steps it needs.  It should save the handle
 	// for future use, as well.
-	Init(ProtocolHandle)
+	Init(ProtocolSocket)
 
 	// Process is called by the implementation core.  It is used to
 	// perform all protocol processing.  IT MUST NOT BLOCK.  It runs one
@@ -110,11 +110,11 @@ type Protocol interface {
 	SendHook(*Message) bool
 }
 
-// ProtocolHandle is the "handle" given to protocols to interface with the
-// core.  The Protocol implementation should not access any sockets or pipes
-// except by using functions made available on the ProtocolHandle.  Note
+// ProtocolSocket is the "handle" given to protocols to interface with the
+// socket.  The Protocol implementation should not access any sockets or pipes
+// except by using functions made available on the ProtocolSocket.  Note
 // that all functions listed here are non-blocking.
-type ProtocolHandle interface {
+type ProtocolSocket interface {
 	// PullDown gets a message from the user, if one is queued.  If none
 	// are available, nil is returned.
 	PullDown() *Message
@@ -131,18 +131,18 @@ type ProtocolHandle interface {
 	// The pipe chosen for transmit is given back, in case the caller
 	// wants to later check if it disconnected (to expedite resends on
 	// closed channels.)
-	Send(*Message) (PipeKey, error)
+	SendAnyPipe(*Message) (PipeKey, error)
 
 	// SendTo sends to an explicit peer.  If the Pipe is not open, then
 	// EClosed is returned.  If the Pipe simply cannot accept more
 	// messages, then EPipeFull is returned.  Other errors are fatal.
-	SendTo(*Message, PipeKey) error
+	SendToPipe(*Message, PipeKey) error
 
-	// SendAll attempts to broadcast the message to all Pipes.
+	// SendAllPipes attempts to broadcast the message to all Pipes.
 	// Its quite possible that there are Pipes that cannot accept it.
 	// The message will only be delivered to those that are capable
 	// of sending or queueing it.  No status is returned.
-	SendAll(*Message)
+	SendAllPipes(*Message)
 
 	// Recv receives a message, but includes the Pipe from which
 	// it was received.  Note that the Protocol must treat the Pipe as
@@ -150,7 +150,7 @@ type ProtocolHandle interface {
 	// then the error will be EPipeEmpty. The message is received as
 	// a contiguous byte array -- the protocol will carve off any
 	// header(s) it cares about.
-	Recv() (*Message, PipeKey, error)
+	RecvAnyPipe() (*Message, PipeKey, error)
 
 	// IsOpen checks to see if the associated Pipe is open.  This way
 	// an immediate retransmit can be scheduled if an underlying connection

@@ -16,35 +16,35 @@ package sp
 
 // xrep is an implementation of the XREP Protocol.
 type xrep struct {
-	handle ProtocolHandle
+	sock ProtocolSocket
 }
 
 // Init implements the Protocol Init method.
-func (p *xrep) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *xrep) Init(sock ProtocolSocket) {
+	p.sock = sock
 }
 
 // Process implements the Protocol Process method.
 func (p *xrep) Process() {
 
-	h := p.handle
-	if msg := h.PullDown(); msg != nil {
+	sock := p.sock
+	if msg := sock.PullDown(); msg != nil {
 		// Lop off the 32-bit peer/pipe id.  If absent, drop it.
 		if key, err := msg.getPipeKey(); err == nil {
 			// Send it out.  If this fails (no such pipe, closed,
 			// or busy) then just drop it.  Peer will retry.
-			h.SendTo(msg, key)
+			sock.SendToPipe(msg, key)
 		}
 	}
 
 	// Check to see if we have a message ready to send up (receiver)
-	if msg, key, err := h.Recv(); err == nil && msg != nil {
+	if msg, key, err := sock.RecvAnyPipe(); err == nil && msg != nil {
 		msg.putPipeKey(key)
 		if msg.trimBackTrace() == nil {
 			// Send it up.  If the application can't receive it
 			// (pipe full, etc.) just drop it.   The peer will
 			// resend.
-			h.PushUp(msg)
+			sock.PushUp(msg)
 		}
 	}
 }

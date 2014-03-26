@@ -22,22 +22,22 @@ import (
 
 // XSub is an implementation of the XSub protocol.
 type xsub struct {
-	handle ProtocolHandle
-	lk     sync.Mutex
-	subs   *list.List
+	sock ProtocolSocket
+	lk   sync.Mutex
+	subs *list.List
 }
 
 // Init implements the Protocol Init method.
-func (p *xsub) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *xsub) Init(sock ProtocolSocket) {
+	p.sock = sock
 	p.subs = list.New()
-	handle.RegisterOptionHandler(p)
+	sock.RegisterOptionHandler(p)
 }
 
 // Process implements the Protocol Process method.
 func (p *xsub) Process() {
 
-	h := p.handle
+	h := p.sock
 
 	// We never send data to peers, so we just discard any that we see.
 	h.PullDown()
@@ -47,7 +47,7 @@ func (p *xsub) Process() {
 	// have a few subscriptions, so for now we are using an inefficient
 	// linked list.  If we have very many subscriptions, a trie would be
 	// a better structure.
-	m, _, err := h.Recv()
+	m, _, err := h.RecvAnyPipe()
 	if m != nil && err == nil {
 		p.lk.Lock()
 		for e := p.subs.Front(); e != nil; e = e.Next() {

@@ -16,15 +16,13 @@ package sp
 
 // pub is an implementation of the PUB protocol.
 type pub struct {
-	handle ProtocolHandle
-	xpub   Protocol
+	xpub Protocol
 }
 
 // Init implements the Protocol Init method.
-func (p *pub) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *pub) Init(sock ProtocolSocket) {
 	p.xpub = XPubFactory.NewProtocol()
-	p.xpub.Init(handle)
+	p.xpub.Init(sock)
 }
 
 // Process implements the Protocol Process method.

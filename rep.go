@@ -18,18 +18,15 @@ import ()
 
 // Rep is an implementation of the REP Protocol.
 type rep struct {
-	handle ProtocolHandle
-
 	backtrace []byte
 	key       PipeKey // pipe we got the request on
 	xrep      Protocol
 }
 
 // Init implements the Protocol Init method.
-func (p *rep) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *rep) Init(sock ProtocolSocket) {
 	p.xrep = XRepFactory.NewProtocol()
-	p.xrep.Init(handle)
+	p.xrep.Init(sock)
 }
 
 // Process implements the Protocol Process method.

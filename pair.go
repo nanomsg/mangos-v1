@@ -16,15 +16,13 @@ package sp
 
 // pair is an implementation of the Pair protocol.
 type pair struct {
-	handle ProtocolHandle
-	xpair  *xpair
+	xpair *xpair
 }
 
 // Init implements the Protocol Init method.
-func (p *pair) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *pair) Init(sock ProtocolSocket) {
 	p.xpair = new(xpair)
-	p.xpair.Init(handle)
+	p.xpair.Init(sock)
 }
 
 // Process implements the Protocol Process method.

@@ -16,15 +16,15 @@ package sp
 
 // xrep is an implementation of the XREP Protocol.
 type xpair struct {
-	handle ProtocolHandle
+	sock   ProtocolSocket
 	key    PipeKey
 	sndmsg *Message // Pending message for outbound delivery
 	rcvmsg *Message // Pending message for inbound delivery
 }
 
 // Init implements the Protocol Init method.
-func (p *xpair) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *xpair) Init(sock ProtocolSocket) {
+	p.sock = sock
 }
 
 // Process implements the Protocol Process method.
@@ -34,37 +34,37 @@ func (p *xpair) Init(handle ProtocolHandle) {
 // this is the best we can do.
 func (p *xpair) Process() {
 
-	h := p.handle
+	sock := p.sock
 
 	// Generally we only have one connection alive at a time.  We
 	// reject all others.
-	if !h.IsOpen(p.key) {
-		h.ClosePipe(p.key)
+	if !sock.IsOpen(p.key) {
+		sock.ClosePipe(p.key)
 		p.key = 0
 	}
-	pipes := h.OpenPipes()
+	pipes := sock.OpenPipes()
 	if p.key != 0 {
 		// Close any other open pipes.  (Too bad we negotiated the
 		// SP layer already, but ... good bye.)
 		for i := 0; i < len(pipes); i++ {
 			if pipes[i] != p.key {
-				h.ClosePipe(pipes[i])
+				sock.ClosePipe(pipes[i])
 			}
 		}
 	} else {
 		// Select the the first Pipe
-		pipes := h.OpenPipes()
+		pipes := sock.OpenPipes()
 		if len(pipes) > 0 {
 			p.key = pipes[0]
 		}
 	}
 
 	if p.key != 0 && p.sndmsg == nil {
-		p.sndmsg = h.PullDown()
+		p.sndmsg = sock.PullDown()
 	}
 
 	if p.key != 0 && p.sndmsg != nil {
-		switch h.SendTo(p.sndmsg, p.key) {
+		switch sock.SendToPipe(p.sndmsg, p.key) {
 		case nil:
 			// sent it
 			p.sndmsg = nil
@@ -73,7 +73,7 @@ func (p *xpair) Process() {
 			// eases.
 		default:
 			// we had some other worse error
-			h.ClosePipe(p.key)
+			sock.ClosePipe(p.key)
 			p.key = 0
 		}
 	}
@@ -81,13 +81,13 @@ func (p *xpair) Process() {
 	if p.rcvmsg == nil {
 		// Get a new message if one is available.  Discard
 		// any that are not from our expected peer.
-		msg, key, err := h.Recv()
+		msg, key, err := sock.RecvAnyPipe()
 		if msg != nil && err == nil && key == p.key {
 			p.rcvmsg = msg
 		}
 	}
 
-	if p.rcvmsg != nil && h.PushUp(p.rcvmsg) {
+	if p.rcvmsg != nil && sock.PushUp(p.rcvmsg) {
 		// Sent it up!
 		p.rcvmsg = nil
 	}

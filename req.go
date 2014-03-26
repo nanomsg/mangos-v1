@@ -21,7 +21,7 @@ import (
 
 // req is an implementation of the Req protocol.
 type req struct {
-	handle ProtocolHandle
+	sock   ProtocolSocket
 	nextid uint32
 	retry  time.Duration
 	waker  *time.Timer
@@ -40,13 +40,12 @@ type req struct {
 }
 
 // Init implements the Protocol Init method.
-func (p *req) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *req) Init(sock ProtocolSocket) {
+	p.sock = sock
 	p.nextid = rand.New(rand.NewSource(time.Now().UnixNano())).Uint32()
-	// Look this up on the handle?
 	p.retry = time.Minute * 1 // retry after a minute
 	p.xreq = XReqFactory.NewProtocol()
-	p.xreq.Init(handle)
+	p.xreq.Init(sock)
 }
 
 // nextID returns the next request ID.
@@ -75,7 +74,7 @@ func (p *req) reschedule() {
 	// If we don't get a reply, wake us up to resend.
 	p.reqtime = time.Now().Add(p.retry)
 	p.waker = time.AfterFunc(p.retry, func() {
-		p.handle.WakeUp()
+		p.sock.WakeUp()
 	})
 }
 
@@ -88,7 +87,7 @@ func (p *req) needresend() bool {
 	if !time.Now().Before(p.reqtime) {
 		return true
 	}
-	if !p.handle.IsOpen(p.reqkey) {
+	if !p.sock.IsOpen(p.reqkey) {
 		return true
 	}
 	return false
@@ -97,12 +96,12 @@ func (p *req) needresend() bool {
 // Process implements the Protocol Process method.
 func (p *req) Process() {
 
-	h := p.handle
+	h := p.sock
 
 	// Check to see if we have to retransmit our request.
 	if p.needresend() {
 		p.cancel() // stop timer for now
-		if key, err := h.Send(p.reqmsg); err != nil {
+		if key, err := h.SendAnyPipe(p.reqmsg); err != nil {
 			// No suitable pipes available for delivery.
 			// Arrange to retry the next time we are called.
 			// This usually happens in response to a connection

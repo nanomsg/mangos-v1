@@ -16,16 +16,14 @@ package sp
 
 // sub is an implementation of the Sub protocol.
 type sub struct {
-	handle ProtocolHandle
-	xsub   *xsub
+	xsub *xsub
 }
 
 // Init implements the Protocol Init method.
-func (p *sub) Init(handle ProtocolHandle) {
-	p.handle = handle
+func (p *sub) Init(sock ProtocolSocket) {
 	p.xsub = new(xsub)
-	p.xsub.Init(handle)
-	handle.RegisterOptionHandler(p)
+	p.xsub.Init(sock)
+	sock.RegisterOptionHandler(p)
 }
 
 // Process implements the Protocol Process method.
