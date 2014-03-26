@@ -72,16 +72,6 @@ func (*xrep) ValidPeer(peer uint16) bool {
 	return false
 }
 
-// RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*xrep) RecvHook(*Message) bool {
-	return true
-}
-
-// SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*xrep) SendHook(*Message) bool {
-	return true
-}
-
 type xrepFactory int
 
 func (xrepFactory) NewProtocol() Protocol {

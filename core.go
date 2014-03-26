@@ -68,7 +68,11 @@ type socket struct {
 
 	transports map[string]Transport
 
-	ohandler ProtocolOptionHandler
+	// These are conditional "type aliases" for our self
+	setoption ProtocolSetOptionHandler
+	getoption ProtocolGetOptionHandler
+	sendhook  ProtocolSendHook
+	recvhook  ProtocolRecvHook
 }
 
 func (sock *socket) addPipe(pipe Pipe) *corePipe {
@@ -215,6 +219,21 @@ func newSocket(proto Protocol) *socket {
 	// We only consider the lower 31 bits.
 	sock.nextkey = PipeKey(rnum.Uint32() & 0x7fffffff)
 	sock.proto = proto
+
+	// Add some conditionals now -- saves checks later
+	if i, ok := interface{}(proto).(ProtocolGetOptionHandler); ok {
+		sock.getoption = i.(ProtocolGetOptionHandler)
+	}
+	if i, ok := interface{}(proto).(ProtocolSetOptionHandler); ok {
+		sock.setoption = i.(ProtocolSetOptionHandler)
+	}
+	if i, ok := interface{}(proto).(ProtocolRecvHook); ok {
+		sock.recvhook = i.(ProtocolRecvHook)
+	}
+	if i, ok := interface{}(proto).(ProtocolSendHook); ok {
+		sock.sendhook = i.(ProtocolSendHook)
+	}
+
 	proto.Init(sock)
 
 	go sock.processor()
@@ -441,12 +460,6 @@ func (sock *socket) ClosePipe(key PipeKey) error {
 	return ErrClosed
 }
 
-// RegisterProtocolOptionHandler implements the ProtocolHandle
-// RegisterProtocolOptionHandler method.
-func (sock *socket) RegisterOptionHandler(o ProtocolOptionHandler) {
-	sock.ohandler = o
-}
-
 //
 // Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
@@ -493,12 +506,15 @@ func (sock *socket) Close() {
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
-	sock.lock()
-	ok := sock.proto.SendHook(msg)
-	sock.unlock()
-	if !ok {
-		// just drop it silently
-		return nil
+	if sock.sendhook != nil {
+		sock.lock()
+		ok := sock.sendhook.SendHook(msg)
+		sock.unlock()
+
+		if !ok {
+			// just drop it silently
+			return nil
+		}
 	}
 	timeout := mkTimer(sock.wdeadline)
 	for {
@@ -529,12 +545,16 @@ func (sock *socket) RecvMsg() (*Message, error) {
 		case <-timeout:
 			return nil, ErrRecvTimeout
 		case msg := <-sock.urq:
-			sock.lock()
-			ok := sock.proto.RecvHook(msg)
-			sock.unlock()
-			if ok {
+			if sock.recvhook != nil {
+				sock.lock()
+				ok := sock.recvhook.RecvHook(msg)
+				sock.unlock()
+				if ok {
+					return msg, nil
+				} // else loop
+			} else {
 				return msg, nil
-			} // else loop
+			}
 		case <-sock.closeq:
 			return nil, ErrClosed
 		}
@@ -672,8 +692,8 @@ func (sock *socket) Listen(addr string) error {
 
 // SetOption implements the Socket SetOption method.
 func (sock *socket) SetOption(name string, value interface{}) error {
-	if sock.ohandler != nil {
-		err := sock.ohandler.SetOption(name, value)
+	if sock.setoption != nil {
+		err := sock.setoption.SetOption(name, value)
 		if err == nil {
 			return nil
 		}
@@ -695,8 +715,8 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 
 // GetOption implements the Socket GetOption method.
 func (sock *socket) GetOption(name string) (interface{}, error) {
-	if sock.ohandler != nil {
-		val, err := sock.ohandler.GetOption(name)
+	if sock.getoption != nil {
+		val, err := sock.getoption.GetOption(name)
 		if err == nil {
 			return val, nil
 		}

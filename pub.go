@@ -50,16 +50,6 @@ func (p *pub) ValidPeer(peer uint16) bool {
 	return p.xpub.ValidPeer(peer)
 }
 
-// RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*pub) RecvHook(*Message) bool {
-	return true
-}
-
-// SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*pub) SendHook(*Message) bool {
-	return true
-}
-
 type pubFactory int
 
 func (pubFactory) NewProtocol() Protocol {

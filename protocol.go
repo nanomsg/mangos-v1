@@ -26,21 +26,6 @@ import (
 // value.
 type PipeKey uint32
 
-// ProtocolOptionHandler provides a standard interface for setting or getting
-// protocol specific options.
-type ProtocolOptionHandler interface {
-
-	// SetOption is used to set an option.  EBadOption is returned if
-	// the option name is not recognized, EBadValue if the value is
-	// invalid.
-	SetOption(string, interface{}) error
-
-	// GetOption is used to retrieve the current value of an option.
-	// If the protocol doesn't recognize the option, EBadOption should
-	// be returned.
-	GetOption(string) (interface{}, error)
-}
-
 // Protocol implementations handle the "meat" of protocol processing.  Each
 // protocol type will implement one of these.  For protocol pairs (REP/REQ),
 // there will be one for each half of the protocol.
@@ -97,12 +82,40 @@ type Protocol interface {
 	// valid peer for REQ and XREQ, but not for SUB or PUB.  We only match
 	// based on protocol number.
 	ValidPeer(uint16) bool
+}
 
+// The follow are optional interfaces that a Protocol can choose to implement.
+
+// ProtocolGetOptionHandler is intended to be an additional extension
+// to the Protocol interface.
+type ProtocolGetOptionHandler interface {
+	// GetOption is used to retrieve the current value of an option.
+	// If the protocol doesn't recognize the option, EBadOption should
+	// be returned.
+	GetOption(string) (interface{}, error)
+}
+
+// ProtocolSetOptionHandler is intended to be an additional extension
+// to the Protocol interface.
+type ProtocolSetOptionHandler interface {
+	// SetOption is used to set an option.  EBadOption is returned if
+	// the option name is not recognized, EBadValue if the value is
+	// invalid.
+	SetOption(string, interface{}) error
+}
+
+// ProtocolRecvHook is intended to be an additional extension
+// to the Protocol interface.
+type ProtocolRecvHook interface {
 	// RecvHook is called just before the message is handed to the
 	// application.  The message may be modified.  If false is returned,
 	// then the message is dropped.
 	RecvHook(*Message) bool
+}
 
+// ProtocolSendHook is intended to be an additional extension
+// to the Protocol interface.
+type ProtocolSendHook interface {
 	// SendHook is called when the application calls Send.
 	// If false is returned, the message will be silently dropped.
 	// Note that the message may be dropped for other reasons,
@@ -171,13 +184,6 @@ type ProtocolSocket interface {
 	// a connection that has had an error.  ClosePipe on a zero PipeKey
 	// always succeeds.
 	ClosePipe(PipeKey) error
-
-	// RegisterOptionHandler is intended to give protocols a chance to
-	// register handlers for option setting, or retrieval.  It should be
-	// executed during the protocol's Init handler.  This allows protocols
-	// to create option handlers, without requiring all protocols to
-	// cope with it.
-	RegisterOptionHandler(ProtocolOptionHandler)
 }
 
 var protocolsL sync.Mutex

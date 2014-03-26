@@ -31,7 +31,6 @@ type xsub struct {
 func (p *xsub) Init(sock ProtocolSocket) {
 	p.sock = sock
 	p.subs = list.New()
-	sock.RegisterOptionHandler(p)
 }
 
 // Process implements the Protocol Process method.
@@ -84,16 +83,6 @@ func (*xsub) ValidPeer(peer uint16) bool {
 	return false
 }
 
-// RecvHook implements the Protocol RecvHook method.  It is a no-op.
-func (*xsub) RecvHook(*Message) bool {
-	return true
-}
-
-// SendHook implements the Protocol SendHook method.  It is a no-op.
-func (*xsub) SendHook(*Message) bool {
-	return true
-}
-
 const (
 	// XSubOptionSubscribe is the name of the subscribe option.
 	XSubOptionSubscribe = "XSUB.SUBSCRIBE"
@@ -102,7 +91,7 @@ const (
 	XSubOptionUnsubscribe = "XSUB.UNSUBSCRIBE"
 )
 
-// SetOption implements the ProtocolOptionHandler SetOption method.
+// SetOption implements the ProtocolSetOptionHandler SetOption method.
 func (p *xsub) SetOption(name string, value interface{}) error {
 	p.lk.Lock()
 	defer p.lk.Unlock()
@@ -139,13 +128,6 @@ func (p *xsub) SetOption(name string, value interface{}) error {
 	default:
 		return ErrBadOption
 	}
-}
-
-// GetOption well, we don't really support this at present.
-// XXX: What would it mean to "GetOption" the list of subscriptions.
-// Probably this is some sort of list that should be returned?
-func (p *xsub) GetOption(name string) (interface{}, error) {
-	return nil, ErrBadOption
 }
 
 type xsubFactory int
