@@ -328,8 +328,6 @@ func (sock *socket) SendAnyPipe(msg *Message) (PipeKey, error) {
 		default:
 		}
 	}
-	// we should never get here
-	panic("fell off end of loop")
 }
 
 // SendToPipe implements the ProtocolHandle SendToPipe method.
