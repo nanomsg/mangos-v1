@@ -120,16 +120,6 @@ func (p *connPipe) IsOpen() bool {
 	return p.open
 }
 
-// SetCoreData implements the Pipe SetCoreData method.
-func (p *connPipe) SetCoreData(data interface{}) {
-	p.cdata = data
-}
-
-// GetCoreData implements the Pipe GetCoreData method.
-func (p *connPipe) GetCoreData() interface{} {
-	return p.cdata
-}
-
 // NewConnPipe allocates a new Pipe using the supplied net.Conn, and
 // initializes it.  It performs the handshake required at the SP layer,
 // only returning the Pipe once the SP layer negotiation is complete.

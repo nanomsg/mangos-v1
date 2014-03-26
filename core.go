@@ -77,9 +77,8 @@ type coreSocket struct {
 	ohandler ProtocolOptionHandler
 }
 
-func (sock *coreSocket) addPipe(pipe Pipe) {
+func (sock *coreSocket) addPipe(pipe Pipe) *corePipe {
 	cp := new(corePipe)
-	pipe.SetCoreData(cp)
 	// queue depths are kind of arbitrary.  deep enough to avoid
 	// stalls, but hopefully shallow enough to avoid latency.
 	cp.rq = make(chan *Message, 5)
@@ -114,6 +113,7 @@ func (sock *coreSocket) addPipe(pipe Pipe) {
 	go cp.sender()
 	go cp.receiver()
 	cp.notifySend()
+	return cp
 }
 
 func (p *corePipe) close() {
@@ -616,8 +616,7 @@ func (sock *coreSocket) dialer(d PipeDialer) {
 	for {
 		p, err := d.Dial()
 		if err == nil {
-			sock.addPipe(p)
-			cp := p.GetCoreData().(*corePipe)
+			cp := sock.addPipe(p)
 
 			select {
 			case <-sock.closeq: // parent socket closed

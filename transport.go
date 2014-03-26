@@ -60,13 +60,6 @@ type Pipe interface {
 
 	// IsOpen returns true if the underlying connection is open.
 	IsOpen() bool
-
-	// SetCoreData is provided so that the core can attach
-	// opaque data to the Pipe.
-	SetCoreData(interface{})
-
-	// GetCoreData returns the opaque data was stored with SetCoreData.
-	GetCoreData() interface{}
 }
 
 // PipeDialer represents the client side of a connection.  Clients initiate
