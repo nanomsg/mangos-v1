@@ -15,6 +15,7 @@
 package sp
 
 import (
+	"encoding/binary"
 	"net"
 	"sync"
 )
@@ -36,18 +37,17 @@ type connPipe struct {
 // a 64-bit size (network byte order) followed by the message itself.
 func (p *connPipe) Recv() (*Message, error) {
 
-	var sz uint64
-	h := make([]byte, 8)
+	var sz int64
+	var err error
+	var msg *Message
 
 	// prevent interleaved reads
 	p.rlock.Lock()
 	defer p.rlock.Unlock()
 
-	if err := p.recvAll(h); err != nil {
+	if err = binary.Read(p.conn, binary.BigEndian, &sz); err != nil {
 		return nil, err
 	}
-	// decode length header
-	sz = getUint64(h)
 
 	// TBD: This fixed limit is kind of silly, but it keeps
 	// a bogus peer from causing us to try to allocate ridiculous
@@ -55,16 +55,14 @@ func (p *connPipe) Recv() (*Message, error) {
 	// a buffer.  But for protocols that only use small messages
 	// this can actually be more efficient since we don't allocate
 	// any more space than our peer says we need to.
-	if sz > 1024*1024 {
+	if sz > 1024*1024 || sz < 0 {
 		p.conn.Close()
 		return nil, ErrTooLong
 	}
-	b := make([]byte, sz)
-	if err := p.recvAll(b); err != nil {
+	msg = &Message{Body: make([]byte, sz)}
+	if err = binary.Read(p.conn, binary.BigEndian, msg.Body); err != nil {
 		return nil, err
 	}
-	msg := &Message{Header: make([]byte, 0, 32)}
-	msg.Body = b
 	return msg, nil
 }
 
@@ -81,13 +79,13 @@ func (p *connPipe) Send(msg *Message) error {
 	defer p.wlock.Unlock()
 
 	// send length header
-	if err := p.sendAll(h); err != nil {
+	if err := binary.Write(p.conn, binary.BigEndian, l); err != nil {
 		return err
 	}
-	if err := p.sendAll(msg.Header); err != nil {
+	if err := binary.Write(p.conn, binary.BigEndian, msg.Header); err != nil {
 		return err
 	}
-	if err := p.sendAll(msg.Body); err != nil {
+	if err := binary.Write(p.conn, binary.BigEndian, msg.Body); err != nil {
 		return err
 	}
 	return nil
@@ -132,57 +130,42 @@ func NewConnPipe(conn net.Conn, lproto uint16) (Pipe, error) {
 	return p, nil
 }
 
-// sendAll sends until the array is sent or an error occurs.
-func (p *connPipe) sendAll(b []byte) (err error) {
-	sent := 0
-	for n := 0; sent < len(b) && err == nil; sent += n {
-		n, err = p.conn.Write(b[sent:])
-	}
-	if err != nil {
-		p.conn.Close()
-	}
-	return
-}
-
-// recvAll receives until the array is filled or an error occurs.
-func (p *connPipe) recvAll(b []byte) (err error) {
-	recd := 0
-	for n := 0; recd < len(b) && err == nil; recd += n {
-		n, err = p.conn.Read(b[recd:])
-	}
-	if err != nil {
-		p.conn.Close()
-	}
-	return
+// connPipeHeader is exchanged during the initial handshake.
+type connPipeHeader struct {
+	Zero    byte // must be zero
+	S       byte // 'S'
+	P       byte // 'P'
+	Version byte // only zero at present
+	Proto   uint16
+	Rsvd    uint16 // always zero at present
 }
 
 // handshake establishes an SP connection between peers.  Both sides must
 // send the header, then both sides must wait for the peer's header.
 // As a side effect, the peer's protocol number is stored in the ConnPipe.
 func (p *connPipe) handshake() error {
-	h := []byte{0, 'S', 'P', 0, 0, 0, 0, 0}
-	// include our protocol number - big endian
-	h[4] = byte(p.lproto >> 8) // type (high byte)
-	h[5] = byte(p.lproto)      // type (low byte)
+	var err error
 
-	if err := p.sendAll(h); err != nil {
+	h := connPipeHeader{S: 'S', P: 'P', Proto: p.lproto}
+	if err = binary.Write(p.conn, binary.BigEndian, &h); err != nil {
 		return err
 	}
-	if err := p.recvAll(h); err != nil {
+	if err = binary.Read(p.conn, binary.BigEndian, &h); err != nil {
+		p.conn.Close()
 		return err
 	}
-	if h[0] != 0 || h[1] != 'S' || h[2] != 'P' || h[6] != 0 || h[7] != 0 {
+	if h.Zero != 0 || h.S != 'S' || h.P != 'P' || h.Rsvd != 0 {
 		p.conn.Close()
 		return ErrBadHeader
 	}
 	// The only version number we support at present is "0", at offset 3.
-	if h[3] != 0 {
+	if h.Version != 0 {
 		p.conn.Close()
 		return ErrBadVersion
 	}
 
 	// The protocol number lives as 16-bits (big-endian) at offset 4.
-	p.rproto = (uint16(h[4]) << 8) + uint16(h[5])
+	p.rproto = h.Proto
 	p.open = true
 	return nil
 }

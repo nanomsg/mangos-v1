@@ -70,7 +70,7 @@ func (m *Message) trimUint32() error {
 	if len(m.Body) < 4 {
 		return ErrGarbled
 	}
-	m.Header = append(m.Header, m.Body[0], m.Body[1], m.Body[2], m.Body[3])
+	m.Header = append(m.Header, m.Body[:4]...)
 	m.Body = m.Body[4:]
 	return nil
 }
