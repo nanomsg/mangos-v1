@@ -16,6 +16,7 @@ package sp
 
 import (
 	"encoding/binary"
+	"io"
 	"net"
 	"sync"
 )
@@ -60,7 +61,7 @@ func (p *connPipe) Recv() (*Message, error) {
 		return nil, ErrTooLong
 	}
 	msg = &Message{Body: make([]byte, sz)}
-	if err = binary.Read(p.conn, binary.BigEndian, msg.Body); err != nil {
+	if _, err = io.ReadFull(p.conn, msg.Body); err != nil {
 		return nil, err
 	}
 	return msg, nil
@@ -82,10 +83,11 @@ func (p *connPipe) Send(msg *Message) error {
 	if err := binary.Write(p.conn, binary.BigEndian, l); err != nil {
 		return err
 	}
-	if err := binary.Write(p.conn, binary.BigEndian, msg.Header); err != nil {
+	if _, err := p.conn.Write(msg.Header); err != nil {
 		return err
 	}
-	if err := binary.Write(p.conn, binary.BigEndian, msg.Body); err != nil {
+	// hope this works
+	if _, err := p.conn.Write(msg.Body); err != nil {
 		return err
 	}
 	return nil

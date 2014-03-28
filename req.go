@@ -144,9 +144,8 @@ func (p *req) SendHook(msg *Message) bool {
 	p.cancel()
 
 	// We need to generate a new request id, and append it to the header.
-	id := p.nextID()
-	msg.putUint32(id)
-	p.reqid = id
+	p.reqid = p.nextID()
+	msg.putUint32(p.reqid)
 	p.reqmsg = msg
 
 	// Schedule a retry, in case we don't get a reply.

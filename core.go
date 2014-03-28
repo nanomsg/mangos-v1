@@ -200,8 +200,8 @@ func newSocket(proto Protocol) *socket {
 	sock := new(socket)
 	// Load all Transports so that SetOption & GetOption work right away.
 	sock.loadTransports()
-	sock.uwq = make(chan *Message, 1000)
-	sock.urq = make(chan *Message, 100)
+	sock.uwq = make(chan *Message, 10)
+	sock.urq = make(chan *Message, 10)
 	sock.closeq = make(chan bool)
 	sock.wakeq = make(chan bool)
 	sock.canrecv = list.New()

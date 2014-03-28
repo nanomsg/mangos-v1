@@ -144,18 +144,18 @@ func benchmarkPair(t *testing.B, url string, size int) {
 }
 
 func BenchmarkLatencyInproc(t *testing.B) {
-	benchmarkReq(t, "inproc://somename", 111)
+	benchmarkReq(t, "inproc://somename", 0)
 }
 func BenchmarkLatencyIPC(t *testing.B) {
 	if runtime.GOOS == "windows" {
 		t.Skip("IPC not supported on Windows")
 		return
 	}
-	benchmarkReq(t, "ipc:///tmp/benchmark_ipc", 111)
+	benchmarkReq(t, "ipc:///tmp/benchmark_ipc", 0)
 }
 
 func BenchmarkLatencyTCP(t *testing.B) {
-	benchmarkReq(t, "tcp://127.0.0.1:3333", 111)
+	benchmarkReq(t, "tcp://127.0.0.1:3333", 0)
 }
 
 func BenchmarkThruputInproc(t *testing.B) {
