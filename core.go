@@ -51,8 +51,8 @@ type socket struct {
 	closeq chan bool     // closed when user requests close
 	wakeq  chan bool     // basically a semaphore/condvar
 
-	closed bool // true if Socket was closed at API level
-	work   bool // Used to track work progress in Process
+	closing bool // true if Socket was closed at API level
+	work    bool // Used to track work progress in Process
 
 	rdeadline  time.Time
 	wdeadline  time.Time
@@ -251,10 +251,6 @@ func (sock *socket) signal() {
 func (sock *socket) processor() {
 	for {
 		sock.Lock()
-		if sock.closed {
-			sock.Unlock()
-			return
-		}
 		sock.work = false
 		sock.proto.Process()
 		if sock.work {
@@ -453,16 +449,14 @@ func (sock *socket) ClosePipe(key PipeKey) error {
 
 func (sock *socket) Close() {
 	// XXX: flushq's?  linger?
-	// Arguably we could/should close the write pipe as well.
-	// It would be an error for any caller to issue any further
-	// operations on the socket after Close -- results in panic.
 	sock.Lock()
 	defer sock.Unlock()
 
-	if sock.closed {
+	if sock.closing {
 		return
 	}
-	sock.closed = true
+	sock.closing = true
+	close(sock.closeq)
 
 	for e := sock.accepters.Front(); e != nil; e = sock.accepters.Front() {
 		a := e.Value.(PipeAccepter)
@@ -486,9 +480,6 @@ func (sock *socket) Close() {
 			p.canrecv = nil
 		}
 	}
-
-	close(sock.closeq)
-	sock.signal()
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
@@ -635,13 +626,11 @@ func (sock *socket) dialer(d PipeDialer) {
 // serve spins in a loop, calling the accepter's Accept routine.
 func (sock *socket) serve(a PipeAccepter) {
 	for {
-		sock.Lock()
-		// check to see if the application has closed the socket
-		if sock.closed {
-			sock.Unlock()
+		select {
+		case <-sock.closeq:
 			return
+		default:
 		}
-		sock.Unlock()
 
 		// note that if the underlying Accepter is closed, then
 		// we expect to return back with an error.

@@ -21,11 +21,11 @@ import (
 	"sync"
 )
 
-// ConnPipe implements the Pipe interface on top of net.Conn.  The
+// conn implements the Pipe interface on top of net.Conn.  The
 // assumption is that transports using this have similar wire protocols,
-// and ConnPipe is meant to be used as a building block.
+// and conn is meant to be used as a building block.
 //
-type connPipe struct {
+type conn struct {
 	conn   net.Conn
 	rlock  sync.Mutex
 	wlock  sync.Mutex
@@ -36,7 +36,7 @@ type connPipe struct {
 
 // Recv implements the Pipe Recv method.  The message received is expected as
 // a 64-bit size (network byte order) followed by the message itself.
-func (p *connPipe) Recv() (*Message, error) {
+func (p *conn) Recv() (*Message, error) {
 
 	var sz int64
 	var err error
@@ -69,7 +69,7 @@ func (p *connPipe) Recv() (*Message, error) {
 
 // Send implements the Pipe Send method.  The message is sent as a 64-bit
 // size (network byte order) followed by the message itself.
-func (p *connPipe) Send(msg *Message) error {
+func (p *conn) Send(msg *Message) error {
 
 	h := make([]byte, 8)
 	l := uint64(len(msg.Header) + len(msg.Body))
@@ -94,23 +94,23 @@ func (p *connPipe) Send(msg *Message) error {
 }
 
 // LocalProtocol returns our local protocol number.
-func (p *connPipe) LocalProtocol() uint16 {
+func (p *conn) LocalProtocol() uint16 {
 	return p.lproto
 }
 
 // RemoteProtocol returns our peer's protocol number.
-func (p *connPipe) RemoteProtocol() uint16 {
+func (p *conn) RemoteProtocol() uint16 {
 	return p.rproto
 }
 
 // Close implements the Pipe Close method.
-func (p *connPipe) Close() error {
+func (p *conn) Close() error {
 	p.open = false
 	return p.conn.Close()
 }
 
 // IsOpen implements the PipeIsOpen method.
-func (p *connPipe) IsOpen() bool {
+func (p *conn) IsOpen() bool {
 	return p.open
 }
 
@@ -123,8 +123,8 @@ func (p *connPipe) IsOpen() bool {
 // and the Transport enclosing structure.   Using this layered interface,
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
-func NewConnPipe(conn net.Conn, lproto uint16) (Pipe, error) {
-	p := &connPipe{conn: conn, lproto: lproto}
+func NewConnPipe(c net.Conn, lproto uint16) (Pipe, error) {
+	p := &conn{conn: c, lproto: lproto}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func NewConnPipe(conn net.Conn, lproto uint16) (Pipe, error) {
 	return p, nil
 }
 
-// connPipeHeader is exchanged during the initial handshake.
-type connPipeHeader struct {
+// connHeader is exchanged during the initial handshake.
+type connHeader struct {
 	Zero    byte // must be zero
 	S       byte // 'S'
 	P       byte // 'P'
@@ -144,11 +144,11 @@ type connPipeHeader struct {
 
 // handshake establishes an SP connection between peers.  Both sides must
 // send the header, then both sides must wait for the peer's header.
-// As a side effect, the peer's protocol number is stored in the ConnPipe.
-func (p *connPipe) handshake() error {
+// As a side effect, the peer's protocol number is stored in the conn.
+func (p *conn) handshake() error {
 	var err error
 
-	h := connPipeHeader{S: 'S', P: 'P', Proto: p.lproto}
+	h := connHeader{S: 'S', P: 'P', Proto: p.lproto}
 	if err = binary.Write(p.conn, binary.BigEndian, &h); err != nil {
 		return err
 	}
