@@ -26,6 +26,11 @@ import (
 // value.
 type PipeKey uint32
 
+type Endpoint interface {
+	GetID() uint32
+	Close() error
+}
+
 // Protocol implementations handle the "meat" of protocol processing.  Each
 // protocol type will implement one of these.  For protocol pairs (REP/REQ),
 // there will be one for each half of the protocol.
@@ -62,6 +67,19 @@ type Protocol interface {
 	//	}
 	//
 	Process()
+
+	ProcessSend()
+	ProcessRecv()
+
+	AddEndpoint(Endpoint)
+	RemEndpoint(Endpoint)
+
+	// ProcessRecv implements the receiver process.  The protocol
+	// must attempt to process all of the receive activity that it
+	// can without blocking.
+	//ProcessRecv()
+
+	//ProcessSend()
 
 	// Name returns the protocol name as a string.  or example, "REP"
 	// or "XREP".  (Note that this allows us to provide for different
@@ -177,13 +195,9 @@ type ProtocolSocket interface {
 	// by the protocol handler.
 	WakeUp()
 
-	// OpenPipes returns a slice of PipeKeys for the open pipes.
-	OpenPipes() []PipeKey
-
-	// ClosePipe closes the underlying Pipe.  It can be used to terminate
-	// a connection that has had an error.  ClosePipe on a zero PipeKey
-	// always succeeds.
-	ClosePipe(PipeKey) error
+	// NextSendEndpoint()
+	// NextRecvEndpoint()
+	// Endpoint then has RecvMsg, SendMsg, Close, ID methods
 }
 
 var protocolsL sync.Mutex

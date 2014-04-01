@@ -19,14 +19,23 @@ type xrep struct {
 	sock ProtocolSocket
 }
 
-func (p *xrep) Init(sock ProtocolSocket) {
-	p.sock = sock
+func (x *xrep) Init(sock ProtocolSocket) {
+	x.sock = sock
 }
 
-func (p *xrep) Process() {
+func (x *xrep) Process() {
+	x.ProcessRecv()
+	x.ProcessSend()
+}
 
-	sock := p.sock
-	if msg := sock.PullDown(); msg != nil {
+func (x *xrep) ProcessSend() {
+	var msg *Message
+	sock := x.sock
+
+	for {
+		if msg = sock.PullDown(); msg == nil {
+			break
+		}
 		// Lop off the 32-bit peer/pipe id.  If absent, drop it.
 		if key, err := msg.getPipeKey(); err == nil {
 			// Send it out.  If this fails (no such pipe, closed,
@@ -34,11 +43,19 @@ func (p *xrep) Process() {
 			sock.SendToPipe(msg, key)
 		}
 	}
+}
 
-	// Check to see if we have a message ready to send up (receiver)
-	if msg, key, err := sock.RecvAnyPipe(); err == nil && msg != nil {
+func (x *xrep) ProcessRecv() {
+	var msg *Message
+	var key PipeKey
+	sock := x.sock
+
+	for {
+		// Check to see if we have a message ready to send up (receiver)
+		if msg, key, _ = sock.RecvAnyPipe(); msg == nil {
+			break
+		}
 		msg.putPipeKey(key)
-
 		if msg.trimBackTrace() == nil {
 			// Send it up.  If the application can't receive it
 			// (pipe full, etc.) just drop it.   The peer will
@@ -66,6 +83,9 @@ func (*xrep) ValidPeer(peer uint16) bool {
 	}
 	return false
 }
+
+func (*xrep) AddEndpoint(Endpoint) {}
+func (*xrep) RemEndpoint(Endpoint) {}
 
 type xrepFactory int
 

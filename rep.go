@@ -14,11 +14,16 @@
 
 package sp
 
+import (
+	"sync"
+)
+
 // Rep is an implementation of the REP Protocol.
 type rep struct {
 	backtrace []byte
 	key       PipeKey // pipe we got the request on
 	xrep
+	sync.Mutex
 }
 
 // Name implements the Protocol Name method.
@@ -36,7 +41,9 @@ func (*rep) IsRaw() bool {
 // Recv before calling Send, the saved backtrace will be lost.  This is how
 // the application discards / cancels a request to which it declines to reply.
 func (p *rep) RecvHook(m *Message) bool {
+	p.Lock()
 	p.backtrace = m.Header
+	p.Unlock()
 	m.Header = nil
 	return true
 }
@@ -45,13 +52,23 @@ func (p *rep) RecvHook(m *Message) bool {
 func (p *rep) SendHook(m *Message) bool {
 	// Store our saved backtrace.  Note that if none was previously stored,
 	// there is no one to reply to, and we drop the message.
+	p.Lock()
 	m.Header = p.backtrace
 	p.backtrace = nil
+	p.Unlock()
 	if m.Header == nil {
 		return false
 	}
 	return true
 }
+
+// Arguably, for REP, we should try harder to deliver the message to the
+// recipient.  For now we layer on top of XREP which offers only minimal
+// delivery guarantees.  Note that a REP/REQ pair should never encounter
+// back pressure as the synchronous nature prevents such from occurring.
+// The special consideration here is a DEVICE that may be an XREQ partner.
+// In that case the partner should hve a queue of at least depth one on
+// each pipe, so that no single REP socket ever encounters backpressure.
 
 type repFactory int
 

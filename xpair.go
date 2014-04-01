@@ -14,83 +14,92 @@
 
 package sp
 
+import (
+	"sync"
+)
+
 // xrep is an implementation of the XREP Protocol.
 type xpair struct {
 	sock   ProtocolSocket
-	key    PipeKey
+	peer   Endpoint
 	sndmsg *Message // Pending message for outbound delivery
 	rcvmsg *Message // Pending message for inbound delivery
+	sndlk  sync.Mutex
+	rcvlk  sync.Mutex
+	sync.Mutex
 }
 
 // Init implements the Protocol Init method.
-func (p *xpair) Init(sock ProtocolSocket) {
-	p.sock = sock
+func (x *xpair) Init(sock ProtocolSocket) {
+	x.sock = sock
 }
 
-// Process implements the Protocol Process method.
-// For XPair/Pair, we try hard to avoid dropping messages.  It still isn't
-// perfect, because the message can be dropped if the pipe we were using for
-// it disconnects after accepting the pipe.  But without an acknowledgement,
-// this is the best we can do.
-func (p *xpair) Process() {
+func (x *xpair) Process() {
+	x.ProcessRecv()
+	x.ProcessSend()
+}
 
-	sock := p.sock
-
-	// Generally we only have one connection alive at a time.  We
-	// reject all others.
-	if !sock.IsOpen(p.key) {
-		sock.ClosePipe(p.key)
-		p.key = 0
-	}
-	pipes := sock.OpenPipes()
-	if p.key != 0 {
-		// Close any other open pipes.  (Too bad we negotiated the
-		// SP layer already, but ... good bye.)
-		for i := 0; i < len(pipes); i++ {
-			if pipes[i] != p.key {
-				sock.ClosePipe(pipes[i])
-			}
+func (x *xpair) ProcessSend() {
+	x.sndlk.Lock()
+	defer x.sndlk.Unlock()
+	var err error
+	for {
+		msg := x.sndmsg
+		x.sndmsg = nil
+		if msg == nil {
+			msg = x.sock.PullDown()
 		}
-	} else {
-		// Select the the first Pipe
-		pipes := sock.OpenPipes()
-		if len(pipes) > 0 {
-			p.key = pipes[0]
+		if msg == nil {
+			return
+		}
+		_, err = x.sock.SendAnyPipe(msg)
+		if err == nil {
+			continue
+		}
+		x.sndmsg = msg
+
+		if err == ErrPipeFull {
+			return
 		}
 	}
+}
 
-	if p.key != 0 && p.sndmsg == nil {
-		p.sndmsg = sock.PullDown()
-	}
-
-	if p.key != 0 && p.sndmsg != nil {
-		switch sock.SendToPipe(p.sndmsg, p.key) {
-		case nil:
-			// sent it
-			p.sndmsg = nil
-		case ErrPipeFull:
-			// just save it for later delivery, when backpressure
-			// eases.
-		default:
-			// we had some other worse error
-			sock.ClosePipe(p.key)
-			p.key = 0
+func (x *xpair) ProcessRecv() {
+	x.rcvlk.Lock()
+	defer x.rcvlk.Unlock()
+	for {
+		msg := x.rcvmsg
+		x.rcvmsg = nil
+		if msg == nil {
+			msg, _, _ = x.sock.RecvAnyPipe()
+		}
+		if msg == nil {
+			return
+		}
+		if !x.sock.PushUp(msg) {
+			x.rcvmsg = msg
+			return
 		}
 	}
+}
 
-	if p.rcvmsg == nil {
-		// Get a new message if one is available.  Discard
-		// any that are not from our expected peer.
-		msg, key, err := sock.RecvAnyPipe()
-		if msg != nil && err == nil && key == p.key {
-			p.rcvmsg = msg
-		}
+func (x *xpair) AddEndpoint(ep Endpoint) {
+	x.Lock()
+	if x.peer != nil {
+		x.Unlock()
+		ep.Close()
+		return
 	}
+	x.peer = ep
+	x.Unlock()
+}
 
-	if p.rcvmsg != nil && sock.PushUp(p.rcvmsg) {
-		// Sent it up!
-		p.rcvmsg = nil
+func (x *xpair) RemEndpoint(ep Endpoint) {
+	x.Lock()
+	if x.peer == ep {
+		x.peer = nil
 	}
+	x.Unlock()
 }
 
 // Name implements the Protocol Name method.  It returns "XRep".

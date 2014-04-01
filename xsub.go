@@ -23,59 +23,59 @@ import (
 // XSub is an implementation of the XSub protocol.
 type xsub struct {
 	sock ProtocolSocket
-	lk   sync.Mutex
 	subs *list.List
+	sync.Mutex
 }
 
-// Init implements the Protocol Init method.
 func (p *xsub) Init(sock ProtocolSocket) {
 	p.sock = sock
 	p.subs = list.New()
 }
 
-// Process implements the Protocol Process method.
-func (p *xsub) Process() {
+func (x *xsub) Process() {
+	x.ProcessSend()
+	x.ProcessRecv()
+}
 
-	h := p.sock
+func (x *xsub) ProcessRecv() {
+	sock := x.sock
+	var m *Message
+	var err error
+	for {
+		if m, _, err = sock.RecvAnyPipe(); m == nil || err != nil {
+			break
+		}
 
-	// We never send data to peers, so we just discard any that we see.
-	h.PullDown()
-
-	// For inbound messages, we compare the payload (the first part)
-	// with our list of subscriptions.  A typical subscriber will only
-	// have a few subscriptions, so for now we are using an inefficient
-	// linked list.  If we have very many subscriptions, a trie would be
-	// a better structure.
-	m, _, err := h.RecvAnyPipe()
-	if m != nil && err == nil {
-		p.lk.Lock()
-		for e := p.subs.Front(); e != nil; e = e.Next() {
+		x.Lock()
+		for e := x.subs.Front(); e != nil; e = e.Next() {
 			if bytes.HasPrefix(m.Body, e.Value.([]byte)) {
-				// Matched, send it up
-				h.PushUp(m)
+				// Matched, send it up.  Best effort.
+				sock.PushUp(m)
 				break
 			}
 		}
-		p.lk.Unlock()
+		x.Unlock()
 	}
 }
 
-// Name implements the Protocol Name method.  It returns "XRep".
+func (x *xsub) ProcessSend() {
+	// This is a an error!  Just leave the packets at the
+	// "stream head".
+	x.sock.PullDown()
+}
+
 func (*xsub) Name() string {
 	return XSubName
 }
 
-// Number implements the Protocol Number method.
 func (*xsub) Number() uint16 {
 	return ProtoSub
 }
 
-// IsRaw implements the Protocol IsRaw method.
 func (*xsub) IsRaw() bool {
 	return true
 }
 
-// ValidPeer implements the Protocol ValidPeer method.
 func (*xsub) ValidPeer(peer uint16) bool {
 	if peer == ProtoSub {
 		return true
@@ -91,10 +91,12 @@ const (
 	XSubOptionUnsubscribe = "XSUB.UNSUBSCRIBE"
 )
 
-// SetOption implements the ProtocolSetOptionHandler SetOption method.
-func (p *xsub) SetOption(name string, value interface{}) error {
-	p.lk.Lock()
-	defer p.lk.Unlock()
+func (*xsub) AddEndpoint(Endpoint) {}
+func (*xsub) RemEndpoint(Endpoint) {}
+
+func (x *xsub) SetOption(name string, value interface{}) error {
+	x.Lock()
+	defer x.Unlock()
 
 	var vb []byte
 
@@ -106,19 +108,19 @@ func (p *xsub) SetOption(name string, value interface{}) error {
 	}
 	switch {
 	case name == XSubOptionSubscribe:
-		for e := p.subs.Front(); e != nil; e = e.Next() {
+		for e := x.subs.Front(); e != nil; e = e.Next() {
 			if bytes.Equal(e.Value.([]byte), vb) {
 				// Already present
 				return nil
 			}
 		}
-		p.subs.PushBack(vb)
+		x.subs.PushBack(vb)
 		return nil
 
 	case name == XSubOptionUnsubscribe:
-		for e := p.subs.Front(); e != nil; e = e.Next() {
+		for e := x.subs.Front(); e != nil; e = e.Next() {
 			if bytes.Equal(e.Value.([]byte), vb) {
-				p.subs.Remove(e)
+				x.subs.Remove(e)
 				return nil
 			}
 		}
@@ -133,7 +135,7 @@ func (p *xsub) SetOption(name string, value interface{}) error {
 type xsubFactory int
 
 func (xsubFactory) NewProtocol() Protocol {
-	return new(xsub)
+	return &xsub{}
 }
 
 // XSubFactory implements the Protocol Factory for the XSUB protocol.

@@ -14,22 +14,64 @@
 
 package sp
 
-import ()
+import (
+	"sync"
+)
 
 // xreq is an implementation of the XREQ protocol.
 type xreq struct {
-	sock ProtocolSocket
+	sock    ProtocolSocket
+	rcvmsg  *Message
+	sndmsg  *Message
+	rcvlock sync.Mutex
+	sndlock sync.Mutex
 }
 
 func (p *xreq) Init(socket ProtocolSocket) {
 	p.sock = socket
 }
 
-func (p *xreq) Process() {
+func (x *xreq) Process() {
+	x.ProcessRecv()
+	x.ProcessSend()
+}
 
-	sock := p.sock
+func (x *xreq) ProcessRecv() {
+	var msg *Message
+	x.rcvlock.Lock()
+	defer x.rcvlock.Unlock()
+	for {
+		msg = x.rcvmsg
+		if msg == nil {
+			if msg, _, _ = x.sock.RecvAnyPipe(); msg != nil {
+				// Move the requestID into the header
+				if msg.trimUint32() != nil {
+					// XXX: FreeMsg() - error
+					continue
+				}
+			}
+		}
+		if msg == nil {
+			return
+		}
+		if !x.sock.PushUp(msg) {
+			x.rcvmsg = msg
+			return
+		}
+		x.rcvmsg = nil
+	}
+}
 
-	if msg := sock.PullDown(); msg != nil {
+func (x *xreq) ProcessSend() {
+	for {
+		msg := x.sndmsg
+		x.sndmsg = nil
+		if msg == nil {
+			msg = x.sock.PullDown()
+		}
+		if msg == nil {
+			return
+		}
 		// Send sends unmolested.  If we can't due to lack of a
 		// connected peer, we drop it.  (Req protocol resends, but
 		// we don't in xreq.)  Note that it is expected that the
@@ -37,16 +79,15 @@ func (p *xreq) Process() {
 		// header at minimum, but possibly a full backtrace.  We
 		// don't bother to check.  (XXX: Perhaps we should, and
 		// drop any message that lacks at least a minimal header?)
-		sock.SendAnyPipe(msg)
-	}
-
-	if msg, _, _ := sock.RecvAnyPipe(); msg != nil {
-		// When we receive a message, we expect to have the request
-		// ID in the header.  We strip that out into the header.
-		if msg.trimUint32() == nil {
-			// If app can't receive (should never happen), just
-			// drop it.  App will need to resend request.
-			sock.PushUp(msg)
+		//
+		if _, err := x.sock.SendAnyPipe(msg); err != nil {
+			x.sndmsg = msg
+			if err == ErrPipeFull {
+				// No available pipes, come back later
+				return
+			}
+			// Other errors, (ErrClosed) look for another possible pipe
+			continue
 		}
 	}
 }
@@ -69,6 +110,9 @@ func (*xreq) ValidPeer(peer uint16) bool {
 	}
 	return false
 }
+
+func (*xreq) AddEndpoint(Endpoint) {}
+func (*xreq) RemEndpoint(Endpoint) {}
 
 type xreqFactory int
 

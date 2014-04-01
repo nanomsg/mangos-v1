@@ -25,7 +25,7 @@ func (p *xpub) Init(sock ProtocolSocket) {
 }
 
 // Process implements the Protocol Process method.
-func (p *xpub) Process() {
+func (p *xpub) xProcess() {
 
 	sock := p.sock
 	if msg := sock.PullDown(); msg != nil {
@@ -40,6 +40,25 @@ func (p *xpub) Process() {
 	// the buffers this way.
 	sock.RecvAnyPipe()
 }
+
+func (x *xpub) Process() {
+	x.ProcessSend()
+	x.ProcessRecv()
+}
+func (x *xpub) ProcessSend() {
+
+	for {
+		msg := x.sock.PullDown()
+		if msg == nil {
+			return
+		}
+		x.sock.SendAllPipes(msg)
+	}
+}
+
+func (*xpub) ProcessRecv()         {}
+func (*xpub) AddEndpoint(Endpoint) {}
+func (*xpub) RemEndpoint(Endpoint) {}
 
 // Name implements the Protocol Name method.  It returns "XRep".
 func (*xpub) Name() string {

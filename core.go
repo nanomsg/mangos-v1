@@ -77,8 +77,8 @@ func (sock *socket) addPipe(pipe Pipe) *corePipe {
 	cp := &corePipe{s: sock, pipe: pipe}
 	// queue depths are kind of arbitrary.  deep enough to avoid
 	// stalls, but hopefully shallow enough to avoid latency.
-	cp.rq = make(chan *Message, 5)
-	cp.wq = make(chan *Message, 5)
+	cp.rq = make(chan *Message, 10)
+	cp.wq = make(chan *Message, 10)
 	cp.closeq = make(chan struct{})
 	sock.Lock()
 	for {
@@ -104,10 +104,26 @@ func (sock *socket) addPipe(pipe Pipe) *corePipe {
 	sock.nextkey++
 	sock.pipes[cp.key] = cp
 	sock.Unlock()
+
+	sock.proto.AddEndpoint(cp)
+
 	go cp.sender()
 	go cp.receiver()
 	cp.notifySend()
 	return cp
+}
+
+func (sock *socket) remPipe(cp *corePipe) {
+	sock.Lock()
+	delete(sock.pipes, cp.key)
+	sock.Unlock()
+}
+func (p *corePipe) GetID() uint32 {
+	return uint32(p.key)
+}
+func (p *corePipe) Close() error {
+	p.shutdown()
+	return nil
 }
 
 func (p *corePipe) shutdown() {
@@ -419,29 +435,6 @@ func (sock *socket) IsOpen(key PipeKey) bool {
 	return false
 }
 
-// OpenPipes implements the ProtocolHandle OpenPipes method.
-func (sock *socket) OpenPipes() []PipeKey {
-	pipes := make([]PipeKey, 0, len(sock.pipes))
-	for _, v := range sock.pipes {
-		pipes = append(pipes, v.key)
-	}
-	return pipes
-}
-
-// ClosePipe implements the ProtocolHandle ClosePipe method.
-func (sock *socket) ClosePipe(key PipeKey) error {
-	if key == 0 {
-		return nil
-	}
-	if p, ok := sock.pipes[key]; ok == true && !p.closing {
-		p.closing = true
-		p.pipe.Close()
-		close(p.closeq)
-		return nil
-	}
-	return ErrClosed
-}
-
 //
 // Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
@@ -484,11 +477,7 @@ func (sock *socket) Close() {
 
 func (sock *socket) SendMsg(msg *Message) error {
 	if sock.sendhook != nil {
-		sock.Lock()
-		ok := sock.sendhook.SendHook(msg)
-		sock.Unlock()
-
-		if !ok {
+		if ok := sock.sendhook.SendHook(msg); !ok {
 			// just drop it silently
 			return nil
 		}
@@ -523,10 +512,7 @@ func (sock *socket) RecvMsg() (*Message, error) {
 			return nil, ErrRecvTimeout
 		case msg := <-sock.urq:
 			if sock.recvhook != nil {
-				sock.Lock()
-				ok := sock.recvhook.RecvHook(msg)
-				sock.Unlock()
-				if ok {
+				if ok := sock.recvhook.RecvHook(msg); ok {
 					return msg, nil
 				} // else loop
 			} else {
@@ -606,7 +592,6 @@ func (sock *socket) dialer(d PipeDialer) {
 		p, err := d.Dial()
 		if err == nil {
 			cp := sock.addPipe(p)
-
 			select {
 			case <-sock.closeq: // parent socket closed
 			case <-cp.closeq: // disconnect event

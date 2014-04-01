@@ -21,11 +21,11 @@ import (
 
 // req is an implementation of the Req protocol.
 type req struct {
+	xreq
 	sock   ProtocolSocket
 	nextid uint32
 	retry  time.Duration
 	waker  *time.Timer
-	xreq   Protocol
 
 	// fields describing the outstanding request
 	reqmsg  *Message
@@ -44,7 +44,6 @@ func (p *req) Init(sock ProtocolSocket) {
 	p.sock = sock
 	p.nextid = rand.New(rand.NewSource(time.Now().UnixNano())).Uint32()
 	p.retry = time.Minute * 1 // retry after a minute
-	p.xreq = XReqFactory.NewProtocol()
 	p.xreq.Init(sock)
 }
 
@@ -94,6 +93,11 @@ func (p *req) needresend() bool {
 }
 
 func (p *req) Process() {
+	p.ProcessSend()
+	p.xreq.ProcessRecv()
+}
+
+func (p *req) ProcessSend() {
 
 	h := p.sock
 
@@ -115,7 +119,7 @@ func (p *req) Process() {
 	}
 
 	// The rest of this looks like ordinary XReq handling.
-	p.xreq.Process()
+	p.xreq.ProcessSend()
 }
 
 func (*req) Name() string {

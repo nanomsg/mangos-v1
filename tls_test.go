@@ -180,6 +180,10 @@ func TestTLSReqRep(t *testing.T) {
 		srvch <- true
 	}()
 
+	// Generally the server takes a little bit of time finish accept()
+	// because server key generation takes longer.  Give it some time.
+	time.Sleep(time.Millisecond * 500)
+
 	t.Log("Starting client")
 	go func() {
 		var clisock Socket
