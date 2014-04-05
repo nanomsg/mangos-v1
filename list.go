@@ -30,6 +30,12 @@ type ListNode struct {
 // version relies on the consumer to preallocate nodes.  This has the
 // advantage of avoiding extra allocation activity for lists that are
 // used with a lot of insert/remove activity.
+//
+// The reason we need a linked list, instead of using slices, is that we
+// need to frequently change the location where we insert from, and we
+// would prefer to avoid re-ordering.  This means that a slice would tend
+// to grow at the end and we'd have to keep reallocating to accommodate the
+// end growth (even though we'd have lots of free space at the head.)
 type List struct {
 	ListNode
 }
@@ -43,6 +49,11 @@ func (l *List) Init() {
 }
 
 func (l *List) InsertHead(n *ListNode) {
+	if n.list == l {
+		// If we're already on the list, don't change position.
+		// This is particular to this package.
+		return
+	}
 	n.next = l.next
 	n.prev = l.next.prev
 	n.next.prev = n
@@ -51,6 +62,11 @@ func (l *List) InsertHead(n *ListNode) {
 }
 
 func (l *List) InsertTail(n *ListNode) {
+	if n.list == l {
+		// If we're already on the list, don't change position.
+		// This is particular to this package.
+		return
+	}
 	n.prev = l.prev
 	n.next = l.prev.next
 	n.next.prev = n
@@ -73,18 +89,20 @@ func (l *List) TailNode() *ListNode {
 }
 
 func (l *List) RemoveHead() *ListNode {
-	n := l.HeadNode()
-	if n != nil {
-		l.Remove(n)
+	n := l.next
+	if n == &l.ListNode {
+		return nil
 	}
+	l.Remove(n)
 	return n
 }
 
 func (l *List) RemoveTail() *ListNode {
-	n := l.TailNode()
-	if n != nil {
-		l.Remove(n)
+	n := l.prev
+	if n == &l.ListNode {
+		return nil
 	}
+	l.Remove(n)
 	return n
 }
 
@@ -97,7 +115,5 @@ func (l *List) Remove(n *ListNode) {
 	}
 	n.prev.next = n.next
 	n.next.prev = n.prev
-	n.prev = nil
-	n.next = nil
 	n.list = nil
 }

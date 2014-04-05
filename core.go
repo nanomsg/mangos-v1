@@ -59,7 +59,6 @@ type socket struct {
 func (sock *socket) notifySendReady(p *pipe) {
 	if p != nil {
 		sock.sndlock.Lock()
-		sock.cansend.Remove(&p.cansend)
 		sock.cansend.InsertTail(&p.cansend)
 		sock.sndlock.Unlock()
 	}
@@ -82,7 +81,6 @@ func (sock *socket) waitSendReady() chan bool {
 
 func (sock *socket) notifyRecvReady(p *pipe) {
 	sock.rcvlock.Lock()
-	sock.canrecv.Remove(&p.canrecv)
 	sock.canrecv.InsertTail(&p.canrecv)
 	sock.rcvlock.Unlock()
 	select {
@@ -264,15 +262,18 @@ func (sock *socket) Close() {
 	}
 	sock.closing = true
 	close(sock.closeq)
-	sock.Unlock()
 
 	for _, a := range sock.accepters {
 		a.Close()
 	}
 
-	for _, p := range sock.pipes {
+	pipes := append([]*pipe{}, sock.pipes...)
+	sock.Unlock()
+
+	for _, p := range pipes {
 		p.Close()
 	}
+
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
