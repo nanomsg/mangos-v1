@@ -32,18 +32,16 @@ func (p *xsub) Init(sock ProtocolSocket) {
 	p.subs = list.New()
 }
 
-func (x *xsub) Process() {
-	x.ProcessSend()
-	x.ProcessRecv()
-}
-
 func (x *xsub) ProcessRecv() {
 	sock := x.sock
-	var m *Message
-	var err error
 	for {
-		if m, _, err = sock.RecvAnyPipe(); m == nil || err != nil {
-			break
+		ep := sock.NextRecvEndpoint()
+		if ep == nil {
+			return
+		}
+		m := ep.RecvMsg()
+		if m == nil {
+			continue
 		}
 
 		x.Lock()
@@ -61,7 +59,6 @@ func (x *xsub) ProcessRecv() {
 func (x *xsub) ProcessSend() {
 	// This is a an error!  Just leave the packets at the
 	// "stream head".
-	x.sock.PullDown()
 }
 
 func (*xsub) Name() string {

@@ -27,8 +27,21 @@ import (
 type PipeKey uint32
 
 type Endpoint interface {
+	// GetID returns a unique 31-bit value associated with the Endpoint.
+	// The value is unique for a given socket, at a given time.
 	GetID() uint32
+
+	// Close does what you think.
 	Close() error
+
+	// SendMsg sends a message.  On success it returns nil.  If the
+	// pipe is full, EPipeFull is returned, and the caller may attempt
+	// again later.  Otherwise the error is fatal.
+	SendMsg(*Message) error
+
+	// RecvMsg receives a message.  If one cannot be obtained
+	// for any reason (not present, or closed) nil is returned.
+	RecvMsg() *Message
 }
 
 // Protocol implementations handle the "meat" of protocol processing.  Each
@@ -41,45 +54,23 @@ type Protocol interface {
 	// for future use, as well.
 	Init(ProtocolSocket)
 
-	// Process is called by the implementation core.  It is used to
-	// perform all protocol processing.  IT MUST NOT BLOCK.  It runs one
-	// iteration of the processing, and then should return.  It will be
-	// called automatically when new messages arrive for handling, or
-	// when previously "full" queues become available.  It is also called
-	// when new pipes are added, or when existing pipes are closed.
-	// It should try to perform all non-blocking actions that it can,
-	// before returning.
-	//
-	// A trivial Protocol (one that just acts as a unicast passthru) might
-	// have a Process handler like the following.  Note that this example
-	// drops messages that encounter backpressure or errors.
-	//
-	//	func (p *Passthru) Process() bool {
-	//		var err error
-	//		h = p.protocolHandle
-	//		if msg := h.PullDown(); msg != nil {
-	//			h.Send(p.send)  // drop if backpressure
-	//		}
-	//
-	//		if msg, err := h.Recv() {
-	//			h.PushUp(p.recv) // drop if backpressure
-	//		}
-	//	}
-	//
-	Process()
-
+	// ProcessSend implements the sender process.  The protocol
+	// must attempt to process all of the send activity that it
+	// can without blocking.
 	ProcessSend()
-	ProcessRecv()
-
-	AddEndpoint(Endpoint)
-	RemEndpoint(Endpoint)
 
 	// ProcessRecv implements the receiver process.  The protocol
 	// must attempt to process all of the receive activity that it
 	// can without blocking.
-	//ProcessRecv()
+	ProcessRecv()
 
-	//ProcessSend()
+	// AddEndpoint is called when a new Endpoint is added to the socket.
+	// Typically this is as a result of connect or accept completing.
+	AddEndpoint(Endpoint)
+
+	// RemEndpoint is called when an Endpoint is removed from the socket.
+	// Typically this indicates a disconnected or closed connection.
+	RemEndpoint(Endpoint)
 
 	// Name returns the protocol name as a string.  or example, "REP"
 	// or "XREP".  (Note that this allows us to provide for different
@@ -155,39 +146,6 @@ type ProtocolSocket interface {
 	// he has not received yet.
 	PushUp(*Message) bool
 
-	// Send sends a message out the wire.
-	// the message can't be sent or queued (all pipes/buffers full, or
-	// no peers are connected), EPipeFull is returned.  This sends a
-	// message to just one remote peer, which is chosen by the core.
-	// The pipe chosen for transmit is given back, in case the caller
-	// wants to later check if it disconnected (to expedite resends on
-	// closed channels.)
-	SendAnyPipe(*Message) (PipeKey, error)
-
-	// SendTo sends to an explicit peer.  If the Pipe is not open, then
-	// EClosed is returned.  If the Pipe simply cannot accept more
-	// messages, then EPipeFull is returned.  Other errors are fatal.
-	SendToPipe(*Message, PipeKey) error
-
-	// SendAllPipes attempts to broadcast the message to all Pipes.
-	// Its quite possible that there are Pipes that cannot accept it.
-	// The message will only be delivered to those that are capable
-	// of sending or queueing it.  No status is returned.
-	SendAllPipes(*Message)
-
-	// Recv receives a message, but includes the Pipe from which
-	// it was received.  Note that the Protocol must treat the Pipe as
-	// an opaque endpoint.  If no message was available for receiving,
-	// then the error will be EPipeEmpty. The message is received as
-	// a contiguous byte array -- the protocol will carve off any
-	// header(s) it cares about.
-	RecvAnyPipe() (*Message, PipeKey, error)
-
-	// IsOpen checks to see if the associated Pipe is open.  This way
-	// an immediate retransmit can be scheduled if an underlying connection
-	// is closed.  IsOpen returns false for the zero PipeKey.
-	IsOpen(PipeKey) bool
-
 	// WakeUp wakes the protocol handler (resulting in the Process()
 	// function being called.  Unlike the other functions,
 	// this can be executed asynchronously from a goroutine.  The
@@ -195,9 +153,15 @@ type ProtocolSocket interface {
 	// by the protocol handler.
 	WakeUp()
 
-	// NextSendEndpoint()
-	// NextRecvEndpoint()
-	// Endpoint then has RecvMsg, SendMsg, Close, ID methods
+	// NextSendEndpoint returns the next Endpoint capable of sending
+	// messages.  Note that the Endpoint may still be subject to
+	// backpressure.
+	NextSendEndpoint() Endpoint
+
+	// NextRecvEndpoint returns the next Endpoint with messages pending
+	// for receive.  It is possible that there won't actually be a message
+	// pending, so the protocol should check.
+	NextRecvEndpoint() Endpoint
 }
 
 var protocolsL sync.Mutex

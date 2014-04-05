@@ -42,7 +42,6 @@ func (x *xpair) Process() {
 func (x *xpair) ProcessSend() {
 	x.sndlk.Lock()
 	defer x.sndlk.Unlock()
-	var err error
 	for {
 		msg := x.sndmsg
 		x.sndmsg = nil
@@ -52,14 +51,19 @@ func (x *xpair) ProcessSend() {
 		if msg == nil {
 			return
 		}
-		_, err = x.sock.SendAnyPipe(msg)
-		if err == nil {
-			continue
-		}
-		x.sndmsg = msg
-
-		if err == ErrPipeFull {
+		ep := x.sock.NextSendEndpoint()
+		if ep == nil {
+			x.sndmsg = msg
 			return
+		}
+		switch ep.SendMsg(msg) {
+		case nil:
+		case ErrPipeFull:
+			x.sndmsg = msg
+			return
+		default:
+			msg.Recycle()
+			continue
 		}
 	}
 }
@@ -71,7 +75,11 @@ func (x *xpair) ProcessRecv() {
 		msg := x.rcvmsg
 		x.rcvmsg = nil
 		if msg == nil {
-			msg, _, _ = x.sock.RecvAnyPipe()
+			ep := x.sock.NextRecvEndpoint()
+			if ep == nil {
+				return
+			}
+			msg = ep.RecvMsg()
 		}
 		if msg == nil {
 			return

@@ -31,11 +31,6 @@ func (p *xreq) Init(socket ProtocolSocket) {
 	p.sock = socket
 }
 
-func (x *xreq) Process() {
-	x.ProcessRecv()
-	x.ProcessSend()
-}
-
 func (x *xreq) ProcessRecv() {
 	var msg *Message
 	x.rcvlock.Lock()
@@ -43,14 +38,19 @@ func (x *xreq) ProcessRecv() {
 	for {
 		msg = x.rcvmsg
 		if msg == nil {
-			if msg, _, _ = x.sock.RecvAnyPipe(); msg != nil {
-				// Move the requestID into the header
+			if p := x.sock.NextRecvEndpoint(); p != nil {
+				if msg = p.RecvMsg(); msg == nil {
+					continue
+				}
 				if msg.trimUint32() != nil {
-					// XXX: FreeMsg() - error
+					// XXX Bump stat
+					msg.Recycle()
+					msg = nil
 					continue
 				}
 			}
 		}
+
 		if msg == nil {
 			return
 		}
@@ -79,15 +79,21 @@ func (x *xreq) ProcessSend() {
 		// header at minimum, but possibly a full backtrace.  We
 		// don't bother to check.  (XXX: Perhaps we should, and
 		// drop any message that lacks at least a minimal header?)
-		//
-		if _, err := x.sock.SendAnyPipe(msg); err != nil {
+		ep := x.sock.NextSendEndpoint()
+		if ep == nil {
 			x.sndmsg = msg
-			if err == ErrPipeFull {
-				// No available pipes, come back later
-				return
-			}
-			// Other errors, (ErrClosed) look for another possible pipe
+			return
+		}
+		err := ep.SendMsg(msg)
+		switch err {
+		case nil:
 			continue
+		case ErrPipeFull:
+			x.sndmsg = msg
+			return
+		default:
+			// XXX Bump stat
+			msg.Recycle()
 		}
 	}
 }

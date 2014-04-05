@@ -90,3 +90,8 @@ func (m *Message) trimBackTrace() error {
 		}
 	}
 }
+
+// Recycle releases the resources for a message.  While this is not
+// strictly necessary thanks to GC, doing so allows for the resources to
+// be recycled without engaging GC.
+func (m *Message) Recycle() {}

@@ -21,7 +21,6 @@ import (
 // Rep is an implementation of the REP Protocol.
 type rep struct {
 	backtrace []byte
-	key       PipeKey // pipe we got the request on
 	xrep
 	sync.Mutex
 }

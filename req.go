@@ -16,12 +16,14 @@ package sp
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
 // req is an implementation of the Req protocol.
 type req struct {
 	xreq
+	sync.Mutex
 	sock   ProtocolSocket
 	nextid uint32
 	retry  time.Duration
@@ -30,7 +32,7 @@ type req struct {
 	// fields describing the outstanding request
 	reqmsg  *Message
 	reqid   uint32
-	reqkey  PipeKey
+	reqep   Endpoint
 	reqtime time.Time // when the next retry should be performed
 
 	// Valid reply received.  This occurs only when the application
@@ -86,7 +88,7 @@ func (p *req) needresend() bool {
 	if !time.Now().Before(p.reqtime) {
 		return true
 	}
-	if !p.sock.IsOpen(p.reqkey) {
+	if p.reqid == 0 {
 		return true
 	}
 	return false
@@ -101,20 +103,26 @@ func (p *req) ProcessSend() {
 
 	h := p.sock
 
+	p.Lock()
+	defer p.Unlock()
 	// Check to see if we have to retransmit our request.
 	if p.needresend() {
 		p.cancel() // stop timer for now
-		if key, err := h.SendAnyPipe(p.reqmsg); err != nil {
-			// No suitable pipes available for delivery.
-			// Arrange to retry the next time we are called.
-			// This usually happens in response to a connection
-			// completing or backpressure easing.
-			p.reqtime = time.Now()
-		} else {
-			// Successful delivery.  Note the pipe we sent it out
-			// on, and schedule a longer time for resending.
-			p.reqkey = key
-			p.reschedule()
+		ep := h.NextSendEndpoint()
+		if ep != nil {
+			if err := ep.SendMsg(p.reqmsg); err != nil {
+				// No suitable pipes available for delivery.
+				// Arrange to retry the next time we are called.
+				// This usually happens in response to a
+				// connection completing or backpressure easing.
+				p.reqtime = time.Now()
+			} else {
+				// Successful delivery.  Note the pipe we sent
+				// it out on, and schedule a longer time for
+				// resending.
+				p.reqep = ep
+				p.reschedule()
+			}
 		}
 	}
 
@@ -143,6 +151,9 @@ func (*req) ValidPeer(peer uint16) bool {
 
 func (p *req) SendHook(msg *Message) bool {
 
+	p.Lock()
+	defer p.Unlock()
+
 	// We only support a single outstanding request at a time.
 	// If any other message was pending, cancel it.
 	p.cancel()
@@ -159,6 +170,9 @@ func (p *req) SendHook(msg *Message) bool {
 }
 
 func (p *req) RecvHook(msg *Message) bool {
+	p.Lock()
+	defer p.Unlock()
+
 	if p.reqmsg == nil {
 		return false
 	}
@@ -167,8 +181,17 @@ func (p *req) RecvHook(msg *Message) bool {
 	}
 	p.cancel()
 	p.reqmsg = nil
-	p.reqid = 0
 	return true
+}
+
+func (p *req) RemEndpoint(ep Endpoint) {
+	// XXX: Kick it & reschedule
+	p.Lock()
+	if ep == p.reqep {
+		p.reqep = nil
+		p.reschedule()
+	}
+	p.Unlock()
 }
 
 type reqFactory int

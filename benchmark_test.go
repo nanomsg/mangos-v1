@@ -109,14 +109,12 @@ func benchmarkPair(t *testing.B, url string, size int) {
 			return
 		}
 		close(ready)
-		t.ResetTimer()
 		for i := 0; i < t.N; i++ {
 			if _, err = srvsock.RecvMsg(); err != nil {
 				t.Errorf("Error receiving %d: %v", i, err)
 				return
 			}
 		}
-		t.StopTimer()
 		close(finish)
 
 	}()
@@ -138,6 +136,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		}
 	}
 	<-finish
+	t.StopTimer()
 	if size > 128 {
 		t.SetBytes(int64(size))
 	}

@@ -14,37 +14,23 @@
 
 package sp
 
+import (
+	"sync"
+)
+
 // xpub is an implementation of the XPub protocol.
 type xpub struct {
 	sock ProtocolSocket
+	sync.Mutex
+	eps map[uint32]Endpoint
 }
 
 // Init implements the Protocol Init method.
 func (p *xpub) Init(sock ProtocolSocket) {
 	p.sock = sock
+	p.eps = make(map[uint32]Endpoint)
 }
 
-// Process implements the Protocol Process method.
-func (p *xpub) xProcess() {
-
-	sock := p.sock
-	if msg := sock.PullDown(); msg != nil {
-		// Just send it to the world.  Clients will filter.
-		sock.SendAllPipes(msg)
-	}
-
-	// Check to see if we have a message ready to send up (receiver)
-	// We really don't expect to see any messages from subscribers!
-	// Possibly we should log this.  nanomsg takes a rather severe
-	// stance and asserts here.  We just silently drop.  But we do clear
-	// the buffers this way.
-	sock.RecvAnyPipe()
-}
-
-func (x *xpub) Process() {
-	x.ProcessSend()
-	x.ProcessRecv()
-}
 func (x *xpub) ProcessSend() {
 
 	for {
@@ -52,13 +38,32 @@ func (x *xpub) ProcessSend() {
 		if msg == nil {
 			return
 		}
-		x.sock.SendAllPipes(msg)
+		x.Lock()
+		for _, ep := range x.eps {
+			ep.SendMsg(msg)
+		}
+		x.Unlock()
 	}
 }
 
-func (*xpub) ProcessRecv()         {}
-func (*xpub) AddEndpoint(Endpoint) {}
-func (*xpub) RemEndpoint(Endpoint) {}
+func (x *xpub) ProcessRecv() {
+}
+
+func (x *xpub) SendHook(m *Message) bool {
+	return true
+}
+
+func (x *xpub) AddEndpoint(ep Endpoint) {
+	x.Lock()
+	x.eps[ep.GetID()] = ep
+	x.Unlock()
+}
+
+func (x *xpub) RemEndpoint(ep Endpoint) {
+	x.Lock()
+	delete(x.eps, ep.GetID())
+	x.Unlock()
+}
 
 // Name implements the Protocol Name method.  It returns "XRep".
 func (*xpub) Name() string {

@@ -46,10 +46,15 @@ type socket struct {
 
 	sync.Mutex
 
-	uwq    chan *Message // upper write queue
-	urq    chan *Message // upper read queue
-	closeq chan bool     // closed when user requests close
-	wakeq  chan bool     // basically a semaphore/condvar
+	uwq      chan *Message // upper write queue
+	urq      chan *Message // upper read queue
+	closeq   chan bool     // closed when user requests close
+	wakeq    chan bool     // basically a semaphore/condvar
+	sndwakeq chan bool
+	rcvwakeq chan bool
+
+	sndlock sync.Mutex
+	rcvlock sync.Mutex
 
 	closing bool // true if Socket was closed at API level
 	work    bool // Used to track work progress in Process
@@ -71,6 +76,43 @@ type socket struct {
 	getoption ProtocolGetOptionHandler
 	sendhook  ProtocolSendHook
 	recvhook  ProtocolRecvHook
+}
+
+func (sock *socket) notifySendReady(p *corePipe) {
+	if p != nil {
+		sock.sndlock.Lock()
+		p.cansend = sock.cansend.PushBack(p)
+		sock.sndlock.Unlock()
+	}
+	select {
+	case sock.sndwakeq <- true:
+	default:
+	}
+}
+
+func (sock *socket) wakeSend() {
+	select {
+	case sock.sndwakeq <- true:
+	default:
+	}
+}
+
+func (sock *socket) waitSendReady() chan bool {
+	return sock.sndwakeq
+}
+
+func (sock *socket) notifyRecvReady(p *corePipe) {
+	sock.rcvlock.Lock()
+	p.canrecv = sock.canrecv.PushBack(p)
+	sock.rcvlock.Unlock()
+	select {
+	case sock.rcvwakeq <- true:
+	default:
+	}
+}
+
+func (sock *socket) waitRecvReady() chan bool {
+	return sock.rcvwakeq
 }
 
 func (sock *socket) addPipe(pipe Pipe) *corePipe {
@@ -109,7 +151,7 @@ func (sock *socket) addPipe(pipe Pipe) *corePipe {
 
 	go cp.sender()
 	go cp.receiver()
-	cp.notifySend()
+	sock.notifySendReady(cp)
 	return cp
 }
 
@@ -124,6 +166,30 @@ func (p *corePipe) GetID() uint32 {
 func (p *corePipe) Close() error {
 	p.shutdown()
 	return nil
+}
+
+func (p *corePipe) SendMsg(msg *Message) error {
+	select {
+	case p.wq <- msg:
+		p.s.notifySendReady(p)
+		return nil
+	case <-p.closeq:
+		return ErrClosed
+	default:
+		return ErrPipeFull
+	}
+}
+
+func (p *corePipe) RecvMsg() *Message {
+	select {
+	case msg := <-p.rq:
+		p.s.notifyRecvReady(p)
+		return msg
+	case <-p.closeq:
+		return nil
+	default:
+		return nil
+	}
 }
 
 func (p *corePipe) shutdown() {
@@ -158,7 +224,7 @@ func (p *corePipe) receiver() {
 
 		select {
 		case p.rq <- msg:
-			p.notifyRecv()
+			p.s.notifyRecvReady(p)
 
 		case <-p.closeq:
 			return
@@ -171,7 +237,7 @@ func (p *corePipe) sender() {
 	for {
 		select {
 		case msg, ok := <-p.wq:
-			p.notifySend()
+			p.s.notifySendReady(p)
 			if msg != nil {
 				if err := p.pipe.Send(msg); err != nil {
 					p.shutdown()
@@ -189,29 +255,6 @@ func (p *corePipe) sender() {
 	}
 }
 
-// notifySend is called by a pipe to let its Socket know that it is ready
-// to send.
-func (p *corePipe) notifySend() {
-	p.s.Lock()
-	defer p.s.Unlock()
-
-	if p.cansend == nil {
-		p.cansend = p.s.cansend.PushBack(p)
-		p.s.signal()
-	}
-}
-
-// notifyRecv is called by a pipe to let its Socket know that it received data.
-func (p *corePipe) notifyRecv() {
-	p.s.Lock()
-	defer p.s.Unlock()
-
-	if p.canrecv == nil {
-		p.canrecv = p.s.canrecv.PushBack(p)
-		p.s.signal()
-	}
-}
-
 func newSocket(proto Protocol) *socket {
 	sock := new(socket)
 	// Load all Transports so that SetOption & GetOption work right away.
@@ -219,7 +262,9 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, 10)
 	sock.urq = make(chan *Message, 10)
 	sock.closeq = make(chan bool)
-	sock.wakeq = make(chan bool)
+	//sock.wakeq = make(chan bool)
+	sock.sndwakeq = make(chan bool)
+	sock.rcvwakeq = make(chan bool)
 	sock.canrecv = list.New()
 	sock.cansend = list.New()
 	sock.accepters = list.New()
@@ -246,13 +291,15 @@ func newSocket(proto Protocol) *socket {
 
 	proto.Init(sock)
 
-	go sock.processor()
+	go sock.txProcessor()
+	go sock.rxProcessor()
 	return sock
 }
 
 func (sock *socket) signal() {
 	// We try to send just a single message on the wakeq.
 	// If one is already there, then there is no need to do so again.
+	debugf("SIGNAL")
 	select {
 	case sock.wakeq <- true:
 	default:
@@ -264,19 +311,25 @@ func (sock *socket) signal() {
 // Process function, but we take care to keep doing so until it claims to
 // have performed no new work.  Then we wait until some event arrives
 // indicating a state change.
-func (sock *socket) processor() {
+func (sock *socket) txProcessor() {
 	for {
-		sock.Lock()
-		sock.work = false
-		sock.proto.Process()
-		if sock.work {
-			sock.Unlock()
-			continue
-		}
-		sock.Unlock()
+		sock.proto.ProcessSend()
 
 		select {
-		case <-sock.wakeq:
+		case <-sock.waitSendReady():
+			continue
+		case <-sock.closeq:
+			return
+		}
+	}
+}
+
+func (sock *socket) rxProcessor() {
+	for {
+		sock.proto.ProcessRecv()
+
+		select {
+		case <-sock.waitRecvReady():
 			continue
 		case <-sock.closeq:
 			return
@@ -289,11 +342,42 @@ func (sock *socket) processor() {
 // API presented to Protocol implementations.
 //
 
+func (sock *socket) NextSendEndpoint() Endpoint {
+	sock.sndlock.Lock()
+	for e := sock.cansend.Front(); e != nil; e = sock.cansend.Front() {
+		// quick test avoids pointless pushes later
+		cp := e.Value.(*corePipe)
+		if len(cp.wq) < cap(cp.wq) {
+			sock.sndlock.Unlock()
+			return cp
+		}
+		sock.cansend.Remove(e)
+		cp.cansend = nil
+	}
+	sock.sndlock.Unlock()
+	return nil
+}
+
+func (sock *socket) NextRecvEndpoint() Endpoint {
+	sock.rcvlock.Lock()
+	for e := sock.canrecv.Front(); e != nil; e = sock.canrecv.Front() {
+		// quick test avoids pointless pushes later
+		cp := e.Value.(*corePipe)
+		if len(cp.rq) > 0 {
+			sock.rcvlock.Unlock()
+			return cp
+		}
+		sock.canrecv.Remove(e)
+		cp.canrecv = nil
+	}
+	sock.rcvlock.Unlock()
+	return nil
+}
+
 // PullDown implements the ProtocolHandle PullDown method.
 func (sock *socket) PullDown() *Message {
 	select {
 	case msg := <-sock.uwq:
-		sock.work = true
 		return msg
 	default:
 		return nil
@@ -304,7 +388,6 @@ func (sock *socket) PullDown() *Message {
 func (sock *socket) PushUp(msg *Message) bool {
 	select {
 	case sock.urq <- msg:
-		sock.work = true
 		return true
 	default:
 		// Droppped message!
@@ -312,127 +395,9 @@ func (sock *socket) PushUp(msg *Message) bool {
 	}
 }
 
-// SendAnyPipe implements the ProtocolHandle SendAnyPipe method.
-func (sock *socket) SendAnyPipe(msg *Message) (PipeKey, error) {
-	// Sends to an open Pipe, that is ready...
-	for {
-		var p *corePipe
-		var e *list.Element
-		var l = sock.cansend
-		// Look for a pipe to send to.  Note that this should only
-		// be called in the context of the Process routine, so
-		// we can reasonably assume that we are holding the lock.
-
-		if e = l.Front(); e == nil {
-			return 0, ErrPipeFull
-		}
-
-		p = l.Remove(e).(*corePipe)
-		p.cansend = nil
-
-		select {
-		case p.wq <- msg:
-			// move the element to the end of the list
-			// for FIFO handling
-			p.cansend = l.PushBack(p)
-			sock.work = true
-			return p.key, nil
-		default:
-		}
-	}
-}
-
-// SendToPipe implements the ProtocolHandle SendToPipe method.
-func (sock *socket) SendToPipe(msg *Message, key PipeKey) error {
-	p := sock.pipes[key]
-	if p == nil || p.closing {
-		return ErrClosed
-	}
-	if p.cansend == nil {
-		return ErrPipeFull
-	}
-	l := sock.cansend
-	l.Remove(p.cansend)
-	p.cansend = nil
-
-	select {
-	case p.wq <- msg:
-		// move the element to the end of the list
-		// for FIFO handling
-		p.cansend = l.PushBack(p)
-		sock.work = true
-		return nil
-	default:
-		return ErrPipeFull
-	}
-}
-
-// SendAllPipes implements the ProtocolHandle SendAllPipes method.
-func (sock *socket) SendAllPipes(msg *Message) {
-	l := sock.cansend
-
-	var n, e *list.Element
-	for e = l.Front(); e != nil; e = n {
-		// We have to save the next node for the next iteration,
-		// because we might remove the node from the list.
-		n = e.Next()
-		p := e.Value.(*corePipe)
-		select {
-		case p.wq <- msg:
-			// queued it for delivery, all's well.
-			// No notification about work, because sending this
-			// won't free anything up ... we never ever block
-			// or save a message that is broadcast.
-		default:
-			e = e.Prev()
-			l.Remove(p.cansend)
-			p.cansend = nil
-		}
-	}
-}
-
-// RecvAnyPipe implements the ProtocolHandle RecvAnyPipe method.
-func (sock *socket) RecvAnyPipe() (*Message, PipeKey, error) {
-
-	for {
-		var p *corePipe
-		var e *list.Element
-		var l = sock.canrecv
-		// Look for a pipe to recv from.  Note that this should only
-		// be called in the context of the Process routine, so
-		// we can reasonably assume that we are holding the lock.
-
-		if e = l.Front(); e == nil {
-			return nil, 0, ErrPipeEmpty
-		}
-
-		p = l.Remove(e).(*corePipe)
-		p.canrecv = nil
-
-		select {
-		case msg := <-p.rq:
-			// move the element to the end of the list
-			// for FIFO handling -- it might have more data
-			p.canrecv = l.PushBack(p)
-			sock.work = true
-			return msg, p.key, nil
-		default:
-			// no data in pipe, remove it from the list
-		}
-	}
-}
-
 // WakeUp implements the ProtocolHandle WakeUp method.
 func (sock *socket) WakeUp() {
 	sock.signal()
-}
-
-// IsOpen implements the ProtocolHandle IsOpen method.
-func (sock *socket) IsOpen(key PipeKey) bool {
-	if p, ok := sock.pipes[key]; ok == true && !p.closing {
-		return true
-	}
-	return false
 }
 
 //
@@ -458,20 +423,24 @@ func (sock *socket) Close() {
 	}
 
 	for k, p := range sock.pipes {
-		sock.pipes[k] = nil
+		delete(sock.pipes, k)
 		if !p.closing {
 			p.closing = true
 			p.pipe.Close()
 			close(p.closeq)
 		}
+		sock.sndlock.Lock()
 		if p.cansend != nil {
 			sock.cansend.Remove(p.cansend)
 			p.cansend = nil
 		}
+		sock.sndlock.Unlock()
+		sock.rcvlock.Lock()
 		if p.canrecv != nil {
 			sock.canrecv.Remove(p.canrecv)
 			p.canrecv = nil
 		}
+		sock.rcvlock.Unlock()
 	}
 }
 
@@ -490,7 +459,7 @@ func (sock *socket) SendMsg(msg *Message) error {
 		case <-sock.closeq:
 			return ErrClosed
 		case sock.uwq <- msg:
-			sock.signal()
+			sock.wakeSend()
 			return nil
 		}
 	}

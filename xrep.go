@@ -14,13 +14,20 @@
 
 package sp
 
+import (
+	"sync"
+)
+
 // xrep is an implementation of the XREP Protocol.
 type xrep struct {
 	sock ProtocolSocket
+	eps  map[uint32]Endpoint
+	sync.Mutex
 }
 
 func (x *xrep) Init(sock ProtocolSocket) {
 	x.sock = sock
+	x.eps = make(map[uint32]Endpoint)
 }
 
 func (x *xrep) Process() {
@@ -37,30 +44,33 @@ func (x *xrep) ProcessSend() {
 			break
 		}
 		// Lop off the 32-bit peer/pipe id.  If absent, drop it.
-		if key, err := msg.getPipeKey(); err == nil {
-			// Send it out.  If this fails (no such pipe, closed,
-			// or busy) then just drop it.  Peer will retry.
-			sock.SendToPipe(msg, key)
+		if id, err := msg.getUint32(); err == nil {
+			x.Lock()
+			ep := x.eps[id]
+			x.Unlock()
+			if ep != nil {
+				ep.SendMsg(msg)
+			}
 		}
 	}
 }
 
 func (x *xrep) ProcessRecv() {
-	var msg *Message
-	var key PipeKey
-	sock := x.sock
-
 	for {
-		// Check to see if we have a message ready to send up (receiver)
-		if msg, key, _ = sock.RecvAnyPipe(); msg == nil {
+		ep := x.sock.NextRecvEndpoint()
+		if ep == nil {
 			break
 		}
-		msg.putPipeKey(key)
+		msg := ep.RecvMsg()
+		if msg == nil {
+			continue
+		}
+		msg.putUint32(ep.GetID())
 		if msg.trimBackTrace() == nil {
 			// Send it up.  If the application can't receive it
 			// (pipe full, etc.) just drop it.   The peer will
 			// resend.
-			sock.PushUp(msg)
+			x.sock.PushUp(msg)
 		}
 	}
 }
@@ -84,8 +94,17 @@ func (*xrep) ValidPeer(peer uint16) bool {
 	return false
 }
 
-func (*xrep) AddEndpoint(Endpoint) {}
-func (*xrep) RemEndpoint(Endpoint) {}
+func (x *xrep) AddEndpoint(ep Endpoint) {
+	x.Lock()
+	x.eps[ep.GetID()] = ep
+	x.Unlock()
+}
+
+func (x *xrep) RemEndpoint(ep Endpoint) {
+	x.Lock()
+	delete(x.eps, ep.GetID())
+	x.Unlock()
+}
 
 type xrepFactory int
 

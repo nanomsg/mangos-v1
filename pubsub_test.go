@@ -20,7 +20,7 @@ import (
 )
 
 func TestPubSub(t *testing.T) {
-	url := "tcp://127.0.0.1:3535"
+	url := "tcp://127.0.0.1:3538"
 
 	clich := make(chan bool, 1)
 	srvch := make(chan bool, 1)
