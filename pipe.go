@@ -15,7 +15,6 @@
 package sp
 
 import (
-	"container/list"
 	"math/rand"
 	"sync"
 	"time"
@@ -35,9 +34,9 @@ type pipe struct {
 	wq      chan *Message // messages sent to wire
 	closeq  chan struct{} // only closed, never passes data
 	id      uint32
-	alllist *list.Element // Used by socket
-	cansend *list.Element // linkage to socket cansend
-	canrecv *list.Element // linkage to socket canrecv
+	index   int      // index in master list of pipes for socket
+	cansend ListNode // linkage to socket cansend
+	canrecv ListNode // linkage to socket canrecv
 
 	sock    *socket
 	closing bool // true if we were closed
@@ -56,6 +55,9 @@ func newPipe(tranpipe Pipe) *pipe {
 	p.rq = make(chan *Message, 10)
 	p.wq = make(chan *Message, 10)
 	p.closeq = make(chan struct{})
+	p.canrecv.Value = p
+	p.cansend.Value = p
+	p.index = -1
 	for {
 		pipes.Lock()
 		p.id = pipes.nextid & 0x7fffffff

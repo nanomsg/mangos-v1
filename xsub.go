@@ -16,20 +16,19 @@ package sp
 
 import (
 	"bytes"
-	"container/list"
 	"sync"
 )
 
 // XSub is an implementation of the XSub protocol.
 type xsub struct {
 	sock ProtocolSocket
-	subs *list.List
+	subs [][]byte
 	sync.Mutex
 }
 
 func (p *xsub) Init(sock ProtocolSocket) {
 	p.sock = sock
-	p.subs = list.New()
+	p.subs = [][]byte{}
 }
 
 func (x *xsub) ProcessRecv() {
@@ -45,11 +44,10 @@ func (x *xsub) ProcessRecv() {
 		}
 
 		x.Lock()
-		for e := x.subs.Front(); e != nil; e = e.Next() {
-			if bytes.HasPrefix(m.Body, e.Value.([]byte)) {
+		for _, sub := range x.subs {
+			if bytes.HasPrefix(m.Body, sub) {
 				// Matched, send it up.  Best effort.
 				sock.PushUp(m)
-				break
 			}
 		}
 		x.Unlock()
@@ -105,19 +103,20 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 	}
 	switch {
 	case name == XSubOptionSubscribe:
-		for e := x.subs.Front(); e != nil; e = e.Next() {
-			if bytes.Equal(e.Value.([]byte), vb) {
+		for _, sub := range x.subs {
+			if bytes.Equal(sub, vb) {
 				// Already present
 				return nil
 			}
 		}
-		x.subs.PushBack(vb)
+		x.subs = append(x.subs, vb)
 		return nil
 
 	case name == XSubOptionUnsubscribe:
-		for e := x.subs.Front(); e != nil; e = e.Next() {
-			if bytes.Equal(e.Value.([]byte), vb) {
-				x.subs.Remove(e)
+		for i, sub := range x.subs {
+			if bytes.Equal(sub, vb) {
+				x.subs[i] = x.subs[len(x.subs)-1]
+				x.subs = x.subs[:len(x.subs)-1]
 				return nil
 			}
 		}

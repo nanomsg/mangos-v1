@@ -15,7 +15,6 @@
 package sp
 
 import (
-	"container/list"
 	"strings"
 	"sync"
 	"time"
@@ -42,11 +41,11 @@ type socket struct {
 	wdeadline  time.Time
 	reconntime time.Duration // reconnect time after error or disconnect
 
-	pipes   *list.List // list of all pipes
-	cansend *list.List // list of pipes that can send
-	canrecv *list.List // list of pipes that can recv
+	pipes   []*pipe
+	cansend List // list of pipes that can send
+	canrecv List // list of pipes that can receive
 
-	accepters *list.List
+	accepters List
 
 	transports map[string]Transport
 
@@ -60,7 +59,8 @@ type socket struct {
 func (sock *socket) notifySendReady(p *pipe) {
 	if p != nil {
 		sock.sndlock.Lock()
-		p.cansend = sock.cansend.PushBack(p)
+		sock.cansend.Remove(&p.cansend)
+		sock.cansend.InsertTail(&p.cansend)
 		sock.sndlock.Unlock()
 	}
 	select {
@@ -82,7 +82,8 @@ func (sock *socket) waitSendReady() chan bool {
 
 func (sock *socket) notifyRecvReady(p *pipe) {
 	sock.rcvlock.Lock()
-	p.canrecv = sock.canrecv.PushBack(p)
+	sock.canrecv.Remove(&p.canrecv)
+	sock.canrecv.InsertTail(&p.canrecv)
 	sock.rcvlock.Unlock()
 	select {
 	case sock.rcvwakeq <- true:
@@ -97,7 +98,8 @@ func (sock *socket) waitRecvReady() chan bool {
 func (sock *socket) addPipe(tranpipe Pipe) *pipe {
 	p := newPipe(tranpipe)
 	sock.Lock()
-	p.alllist = sock.pipes.PushBack(p)
+	p.index = len(sock.pipes)
+	sock.pipes = append(sock.pipes, p)
 	sock.Unlock()
 	sock.proto.AddEndpoint(p)
 	p.start(sock)
@@ -110,23 +112,18 @@ func (sock *socket) remPipe(p *pipe) {
 	sock.proto.RemEndpoint(p)
 
 	sock.rcvlock.Lock()
-	if p.canrecv != nil {
-		sock.canrecv.Remove(p.canrecv)
-		p.canrecv = nil
-	}
+	sock.canrecv.Remove(&p.canrecv)
 	sock.rcvlock.Unlock()
 
 	sock.sndlock.Lock()
-	if p.cansend != nil {
-		sock.cansend.Remove(p.cansend)
-		p.cansend = nil
-	}
+	sock.cansend.Remove(&p.cansend)
 	sock.sndlock.Unlock()
 
 	sock.Lock()
-	if p.alllist != nil {
-		sock.pipes.Remove(p.alllist)
-		p.alllist = nil
+	if p.index >= 0 {
+		sock.pipes[p.index] = sock.pipes[len(sock.pipes)-1]
+		sock.pipes = sock.pipes[:len(sock.pipes)-1]
+		p.index = -1
 	}
 	sock.Unlock()
 }
@@ -140,10 +137,9 @@ func newSocket(proto Protocol) *socket {
 	sock.closeq = make(chan bool)
 	sock.sndwakeq = make(chan bool)
 	sock.rcvwakeq = make(chan bool)
-	sock.canrecv = list.New()
-	sock.cansend = list.New()
-	sock.accepters = list.New()
-	sock.pipes = list.New()
+	sock.canrecv.Init()
+	sock.cansend.Init()
+	sock.accepters.Init()
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
 
@@ -206,15 +202,14 @@ func (sock *socket) rxProcessor() {
 
 func (sock *socket) NextSendEndpoint() Endpoint {
 	sock.sndlock.Lock()
-	for e := sock.cansend.Front(); e != nil; e = sock.cansend.Front() {
+	for n := sock.cansend.HeadNode(); n != nil; n = sock.cansend.HeadNode() {
 		// quick test avoids pointless pushes later
-		cp := e.Value.(*pipe)
-		if len(cp.wq) < cap(cp.wq) {
+		p := n.Value.(*pipe)
+		if len(p.wq) < cap(p.wq) {
 			sock.sndlock.Unlock()
-			return cp
+			return p
 		}
-		sock.cansend.Remove(e)
-		cp.cansend = nil
+		sock.cansend.Remove(n)
 	}
 	sock.sndlock.Unlock()
 	return nil
@@ -222,15 +217,14 @@ func (sock *socket) NextSendEndpoint() Endpoint {
 
 func (sock *socket) NextRecvEndpoint() Endpoint {
 	sock.rcvlock.Lock()
-	for e := sock.canrecv.Front(); e != nil; e = sock.canrecv.Front() {
+	for n := sock.canrecv.HeadNode(); n != nil; n = sock.canrecv.HeadNode() {
 		// quick test avoids pointless pushes later
-		cp := e.Value.(*pipe)
-		if len(cp.rq) > 0 {
+		p := n.Value.(*pipe)
+		if len(p.rq) > 0 {
 			sock.rcvlock.Unlock()
-			return cp
+			return p
 		}
-		sock.canrecv.Remove(e)
-		cp.canrecv = nil
+		sock.canrecv.Remove(n)
 	}
 	sock.rcvlock.Unlock()
 	return nil
@@ -272,27 +266,18 @@ func (sock *socket) Close() {
 	sock.closing = true
 	close(sock.closeq)
 
-	for e := sock.accepters.Front(); e != nil; e = sock.accepters.Front() {
+	for e := sock.accepters.HeadNode(); e != nil; e = sock.accepters.HeadNode() {
 		a := e.Value.(PipeAccepter)
 		sock.accepters.Remove(e)
 		sock.Unlock()
 		a.Close()
 		sock.Lock()
 	}
-
-	for e := sock.pipes.Front(); e != nil; e = sock.pipes.Front() {
-		p := e.Value.(*pipe)
-		sock.pipes.Remove(e)
-		p.alllist = nil
-
-		// Drop the lock so we can close... this is safe since we
-		// restart the lookup at the front.
-		sock.Unlock()
-		p.Close()
-		sock.Lock()
-	}
-
 	sock.Unlock()
+
+	for _, p := range sock.pipes {
+		p.Close()
+	}
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
@@ -428,6 +413,11 @@ func (sock *socket) dialer(d PipeDialer) {
 	}
 }
 
+type accepter struct {
+	a PipeAccepter
+	n ListNode
+}
+
 // serve spins in a loop, calling the accepter's Accept routine.
 func (sock *socket) serve(a PipeAccepter) {
 	for {
@@ -462,7 +452,7 @@ func (sock *socket) Listen(addr string) error {
 	if err != nil {
 		return err
 	}
-	sock.accepters.PushBack(a)
+	sock.accepters.InsertTail(&ListNode{Value: a})
 	go sock.serve(a)
 	return nil
 }
