@@ -45,7 +45,7 @@ type socket struct {
 	cansend List // list of pipes that can send
 	canrecv List // list of pipes that can receive
 
-	accepters List
+	accepters []PipeAccepter
 
 	transports map[string]Transport
 
@@ -139,7 +139,6 @@ func newSocket(proto Protocol) *socket {
 	sock.rcvwakeq = make(chan bool)
 	sock.canrecv.Init()
 	sock.cansend.Init()
-	sock.accepters.Init()
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
 
@@ -265,15 +264,11 @@ func (sock *socket) Close() {
 	}
 	sock.closing = true
 	close(sock.closeq)
-
-	for e := sock.accepters.HeadNode(); e != nil; e = sock.accepters.HeadNode() {
-		a := e.Value.(PipeAccepter)
-		sock.accepters.Remove(e)
-		sock.Unlock()
-		a.Close()
-		sock.Lock()
-	}
 	sock.Unlock()
+
+	for _, a := range sock.accepters {
+		a.Close()
+	}
 
 	for _, p := range sock.pipes {
 		p.Close()
@@ -413,11 +408,6 @@ func (sock *socket) dialer(d PipeDialer) {
 	}
 }
 
-type accepter struct {
-	a PipeAccepter
-	n ListNode
-}
-
 // serve spins in a loop, calling the accepter's Accept routine.
 func (sock *socket) serve(a PipeAccepter) {
 	for {
@@ -452,7 +442,7 @@ func (sock *socket) Listen(addr string) error {
 	if err != nil {
 		return err
 	}
-	sock.accepters.InsertTail(&ListNode{Value: a})
+	sock.accepters = append(sock.accepters, a)
 	go sock.serve(a)
 	return nil
 }
