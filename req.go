@@ -46,6 +46,8 @@ func (p *req) Init(sock ProtocolSocket) {
 	p.sock = sock
 	p.nextid = rand.New(rand.NewSource(time.Now().UnixNano())).Uint32()
 	p.retry = time.Minute * 1 // retry after a minute
+	//p.retry = time.Millisecond * 100 // retry after a minute
+
 	p.xreq.Init(sock)
 }
 
@@ -66,67 +68,60 @@ func (p *req) cancel() {
 	}
 }
 
+func (p *req) resend() {
+	p.Lock()
+	defer p.Unlock()
+
+	if p.reqmsg == nil {
+		return
+	}
+
+	if time.Now().Before(p.reqtime) {
+		return
+	}
+
+	ep := p.sock.NextSendEndpoint()
+	if ep != nil {
+		// If we're resending a message, we shouldn't need
+		// to worry about flow control, because there should
+		// only be a single outstanding message at a time!
+		ep.SendMsg(p.reqmsg)
+		p.reqtime = time.Now().Add(p.retry)
+		go p.reschedule()
+	}
+}
+
 // reschedule arranges for the existing request to be rescheduled for delivery
 // after the configured resend time has passed.
 func (p *req) reschedule() {
+	p.Lock()
 	if p.waker != nil {
 		p.waker.Stop()
 	}
 	// If we don't get a reply, wake us up to resend.
-	p.reqtime = time.Now().Add(p.retry)
-	p.waker = time.AfterFunc(p.retry, func() {
-		p.sock.WakeUp()
-	})
+	//p.reqtime = time.Now().Add(p.retry)
+	p.waker = time.AfterFunc(p.retry, p.resend)
+	p.Unlock()
 }
 
 // needresend returns true whenever either the timer has expired,
 // or the pipe we sent it on has been closed.
-func (p *req) needresend() bool {
+func (p *req) xneedresend() bool {
 	if p.reqmsg == nil {
 		return false
 	}
 	if !time.Now().Before(p.reqtime) {
 		return true
 	}
-	if p.reqid == 0 {
+	if p.reqep == nil {
 		return true
 	}
 	return false
 }
 
-func (p *req) Process() {
-	p.ProcessSend()
-	p.xreq.ProcessRecv()
-}
-
 func (p *req) ProcessSend() {
 
-	h := p.sock
-
-	p.Lock()
-	defer p.Unlock()
-	// Check to see if we have to retransmit our request.
-	if p.needresend() {
-		p.cancel() // stop timer for now
-		ep := h.NextSendEndpoint()
-		if ep != nil {
-			if err := ep.SendMsg(p.reqmsg); err != nil {
-				// No suitable pipes available for delivery.
-				// Arrange to retry the next time we are called.
-				// This usually happens in response to a
-				// connection completing or backpressure easing.
-				p.reqtime = time.Now()
-			} else {
-				// Successful delivery.  Note the pipe we sent
-				// it out on, and schedule a longer time for
-				// resending.
-				p.reqep = ep
-				p.reschedule()
-			}
-		}
-	}
-
-	// The rest of this looks like ordinary XReq handling.
+	p.resend()
 	p.xreq.ProcessSend()
 }
 
@@ -164,7 +159,8 @@ func (p *req) SendHook(msg *Message) bool {
 	p.reqmsg = msg
 
 	// Schedule a retry, in case we don't get a reply.
-	p.reschedule()
+	p.reqtime = time.Now().Add(p.retry)
+	go p.reschedule()
 
 	return true
 }
@@ -182,16 +178,6 @@ func (p *req) RecvHook(msg *Message) bool {
 	p.cancel()
 	p.reqmsg = nil
 	return true
-}
-
-func (p *req) RemEndpoint(ep Endpoint) {
-	// XXX: Kick it & reschedule
-	p.Lock()
-	if ep == p.reqep {
-		p.reqep = nil
-		p.reschedule()
-	}
-	p.Unlock()
 }
 
 type reqFactory int

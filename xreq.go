@@ -32,11 +32,10 @@ func (p *xreq) Init(socket ProtocolSocket) {
 }
 
 func (x *xreq) ProcessRecv() {
-	var msg *Message
 	x.rcvlock.Lock()
 	defer x.rcvlock.Unlock()
 	for {
-		msg = x.rcvmsg
+		msg := x.rcvmsg
 		if msg == nil {
 			if p := x.sock.NextRecvEndpoint(); p != nil {
 				if msg = p.RecvMsg(); msg == nil {

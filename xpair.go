@@ -34,11 +34,6 @@ func (x *xpair) Init(sock ProtocolSocket) {
 	x.sock = sock
 }
 
-func (x *xpair) Process() {
-	x.ProcessRecv()
-	x.ProcessSend()
-}
-
 func (x *xpair) ProcessSend() {
 	x.sndlk.Lock()
 	defer x.sndlk.Unlock()

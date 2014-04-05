@@ -19,13 +19,6 @@ import (
 	"sync"
 )
 
-// PipeKey is the "key" or identifier used to match to an underlying
-// connection channel.  For example, a given key will correspond to a single
-// TCP or UNIX domain connected socket.  PipeKey's are always non-zero if
-// associated with an actual Pipe; the zero value may be used as an invalid
-// value.
-type PipeKey uint32
-
 type Endpoint interface {
 	// GetID returns a unique 31-bit value associated with the Endpoint.
 	// The value is unique for a given socket, at a given time.
@@ -145,13 +138,6 @@ type ProtocolSocket interface {
 	// if it was unable to do so, perhaps because the user has messages
 	// he has not received yet.
 	PushUp(*Message) bool
-
-	// WakeUp wakes the protocol handler (resulting in the Process()
-	// function being called.  Unlike the other functions,
-	// this can be executed asynchronously from a goroutine.  The
-	// purpose is to permit waking up from a retry timer established
-	// by the protocol handler.
-	WakeUp()
 
 	// NextSendEndpoint returns the next Endpoint capable of sending
 	// messages.  Note that the Endpoint may still be subject to

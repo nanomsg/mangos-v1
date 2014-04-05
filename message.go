@@ -48,22 +48,6 @@ func (m *Message) putUint32(v uint32) {
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 }
 
-// putPipeKey inserts a 32-bit pipe key into the front of the header.
-func (m *Message) putPipeKey(v PipeKey) {
-	m.putUint32(uint32(v))
-}
-
-// getPipeKey retrieves a 32-bit pipe key from the front of the header.
-func (m *Message) getPipeKey() (PipeKey, error) {
-	if len(m.Header) < 4 {
-		// oops!
-		return 0, ErrTooShort
-	}
-	key := PipeKey(getUint32(m.Header))
-	m.Header = m.Header[4:]
-	return key, nil
-}
-
 // trimUint32 moves a 32-bit value from the front of the body to the end of
 // the header.  No check of the value is done.
 func (m *Message) trimUint32() error {

@@ -30,11 +30,6 @@ func (x *xrep) Init(sock ProtocolSocket) {
 	x.eps = make(map[uint32]Endpoint)
 }
 
-func (x *xrep) Process() {
-	x.ProcessRecv()
-	x.ProcessSend()
-}
-
 func (x *xrep) ProcessSend() {
 	var msg *Message
 	sock := x.sock

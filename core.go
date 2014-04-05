@@ -16,40 +16,20 @@ package sp
 
 import (
 	"container/list"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
 )
 
-// This file contains some of the "core" handling logic for the SP
-// implementation.  None of the interfaces here are to be exposed externally.
-
-// corePipe wraps the Pipe data structure with the stuff we need to keep
-type corePipe struct {
-	pipe    Pipe
-	rq      chan *Message // messages sent to user
-	wq      chan *Message // messages sent to wire
-	closeq  chan struct{} // only closed, never passes data
-	key     PipeKey
-	cansend *list.Element // linkage to socket cansend
-	canrecv *list.Element // linkage to socket canrecv
-
-	s       *socket
-	closing bool // true if we were closed
-}
-
 // socket is the meaty part of the core information.
 type socket struct {
-	proto   Protocol
-	nextkey PipeKey
+	proto Protocol
 
 	sync.Mutex
 
 	uwq      chan *Message // upper write queue
 	urq      chan *Message // upper read queue
 	closeq   chan bool     // closed when user requests close
-	wakeq    chan bool     // basically a semaphore/condvar
 	sndwakeq chan bool
 	rcvwakeq chan bool
 
@@ -57,15 +37,14 @@ type socket struct {
 	rcvlock sync.Mutex
 
 	closing bool // true if Socket was closed at API level
-	work    bool // Used to track work progress in Process
 
 	rdeadline  time.Time
 	wdeadline  time.Time
 	reconntime time.Duration // reconnect time after error or disconnect
 
-	pipes   map[PipeKey]*corePipe
-	cansend *list.List // list of corePipes that can send
-	canrecv *list.List // list of corePipes that can recv
+	pipes   *list.List // list of all pipes
+	cansend *list.List // list of pipes that can send
+	canrecv *list.List // list of pipes that can recv
 
 	accepters *list.List
 
@@ -78,7 +57,7 @@ type socket struct {
 	recvhook  ProtocolRecvHook
 }
 
-func (sock *socket) notifySendReady(p *corePipe) {
+func (sock *socket) notifySendReady(p *pipe) {
 	if p != nil {
 		sock.sndlock.Lock()
 		p.cansend = sock.cansend.PushBack(p)
@@ -101,7 +80,7 @@ func (sock *socket) waitSendReady() chan bool {
 	return sock.sndwakeq
 }
 
-func (sock *socket) notifyRecvReady(p *corePipe) {
+func (sock *socket) notifyRecvReady(p *pipe) {
 	sock.rcvlock.Lock()
 	p.canrecv = sock.canrecv.PushBack(p)
 	sock.rcvlock.Unlock()
@@ -115,144 +94,41 @@ func (sock *socket) waitRecvReady() chan bool {
 	return sock.rcvwakeq
 }
 
-func (sock *socket) addPipe(pipe Pipe) *corePipe {
-	cp := &corePipe{s: sock, pipe: pipe}
-	// queue depths are kind of arbitrary.  deep enough to avoid
-	// stalls, but hopefully shallow enough to avoid latency.
-	cp.rq = make(chan *Message, 10)
-	cp.wq = make(chan *Message, 10)
-	cp.closeq = make(chan struct{})
+func (sock *socket) addPipe(tranpipe Pipe) *pipe {
+	p := newPipe(tranpipe)
 	sock.Lock()
-	for {
-		// PipeKey zero is special, it represents an unopen/unassigned
-		// PipeKey.  Therefore we must avoid it.  (XXX: Should we
-		// insist on a minimum value, e.g. 1000 or somesuch?)
-		if sock.nextkey == 0 {
-			sock.nextkey++
-		}
-		// Keys must only use the lower 31-bits.  The high-order bit
-		// is reserved to identify the request ID in a backtrace.
-		if sock.nextkey&0x80000000 != 0 {
-			sock.nextkey = 1
-		}
-		// Ensure we have a key that is not already in use (if we
-		// wrap we can have a long lived PipeKey that is stil in use)
-		if _, ok := sock.pipes[sock.nextkey]; ok == false {
-			break
-		}
-		sock.nextkey++
-	}
-	cp.key = sock.nextkey
-	sock.nextkey++
-	sock.pipes[cp.key] = cp
+	p.alllist = sock.pipes.PushBack(p)
 	sock.Unlock()
-
-	sock.proto.AddEndpoint(cp)
-
-	go cp.sender()
-	go cp.receiver()
-	sock.notifySendReady(cp)
-	return cp
+	sock.proto.AddEndpoint(p)
+	p.start(sock)
+	sock.notifySendReady(p)
+	return p
 }
 
-func (sock *socket) remPipe(cp *corePipe) {
-	sock.Lock()
-	delete(sock.pipes, cp.key)
-	sock.Unlock()
-}
-func (p *corePipe) GetID() uint32 {
-	return uint32(p.key)
-}
-func (p *corePipe) Close() error {
-	p.shutdown()
-	return nil
-}
+func (sock *socket) remPipe(p *pipe) {
 
-func (p *corePipe) SendMsg(msg *Message) error {
-	select {
-	case p.wq <- msg:
-		p.s.notifySendReady(p)
-		return nil
-	case <-p.closeq:
-		return ErrClosed
-	default:
-		return ErrPipeFull
-	}
-}
+	sock.proto.RemEndpoint(p)
 
-func (p *corePipe) RecvMsg() *Message {
-	select {
-	case msg := <-p.rq:
-		p.s.notifyRecvReady(p)
-		return msg
-	case <-p.closeq:
-		return nil
-	default:
-		return nil
-	}
-}
-
-func (p *corePipe) shutdown() {
-	s := p.s
-	// We have to ensure that we only close any channels one time, so
-	// we use a lock to check this.  Its the only time we use this lock.
-	s.Lock()
-	defer s.Unlock()
-	if p.closing {
-		return
-	}
-	p.closing = true
-	p.pipe.Close()
-	delete(s.pipes, p.key)
+	sock.rcvlock.Lock()
 	if p.canrecv != nil {
-		s.canrecv.Remove(p.canrecv)
+		sock.canrecv.Remove(p.canrecv)
+		p.canrecv = nil
 	}
+	sock.rcvlock.Unlock()
+
+	sock.sndlock.Lock()
 	if p.cansend != nil {
-		s.cansend.Remove(p.cansend)
+		sock.cansend.Remove(p.cansend)
+		p.cansend = nil
 	}
-	close(p.closeq)
-}
+	sock.sndlock.Unlock()
 
-func (p *corePipe) receiver() {
-	var msg *Message
-	var err error
-	for {
-		if msg, err = p.pipe.Recv(); err != nil {
-			p.shutdown()
-			return
-		}
-
-		select {
-		case p.rq <- msg:
-			p.s.notifyRecvReady(p)
-
-		case <-p.closeq:
-			return
-		}
+	sock.Lock()
+	if p.alllist != nil {
+		sock.pipes.Remove(p.alllist)
+		p.alllist = nil
 	}
-}
-
-func (p *corePipe) sender() {
-
-	for {
-		select {
-		case msg, ok := <-p.wq:
-			p.s.notifySendReady(p)
-			if msg != nil {
-				if err := p.pipe.Send(msg); err != nil {
-					p.shutdown()
-					return
-				}
-			}
-			if ok == false {
-				p.shutdown()
-				return
-			}
-
-		case <-p.closeq:
-			return
-		}
-	}
+	sock.Unlock()
 }
 
 func newSocket(proto Protocol) *socket {
@@ -262,17 +138,13 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, 10)
 	sock.urq = make(chan *Message, 10)
 	sock.closeq = make(chan bool)
-	//sock.wakeq = make(chan bool)
 	sock.sndwakeq = make(chan bool)
 	sock.rcvwakeq = make(chan bool)
 	sock.canrecv = list.New()
 	sock.cansend = list.New()
 	sock.accepters = list.New()
-	sock.pipes = make(map[PipeKey]*corePipe)
+	sock.pipes = list.New()
 	sock.reconntime = time.Second * 1 // make it a tunable?
-	rnum := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// We only consider the lower 31 bits.
-	sock.nextkey = PipeKey(rnum.Uint32() & 0x7fffffff)
 	sock.proto = proto
 
 	// Add some conditionals now -- saves checks later
@@ -294,16 +166,6 @@ func newSocket(proto Protocol) *socket {
 	go sock.txProcessor()
 	go sock.rxProcessor()
 	return sock
-}
-
-func (sock *socket) signal() {
-	// We try to send just a single message on the wakeq.
-	// If one is already there, then there is no need to do so again.
-	debugf("SIGNAL")
-	select {
-	case sock.wakeq <- true:
-	default:
-	}
 }
 
 // This routine implements the main processing loop.  Since most of the
@@ -346,7 +208,7 @@ func (sock *socket) NextSendEndpoint() Endpoint {
 	sock.sndlock.Lock()
 	for e := sock.cansend.Front(); e != nil; e = sock.cansend.Front() {
 		// quick test avoids pointless pushes later
-		cp := e.Value.(*corePipe)
+		cp := e.Value.(*pipe)
 		if len(cp.wq) < cap(cp.wq) {
 			sock.sndlock.Unlock()
 			return cp
@@ -362,7 +224,7 @@ func (sock *socket) NextRecvEndpoint() Endpoint {
 	sock.rcvlock.Lock()
 	for e := sock.canrecv.Front(); e != nil; e = sock.canrecv.Front() {
 		// quick test avoids pointless pushes later
-		cp := e.Value.(*corePipe)
+		cp := e.Value.(*pipe)
 		if len(cp.rq) > 0 {
 			sock.rcvlock.Unlock()
 			return cp
@@ -395,11 +257,6 @@ func (sock *socket) PushUp(msg *Message) bool {
 	}
 }
 
-// WakeUp implements the ProtocolHandle WakeUp method.
-func (sock *socket) WakeUp() {
-	sock.signal()
-}
-
 //
 // Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
@@ -408,9 +265,8 @@ func (sock *socket) WakeUp() {
 func (sock *socket) Close() {
 	// XXX: flushq's?  linger?
 	sock.Lock()
-	defer sock.Unlock()
-
 	if sock.closing {
+		sock.Unlock()
 		return
 	}
 	sock.closing = true
@@ -418,30 +274,25 @@ func (sock *socket) Close() {
 
 	for e := sock.accepters.Front(); e != nil; e = sock.accepters.Front() {
 		a := e.Value.(PipeAccepter)
-		a.Close()
 		sock.accepters.Remove(e)
+		sock.Unlock()
+		a.Close()
+		sock.Lock()
 	}
 
-	for k, p := range sock.pipes {
-		delete(sock.pipes, k)
-		if !p.closing {
-			p.closing = true
-			p.pipe.Close()
-			close(p.closeq)
-		}
-		sock.sndlock.Lock()
-		if p.cansend != nil {
-			sock.cansend.Remove(p.cansend)
-			p.cansend = nil
-		}
-		sock.sndlock.Unlock()
-		sock.rcvlock.Lock()
-		if p.canrecv != nil {
-			sock.canrecv.Remove(p.canrecv)
-			p.canrecv = nil
-		}
-		sock.rcvlock.Unlock()
+	for e := sock.pipes.Front(); e != nil; e = sock.pipes.Front() {
+		p := e.Value.(*pipe)
+		sock.pipes.Remove(e)
+		p.alllist = nil
+
+		// Drop the lock so we can close... this is safe since we
+		// restart the lookup at the front.
+		sock.Unlock()
+		p.Close()
+		sock.Lock()
 	}
+
+	sock.Unlock()
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
