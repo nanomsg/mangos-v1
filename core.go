@@ -192,10 +192,8 @@ func (sock *socket) rxProcessor() {
 	}
 }
 
-//
 // Implementation of ProtocolHandle bits on coreHandle.  This is the middle
 // API presented to Protocol implementations.
-//
 
 func (sock *socket) NextSendEndpoint() Endpoint {
 	sock.sndlock.Lock()
@@ -298,9 +296,7 @@ func (sock *socket) SendMsg(msg *Message) error {
 }
 
 func (sock *socket) Send(b []byte) error {
-	msg := new(Message)
-	msg.Body = b
-	msg.Header = nil
+	msg := &Message{Body: b, Header: nil, refcnt: 1}
 	return sock.SendMsg(msg)
 }
 

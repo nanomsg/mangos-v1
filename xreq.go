@@ -43,8 +43,7 @@ func (x *xreq) ProcessRecv() {
 				}
 				if msg.trimUint32() != nil {
 					// XXX Bump stat
-					msg.Recycle()
-					msg = nil
+					msg.Free()
 					continue
 				}
 			}
@@ -83,6 +82,7 @@ func (x *xreq) ProcessSend() {
 			x.sndmsg = msg
 			return
 		}
+		msg.AddRef()
 		err := ep.SendMsg(msg)
 		switch err {
 		case nil:
@@ -91,8 +91,8 @@ func (x *xreq) ProcessSend() {
 			x.sndmsg = msg
 			return
 		default:
+			msg.Free()
 			// XXX Bump stat
-			msg.Recycle()
 		}
 	}
 }

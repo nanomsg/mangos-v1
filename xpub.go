@@ -40,9 +40,13 @@ func (x *xpub) ProcessSend() {
 		}
 		x.Lock()
 		for _, ep := range x.eps {
-			ep.SendMsg(msg)
+			msg.AddRef()
+			if ep.SendMsg(msg) != nil {
+				msg.DecRef()
+			}
 		}
 		x.Unlock()
+		msg.Free()
 	}
 }
 

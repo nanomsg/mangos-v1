@@ -153,9 +153,9 @@ func TestIPCSendRecv(t *testing.T) {
 		t.Logf("Connected client: %t", client.IsOpen())
 		defer client.Close()
 
-		req := new(Message)
-		req.Body = make([]byte, 0, 20)
-		req.Header = make([]byte, 0)
+		req := NewMessage(len(ping))
+		//req.Body = make([]byte, 0, 20)
+		//req.Header = make([]byte, 0)
 		req.Body = append(req.Body, ping...)
 
 		// Now try to send data
@@ -217,9 +217,7 @@ func TestIPCSendRecv(t *testing.T) {
 	}
 
 	// Now reply
-	rep := new(Message)
-	rep.Body = make([]byte, 0, 20)
-	rep.Header = make([]byte, 0)
+	rep := NewMessage(len(ack))
 	rep.Body = append(rep.Body, ack...)
 
 	t.Logf("Server sending %d bytes", len(rep.Body))
@@ -234,9 +232,8 @@ func TestIPCSendRecv(t *testing.T) {
 	// Wait for client to ack reply over back channel.
 	select {
 	case nrep := <-ch:
-		if !bytes.Equal(nrep.Body, rep.Body) ||
-			!bytes.Equal(rep.Header, nrep.Header) {
-			t.Errorf("Client forward mismatch: %v, %v", nrep, rep)
+		if !bytes.Equal(nrep.Body, ack) {
+			t.Errorf("Client forward mismatch: %v, %v", nrep, ack)
 			return
 		}
 	case <-time.After(5 * time.Second):

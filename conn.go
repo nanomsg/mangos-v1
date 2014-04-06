@@ -60,8 +60,10 @@ func (p *conn) Recv() (*Message, error) {
 		p.conn.Close()
 		return nil, ErrTooLong
 	}
-	msg = &Message{Body: make([]byte, sz)}
+	msg = NewMessage(int(sz))
+	msg.Body = msg.Body[0:sz]
 	if _, err = io.ReadFull(p.conn, msg.Body); err != nil {
+		msg.Free()
 		return nil, err
 	}
 	return msg, nil
@@ -78,6 +80,7 @@ func (p *conn) Send(msg *Message) error {
 	// prevent interleaved writes
 	p.wlock.Lock()
 	defer p.wlock.Unlock()
+	defer msg.Free()
 
 	// send length header
 	if err := binary.Write(p.conn, binary.BigEndian, l); err != nil {

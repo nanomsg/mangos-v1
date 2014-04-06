@@ -103,6 +103,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 
 	go func() {
 		var err error
+		var m *Message
 
 		if err = srvsock.Listen(url); err != nil {
 			t.Errorf("Server listen failed: %v", err)
@@ -110,10 +111,11 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		}
 		close(ready)
 		for i := 0; i < t.N; i++ {
-			if _, err = srvsock.RecvMsg(); err != nil {
+			if m, err = srvsock.RecvMsg(); err != nil {
 				t.Errorf("Error receiving %d: %v", i, err)
 				return
 			}
+			m.Free()
 		}
 		close(finish)
 
@@ -127,10 +129,11 @@ func benchmarkPair(t *testing.B, url string, size int) {
 
 	time.Sleep(700 * time.Millisecond)
 	t.ResetTimer()
-	msg := make([]byte, size)
+	//msg := make([]byte, size)
 
 	for i := 0; i < t.N; i++ {
-		if err = clisock.Send(msg); err != nil {
+		msg := NewMessage(size)
+		if err = clisock.SendMsg(msg); err != nil {
 			t.Errorf("Client send failed: %v", err)
 			return
 		}

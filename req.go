@@ -34,11 +34,6 @@ type req struct {
 	reqid   uint32
 	reqep   Endpoint
 	reqtime time.Time // when the next retry should be performed
-
-	// Valid reply received.  This occurs only when the application
-	// has backpressure above us.  We'll hold it for delivery
-	// indefinitely, as long as the app doesn't send a new request.
-	repmsg *Message
 }
 
 // Init implements the Protocol Init method.
@@ -85,7 +80,10 @@ func (p *req) resend() {
 		// If we're resending a message, we shouldn't need
 		// to worry about flow control, because there should
 		// only be a single outstanding message at a time!
-		ep.SendMsg(p.reqmsg)
+		p.reqmsg.AddRef()
+		if ep.SendMsg(p.reqmsg) != nil {
+			p.reqmsg.DecRef()
+		}
 		p.reqtime = time.Now().Add(p.retry)
 		go p.reschedule()
 	}
@@ -156,6 +154,7 @@ func (p *req) SendHook(msg *Message) bool {
 	// We need to generate a new request id, and append it to the header.
 	p.reqid = p.nextID()
 	msg.putUint32(p.reqid)
+	msg.AddRef()
 	p.reqmsg = msg
 
 	// Schedule a retry, in case we don't get a reply.
@@ -176,6 +175,7 @@ func (p *req) RecvHook(msg *Message) bool {
 		return false
 	}
 	p.cancel()
+	p.reqmsg.Free()
 	p.reqmsg = nil
 	return true
 }

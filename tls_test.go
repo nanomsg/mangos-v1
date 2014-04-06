@@ -159,6 +159,7 @@ func TestTLSReqRep(t *testing.T) {
 			return
 		}
 		t.Logf("Server got message")
+		defer req.Free()
 
 		if !bytes.Equal(req.Body, ping) {
 			t.Errorf("Server recd bad message: %v", req)
@@ -166,10 +167,8 @@ func TestTLSReqRep(t *testing.T) {
 		}
 
 		t.Logf("Server sending reply")
-		rep = new(Message)
-		rep.Body = make([]byte, 0, 20)
+		rep = NewMessage(len(ack))
 		rep.Body = append(rep.Body, ack...)
-		rep.Header = make([]byte, 0)
 		if err = srvsock.SendMsg(rep); err != nil {
 			t.Errorf("Server send failed: %v", err)
 			return
@@ -231,10 +230,8 @@ func TestTLSReqRep(t *testing.T) {
 
 		t.Logf("Client dial complete")
 
-		req = new(Message)
-		req.Body = make([]byte, 0, 20)
+		req = NewMessage(len(ping))
 		req.Body = append(req.Body, ping...)
-		req.Header = make([]byte, 0)
 		if err = clisock.SendMsg(req); err != nil {
 			t.Errorf("Client send failed: %v", err)
 			return

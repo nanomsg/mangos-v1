@@ -35,7 +35,8 @@ type Socket interface {
 	Recv() ([]byte, error)
 
 	// SendMsg puts the message on the outbound send.  It works like Send,
-	// but allows the caller to supply message headers.
+	// but allows the caller to supply message headers.  AGAIN, the Socket
+	// ASSUMES OWNERSHIP OF THE MESSAGE.
 	SendMsg(*Message) error
 
 	// RecvMsg receives a complete message, including the message header,

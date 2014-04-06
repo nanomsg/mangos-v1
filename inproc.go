@@ -43,27 +43,23 @@ func init() {
 
 func (p *inproc) Recv() (*Message, error) {
 
-	var msg *Message
-	var ok bool
-
 	if p.peer == nil {
 		return nil, ErrClosed
 	}
 	select {
-	case msg, ok = <-p.rq:
+	case msg, ok := <-p.rq:
 		if msg == nil || !ok {
 			return nil, ErrClosed
 		}
 		// Upper protocols expect to have to pick header and
 		// body part.  So mush them back together.
-		msg.Body = append(msg.Header, msg.Body...)
-		msg.Header = make([]byte, 0, 32)
+		//msg.Body = append(msg.Header, msg.Body...)
+		//msg.Header = make([]byte, 0, 32)
 		return msg, nil
 	case <-p.closeq:
 		return nil, ErrClosed
 	case <-p.peer.closeq:
 		return nil, ErrClosed
-		// XXX: Timeout
 	}
 }
 
@@ -72,12 +68,21 @@ func (p *inproc) Send(msg *Message) error {
 	if p.peer == nil {
 		return ErrClosed
 	}
+
+	// Upper protocols expect to have to pick header and body part.
+	// Also we need to have a fresh copy of the message for receiver, to
+	// break ownership.
+	nmsg := NewMessage(len(msg.Header) + len(msg.Body))
+	nmsg.Body = append(nmsg.Body, msg.Header...)
+	nmsg.Body = append(nmsg.Body, msg.Body...)
 	select {
-	case p.wq <- msg:
+	case p.wq <- nmsg:
 		return nil
 	case <-p.closeq:
+		nmsg.Free()
 		return ErrClosed
 	case <-p.peer.closeq:
+		nmsg.Free()
 		return ErrClosed
 	}
 }

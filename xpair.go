@@ -57,7 +57,7 @@ func (x *xpair) ProcessSend() {
 			x.sndmsg = msg
 			return
 		default:
-			msg.Recycle()
+			msg.Free()
 			continue
 		}
 	}
