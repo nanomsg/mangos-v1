@@ -20,79 +20,59 @@ import (
 
 // xreq is an implementation of the XREQ protocol.
 type xreq struct {
-	sock    ProtocolSocket
-	rcvmsg  *Message
-	sndmsg  *Message
-	rcvlock sync.Mutex
-	sndlock sync.Mutex
+	sock ProtocolSocket
+	sync.Mutex
+	eps    map[uint32]Endpoint
+	resend chan *Message
 }
 
-func (p *xreq) Init(socket ProtocolSocket) {
-	p.sock = socket
+func (x *xreq) Init(socket ProtocolSocket) {
+	x.sock = socket
+	x.eps = make(map[uint32]Endpoint)
+	x.resend = make(chan *Message)
 }
 
-func (x *xreq) ProcessRecv() {
-	x.rcvlock.Lock()
-	defer x.rcvlock.Unlock()
+func (x *xreq) receiver(ep Endpoint) {
 	for {
-		msg := x.rcvmsg
+		msg := ep.RecvMsg()
 		if msg == nil {
-			if p := x.sock.NextRecvEndpoint(); p != nil {
-				if msg = p.RecvMsg(); msg == nil {
-					continue
-				}
-				if msg.trimUint32() != nil {
-					// XXX Bump stat
-					msg.Free()
-					continue
-				}
-			}
+			return
 		}
 
-		if msg == nil {
+		if msg.trimUint32() != nil {
+			msg.Free()
+			continue
+		}
+
+		select {
+		case x.sock.RecvChannel() <- msg:
+		case <-x.sock.CloseChannel():
+			msg.Free()
 			return
 		}
-		if !x.sock.PushUp(msg) {
-			x.rcvmsg = msg
-			return
-		}
-		x.rcvmsg = nil
 	}
 }
 
-func (x *xreq) ProcessSend() {
+func (x *xreq) sender(ep Endpoint) {
+	var msg *Message
+
 	for {
-		msg := x.sndmsg
-		x.sndmsg = nil
-		if msg == nil {
-			msg = x.sock.PullDown()
-		}
-		if msg == nil {
+
+		select {
+		case msg = <-x.resend:
+		case msg = <-x.sock.SendChannel():
+		case <-x.sock.CloseChannel():
 			return
 		}
-		// Send sends unmolested.  If we can't due to lack of a
-		// connected peer, we drop it.  (Req protocol resends, but
-		// we don't in xreq.)  Note that it is expected that the
-		// application will have written the request ID into the
-		// header at minimum, but possibly a full backtrace.  We
-		// don't bother to check.  (XXX: Perhaps we should, and
-		// drop any message that lacks at least a minimal header?)
-		ep := x.sock.NextSendEndpoint()
-		if ep == nil {
-			x.sndmsg = msg
-			return
-		}
-		msg.AddRef()
+
 		err := ep.SendMsg(msg)
-		switch err {
-		case nil:
-			continue
-		case ErrPipeFull:
-			x.sndmsg = msg
+		if err != nil {
+			select {
+			case x.resend <- msg:
+			case <-x.sock.CloseChannel():
+				msg.Free()
+			}
 			return
-		default:
-			msg.Free()
-			// XXX Bump stat
 		}
 	}
 }
@@ -116,13 +96,20 @@ func (*xreq) ValidPeer(peer uint16) bool {
 	return false
 }
 
-func (*xreq) AddEndpoint(Endpoint) {}
+func (x *xreq) AddEndpoint(ep Endpoint) {
+	x.Lock()
+	x.eps[ep.GetID()] = ep
+	x.Unlock()
+	go x.receiver(ep)
+	go x.sender(ep)
+}
+
 func (*xreq) RemEndpoint(Endpoint) {}
 
 type xreqFactory int
 
 func (xreqFactory) NewProtocol() Protocol {
-	return new(xreq)
+	return &xreq{}
 }
 
 // XReqFactory implements the Protocol Factory for the XREQ protocol.

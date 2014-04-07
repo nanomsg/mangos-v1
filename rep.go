@@ -66,13 +66,13 @@ func (p *rep) SendHook(m *Message) bool {
 // delivery guarantees.  Note that a REP/REQ pair should never encounter
 // back pressure as the synchronous nature prevents such from occurring.
 // The special consideration here is a DEVICE that may be an XREQ partner.
-// In that case the partner should hve a queue of at least depth one on
+// In that case the partner should have a queue of at least depth one on
 // each pipe, so that no single REP socket ever encounters backpressure.
 
 type repFactory int
 
 func (repFactory) NewProtocol() Protocol {
-	return new(rep)
+	return &rep{}
 }
 
 // RepFactory implements the Protocol Factory for the REP (reply) protocol.

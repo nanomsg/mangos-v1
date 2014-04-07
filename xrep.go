@@ -19,53 +19,99 @@ import (
 )
 
 // xrep is an implementation of the XREP Protocol.
+
+type xrepEp struct {
+	q    chan *Message
+	ep   Endpoint
+	sock ProtocolSocket
+}
+
 type xrep struct {
 	sock ProtocolSocket
-	eps  map[uint32]Endpoint
+	eps  map[uint32]*xrepEp
 	sync.Mutex
 }
 
 func (x *xrep) Init(sock ProtocolSocket) {
 	x.sock = sock
-	x.eps = make(map[uint32]Endpoint)
+	x.eps = make(map[uint32]*xrepEp)
+	go x.sender()
 }
 
-func (x *xrep) ProcessSend() {
-	var msg *Message
-	sock := x.sock
-
+func (pe *xrepEp) sender() {
 	for {
-		if msg = sock.PullDown(); msg == nil {
-			break
+		var msg *Message
+		select {
+		case msg = <-pe.q:
+		case <-pe.sock.CloseChannel():
+			return
 		}
-		// Lop off the 32-bit peer/pipe id.  If absent, drop it.
-		if id, err := msg.getUint32(); err == nil {
-			x.Lock()
-			ep := x.eps[id]
-			x.Unlock()
-			if ep != nil {
-				ep.SendMsg(msg)
-			}
+
+		err := pe.ep.SendMsg(msg)
+		if err != nil {
+			msg.Free()
+			return
 		}
 	}
 }
 
-func (x *xrep) ProcessRecv() {
+func (x *xrep) receiver(ep Endpoint) {
 	for {
-		ep := x.sock.NextRecvEndpoint()
-		if ep == nil {
-			break
-		}
+
 		msg := ep.RecvMsg()
 		if msg == nil {
+			return
+		}
+
+		msg.putUint32(ep.GetID())
+		if msg.trimBackTrace() != nil {
+			msg.Free()
 			continue
 		}
-		msg.putUint32(ep.GetID())
-		if msg.trimBackTrace() == nil {
-			// Send it up.  If the application can't receive it
-			// (pipe full, etc.) just drop it.   The peer will
-			// resend.
-			x.sock.PushUp(msg)
+
+		select {
+		case x.sock.RecvChannel() <- msg:
+		case <-x.sock.CloseChannel():
+			msg.Free()
+			return
+		}
+	}
+}
+
+func (x *xrep) sender() {
+	for {
+		var msg *Message
+		select {
+		case msg = <-x.sock.SendChannel():
+		case <-x.sock.CloseChannel():
+			return
+		}
+
+		// Lop off the 32-bit peer/pipe ID.  If absent, drop.
+		id, err := msg.getUint32()
+		if err != nil {
+			msg.Free()
+			continue
+		}
+		x.Lock()
+		pe := x.eps[id]
+		x.Unlock()
+		if pe == nil {
+			msg.Free()
+			continue
+		}
+
+		select {
+		case pe.q <- msg:
+		default:
+			// If our queue is full, we have no choice but to
+			// throw it on the floor.  This shoudn't happen,
+			// since each partner should be running synchronously.
+			// Devices are a different situation, and this could
+			// lead to lossy behavior there.  Initiators will
+			// resend if this happens.  Devices need to have deep
+			// enough queues and be fast enough to avoid this.
+			msg.Free()
 		}
 	}
 }
@@ -90,9 +136,12 @@ func (*xrep) ValidPeer(peer uint16) bool {
 }
 
 func (x *xrep) AddEndpoint(ep Endpoint) {
+	pe := &xrepEp{ep: ep, sock: x.sock, q: make(chan *Message, 2)}
 	x.Lock()
-	x.eps[ep.GetID()] = ep
+	x.eps[ep.GetID()] = pe
 	x.Unlock()
+	go x.receiver(ep)
+	go pe.sender()
 }
 
 func (x *xrep) RemEndpoint(ep Endpoint) {
@@ -104,7 +153,7 @@ func (x *xrep) RemEndpoint(ep Endpoint) {
 type xrepFactory int
 
 func (xrepFactory) NewProtocol() Protocol {
-	return new(xrep)
+	return &xrep{}
 }
 
 // XRepFactory implements the Protocol Factory for the XREP protocol.

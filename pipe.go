@@ -29,14 +29,10 @@ var pipes struct {
 // pipe wraps the Pipe data structure with the stuff we need to keep
 // for the core.  It implements the Endpoint interface.
 type pipe struct {
-	pipe    Pipe
-	rq      chan *Message // messages sent to user
-	wq      chan *Message // messages sent to wire
-	closeq  chan struct{} // only closed, never passes data
-	id      uint32
-	index   int      // index in master list of pipes for socket
-	cansend ListNode // linkage to socket cansend
-	canrecv ListNode // linkage to socket canrecv
+	pipe   Pipe
+	closeq chan struct{} // only closed, never passes data
+	id     uint32
+	index  int // index in master list of pipes for socket
 
 	sock    *socket
 	closing bool // true if we were closed
@@ -48,16 +44,11 @@ func init() {
 	pipes.nextid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
 }
 
-func newPipe(tranpipe Pipe) *pipe {
+func newPipe(tranpipe Pipe, sock *socket) *pipe {
 	p := &pipe{pipe: tranpipe}
-	// queue depths are kind of arbitrary.  deep enough to avoid
-	// stalls, but hopefully shallow enough to avoid latency.
-	p.rq = make(chan *Message, 10)
-	p.wq = make(chan *Message, 10)
 	p.closeq = make(chan struct{})
-	p.canrecv.Value = p
-	p.cansend.Value = p
 	p.index = -1
+	p.sock = sock
 	for {
 		pipes.Lock()
 		p.id = pipes.nextid & 0x7fffffff
@@ -70,12 +61,6 @@ func newPipe(tranpipe Pipe) *pipe {
 		pipes.Unlock()
 	}
 	return p
-}
-
-func (p *pipe) start(sock *socket) {
-	p.sock = sock
-	go p.sender()
-	go p.receiver()
 }
 
 func (p *pipe) GetID() uint32 {
@@ -100,67 +85,20 @@ func (p *pipe) Close() error {
 }
 
 func (p *pipe) SendMsg(msg *Message) error {
-	select {
-	case p.wq <- msg:
-		p.sock.notifySendReady(p)
-		return nil
-	case <-p.closeq:
-		return ErrClosed
-	default:
-		return ErrPipeFull
+
+	if err := p.pipe.Send(msg); err != nil {
+		p.Close()
+		return err
 	}
+	return nil
 }
 
 func (p *pipe) RecvMsg() *Message {
-	select {
-	case msg := <-p.rq:
-		p.sock.notifyRecvReady(p)
-		return msg
-	case <-p.closeq:
-		return nil
-	default:
+
+	msg, err := p.pipe.Recv()
+	if err != nil {
+		p.Close()
 		return nil
 	}
-}
-
-func (p *pipe) receiver() {
-	var msg *Message
-	var err error
-	for {
-		if msg, err = p.pipe.Recv(); err != nil {
-			p.Close()
-			return
-		}
-
-		select {
-		case p.rq <- msg:
-			p.sock.notifyRecvReady(p)
-
-		case <-p.closeq:
-			return
-		}
-	}
-}
-
-func (p *pipe) sender() {
-
-	for {
-		select {
-		case msg, ok := <-p.wq:
-			p.sock.notifySendReady(p)
-			if msg != nil {
-				if err := p.pipe.Send(msg); err != nil {
-					p.Close()
-					return
-				}
-			}
-			if ok == false {
-				p.Close()
-				return
-			}
-
-		case <-p.closeq:
-			return
-		}
-	}
+	return msg
 }

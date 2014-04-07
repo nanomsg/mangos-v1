@@ -50,7 +50,7 @@ func (p *sub) SetOption(name string, value interface{}) error {
 type subFactory int
 
 func (subFactory) NewProtocol() Protocol {
-	return new(sub)
+	return &sub{}
 }
 
 // SubFactory implements the Protocol Factory for the SUB (Subscribe) protocol.

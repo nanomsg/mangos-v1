@@ -18,39 +18,65 @@ import (
 	"sync"
 )
 
+type pubEp struct {
+	ep   Endpoint
+	q    chan *Message
+	sock ProtocolSocket
+}
+
 // xpub is an implementation of the XPub protocol.
 type xpub struct {
 	sock ProtocolSocket
 	sync.Mutex
-	eps map[uint32]Endpoint
+	eps map[uint32]*pubEp
 }
 
 // Init implements the Protocol Init method.
-func (p *xpub) Init(sock ProtocolSocket) {
-	p.sock = sock
-	p.eps = make(map[uint32]Endpoint)
+func (x *xpub) Init(sock ProtocolSocket) {
+	x.sock = sock
+	x.eps = make(map[uint32]*pubEp)
+	go x.sender()
 }
 
-func (x *xpub) ProcessSend() {
-
+// Bottom sender.
+func (pe *pubEp) sender() {
 	for {
-		msg := x.sock.PullDown()
-		if msg == nil {
+		var msg *Message
+
+		select {
+		case msg = <-pe.q:
+		case <-pe.sock.CloseChannel():
 			return
 		}
-		x.Lock()
-		for _, ep := range x.eps {
-			msg.AddRef()
-			if ep.SendMsg(msg) != nil {
-				msg.DecRef()
-			}
+
+		if err := pe.ep.SendMsg(msg); err != nil {
+			msg.Free()
+			return
 		}
-		x.Unlock()
-		msg.Free()
 	}
 }
 
-func (x *xpub) ProcessRecv() {
+// Top sender.
+func (x *xpub) sender() {
+	for {
+		var msg *Message
+		select {
+		case msg = <-x.sock.SendChannel():
+		case <-x.sock.CloseChannel():
+			return
+		}
+
+		x.Lock()
+		for _, pe := range x.eps {
+			msg := msg.Dup()
+			select {
+			case pe.q <- msg:
+			default:
+				msg.Free()
+			}
+		}
+		x.Unlock()
+	}
 }
 
 func (x *xpub) SendHook(m *Message) bool {
@@ -58,9 +84,11 @@ func (x *xpub) SendHook(m *Message) bool {
 }
 
 func (x *xpub) AddEndpoint(ep Endpoint) {
+	pe := &pubEp{ep: ep, sock: x.sock, q: make(chan *Message)}
 	x.Lock()
-	x.eps[ep.GetID()] = ep
+	x.eps[ep.GetID()] = pe
 	x.Unlock()
+	go pe.sender()
 }
 
 func (x *xpub) RemEndpoint(ep Endpoint) {
@@ -95,7 +123,7 @@ func (*xpub) ValidPeer(peer uint16) bool {
 type xpubFactory int
 
 func (xpubFactory) NewProtocol() Protocol {
-	return new(xpub)
+	return &xpub{}
 }
 
 // XPubFactory implements the Protocol Factory for the XPUB protocol.

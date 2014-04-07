@@ -20,12 +20,8 @@ import (
 
 // xrep is an implementation of the XREP Protocol.
 type xpair struct {
-	sock   ProtocolSocket
-	peer   Endpoint
-	sndmsg *Message // Pending message for outbound delivery
-	rcvmsg *Message // Pending message for inbound delivery
-	sndlk  sync.Mutex
-	rcvlk  sync.Mutex
+	sock ProtocolSocket
+	peer Endpoint
 	sync.Mutex
 }
 
@@ -34,53 +30,34 @@ func (x *xpair) Init(sock ProtocolSocket) {
 	x.sock = sock
 }
 
-func (x *xpair) ProcessSend() {
-	x.sndlk.Lock()
-	defer x.sndlk.Unlock()
+func (x *xpair) sender(ep Endpoint) {
+	// This is pretty easy because we have only one peer at a time.
+	// If the peer goes away, we'll just drop the message on the floor.
 	for {
-		msg := x.sndmsg
-		x.sndmsg = nil
-		if msg == nil {
-			msg = x.sock.PullDown()
-		}
-		if msg == nil {
+		var msg *Message
+		select {
+		case msg = <-x.sock.SendChannel():
+		case <-x.sock.CloseChannel():
 			return
 		}
-		ep := x.sock.NextSendEndpoint()
-		if ep == nil {
-			x.sndmsg = msg
-			return
-		}
-		switch ep.SendMsg(msg) {
-		case nil:
-		case ErrPipeFull:
-			x.sndmsg = msg
-			return
-		default:
+
+		if ep.SendMsg(msg) != nil {
 			msg.Free()
-			continue
+			return
 		}
 	}
 }
 
-func (x *xpair) ProcessRecv() {
-	x.rcvlk.Lock()
-	defer x.rcvlk.Unlock()
+func (x *xpair) receiver(ep Endpoint) {
 	for {
-		msg := x.rcvmsg
-		x.rcvmsg = nil
-		if msg == nil {
-			ep := x.sock.NextRecvEndpoint()
-			if ep == nil {
-				return
-			}
-			msg = ep.RecvMsg()
-		}
+		msg := ep.RecvMsg()
 		if msg == nil {
 			return
 		}
-		if !x.sock.PushUp(msg) {
-			x.rcvmsg = msg
+
+		select {
+		case x.sock.RecvChannel() <- msg:
+		case <-x.sock.CloseChannel():
 			return
 		}
 	}
@@ -94,6 +71,8 @@ func (x *xpair) AddEndpoint(ep Endpoint) {
 		return
 	}
 	x.peer = ep
+	go x.receiver(ep)
+	go x.sender(ep)
 	x.Unlock()
 }
 
@@ -131,7 +110,7 @@ func (*xpair) ValidPeer(peer uint16) bool {
 type xpairFactory int
 
 func (xpairFactory) NewProtocol() Protocol {
-	return new(xpair)
+	return &xpair{}
 }
 
 // XPairFactory implements the Protocol Factory for the XPAIR protocol.

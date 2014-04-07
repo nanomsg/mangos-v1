@@ -32,7 +32,7 @@ func (*pub) IsRaw() bool {
 type pubFactory int
 
 func (pubFactory) NewProtocol() Protocol {
-	return new(pub)
+	return &pub{}
 }
 
 // PubFactory implements the Protocol Factory for the PUB (Publish) protocol.

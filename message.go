@@ -27,6 +27,9 @@ import (
 type Message struct {
 	Header []byte
 	Body   []byte
+	bbuf   []byte
+	hbuf   []byte
+	bsize  int
 	refcnt int32
 }
 
@@ -77,19 +80,22 @@ func (m *Message) trimBackTrace() error {
 	}
 }
 
-type MessageCache struct {
+type msgCacheInfo struct {
 	maxbody int
 	cache   chan *Message
 }
 
-// We can tweak these
-var messageCache = []MessageCache{
+// We can tweak these!
+var messageCache = []msgCacheInfo{
+	{maxbody: 64, cache: make(chan *Message, 2048)},   // 128K
+	{maxbody: 128, cache: make(chan *Message, 1024)},  // 128K
 	{maxbody: 1024, cache: make(chan *Message, 1024)}, // 1 MB
 	{maxbody: 8192, cache: make(chan *Message, 256)},  // 2 MB
 	{maxbody: 65536, cache: make(chan *Message, 64)},  // 4 MB
 }
 
-// ReleaseMessage releases the resources for a message.  While this is not
+// Free decrements the reference count on a message, and releases its
+// resources if no further references remain.  While this is not
 // strictly necessary thanks to GC, doing so allows for the resources to
 // be recycled without engaging GC.  This can have rather substantial
 // benefits for performance.
@@ -98,10 +104,8 @@ func (m *Message) Free() {
 	if v := atomic.AddInt32(&m.refcnt, -1); v > 0 {
 		return
 	}
-	m.Body = m.Body[0:0]
-	m.Header = m.Header[0:0]
 	for i := range messageCache {
-		if cap(m.Body) == messageCache[i].maxbody {
+		if m.bsize == messageCache[i].maxbody {
 			ch = messageCache[i].cache
 			break
 		}
@@ -112,14 +116,16 @@ func (m *Message) Free() {
 	}
 }
 
-// AddRef increments the reference count on the message.  This allows it
-// to be used in multiple places.  Note that it is only safe to do this in
-// cases where the caller is sure that the contents are not modified (e.g. as
-// part of a multiple distribution fanout.) So this is appropriate for some
-// protocol or transport implementations.  It is not appropriate for
-// applications.
-func (m *Message) AddRef() {
+// Dup creates a "duplicate" message.  What it really does is simply
+// increment the reference count on the message.  Note that since the
+// underlying message is actually shared, consumers must take care not
+// to modify the message.  (We might revise this API in the future to
+// add a copy-on-write facility, but for now modification is neither
+// needed nor supported.)  Applications should *NOT* make use of this
+// function -- it is intended for Protocol, Transport and internal use only.
+func (m *Message) Dup() *Message {
 	atomic.AddInt32(&m.refcnt, 1)
+	return m
 }
 
 // DecRef is an alias for Free.  It only actually free's the message when
@@ -136,6 +142,7 @@ func NewMessage(sz int) *Message {
 	for i := range messageCache {
 		if sz < messageCache[i].maxbody {
 			ch = messageCache[i].cache
+			sz = messageCache[i].maxbody
 			break
 		}
 	}
@@ -143,13 +150,13 @@ func NewMessage(sz int) *Message {
 	case m = <-ch:
 	default:
 		m = &Message{}
-		m.Body = make([]byte, 0, sz)
+		m.bbuf = make([]byte, 0, sz)
+		m.hbuf = make([]byte, 0, 32)
+		m.bsize = sz
 	}
 
 	m.refcnt = 1
-	m.Header = m.Header[:0]
-	if cap(m.Header) < 32 {
-		m.Header = make([]byte, 0, 32)
-	}
+	m.Body = m.bbuf
+	m.Header = m.hbuf
 	return m
 }

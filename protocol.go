@@ -19,6 +19,9 @@ import (
 	"sync"
 )
 
+// Endpoint represents the handle that a Protocol implementation has
+// to the underlying stream transport.  It can be thought of as one side
+// of a TCP, IPC, or other type of connection.
 type Endpoint interface {
 	// GetID returns a unique 31-bit value associated with the Endpoint.
 	// The value is unique for a given socket, at a given time.
@@ -27,13 +30,12 @@ type Endpoint interface {
 	// Close does what you think.
 	Close() error
 
-	// SendMsg sends a message.  On success it returns nil.  If the
-	// pipe is full, EPipeFull is returned, and the caller may attempt
-	// again later.  Otherwise the error is fatal.
+	// SendMsg sends a message.  On success it returns nil. This is a
+	// blocking call.
 	SendMsg(*Message) error
 
-	// RecvMsg receives a message.  If one cannot be obtained
-	// for any reason (not present, or closed) nil is returned.
+	// RecvMsg receives a message.  It blocks until the message is
+	// received.  On error, the pipe is closed and nil is returned.
 	RecvMsg() *Message
 }
 
@@ -46,16 +48,6 @@ type Protocol interface {
 	// any initialization steps it needs.  It should save the handle
 	// for future use, as well.
 	Init(ProtocolSocket)
-
-	// ProcessSend implements the sender process.  The protocol
-	// must attempt to process all of the send activity that it
-	// can without blocking.
-	ProcessSend()
-
-	// ProcessRecv implements the receiver process.  The protocol
-	// must attempt to process all of the receive activity that it
-	// can without blocking.
-	ProcessRecv()
 
 	// AddEndpoint is called when a new Endpoint is added to the socket.
 	// Typically this is as a result of connect or accept completing.
@@ -130,24 +122,9 @@ type ProtocolSendHook interface {
 // except by using functions made available on the ProtocolSocket.  Note
 // that all functions listed here are non-blocking.
 type ProtocolSocket interface {
-	// PullDown gets a message from the user, if one is queued.  If none
-	// are available, nil is returned.
-	PullDown() *Message
-
-	// PushUp attempts to push a message to the user.  It returns false
-	// if it was unable to do so, perhaps because the user has messages
-	// he has not received yet.
-	PushUp(*Message) bool
-
-	// NextSendEndpoint returns the next Endpoint capable of sending
-	// messages.  Note that the Endpoint may still be subject to
-	// backpressure.
-	NextSendEndpoint() Endpoint
-
-	// NextRecvEndpoint returns the next Endpoint with messages pending
-	// for receive.  It is possible that there won't actually be a message
-	// pending, so the protocol should check.
-	NextRecvEndpoint() Endpoint
+	SendChannel() <-chan *Message
+	RecvChannel() chan<- *Message
+	CloseChannel() chan struct{}
 }
 
 var protocolsL sync.Mutex

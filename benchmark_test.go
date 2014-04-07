@@ -66,6 +66,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	}
 	<-srvrdy
 
+	time.Sleep(time.Millisecond * 1000)
 	t.ResetTimer()
 	msg := make([]byte, size)
 
@@ -145,7 +146,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}
 }
 
-func BenchmarkLatencyInproc(t *testing.B) {
+func BenchmarkLatencyInp(t *testing.B) {
 	benchmarkReq(t, "inproc://somename", 0)
 }
 func BenchmarkLatencyIPC(t *testing.B) {
@@ -160,10 +161,25 @@ func BenchmarkLatencyTCP(t *testing.B) {
 	benchmarkReq(t, "tcp://127.0.0.1:3333", 0)
 }
 
-func BenchmarkThruputInproc(t *testing.B) {
+func BenchmarkTPut4kInp(t *testing.B) {
+	benchmarkPair(t, "inproc://anothername", 4096)
+}
+func BenchmarkTPut4kIPC(t *testing.B) {
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+	benchmarkPair(t, "ipc:///tmp/benchmark_ipc", 4096)
+}
+
+func BenchmarkTPut4kTCP(t *testing.B) {
+	benchmarkPair(t, "tcp://127.0.0.1:3333", 4096)
+}
+
+func BenchmarkTPut64kInp(t *testing.B) {
 	benchmarkPair(t, "inproc://anothername", 65536)
 }
-func BenchmarkThruputIPC(t *testing.B) {
+func BenchmarkTPut64kIPC(t *testing.B) {
 	if runtime.GOOS == "windows" {
 		t.Skip("IPC not supported on Windows")
 		return
@@ -171,6 +187,6 @@ func BenchmarkThruputIPC(t *testing.B) {
 	benchmarkPair(t, "ipc:///tmp/benchmark_ipc", 65536)
 }
 
-func BenchmarkThruputTCP(t *testing.B) {
+func BenchmarkTPut64kTCP(t *testing.B) {
 	benchmarkPair(t, "tcp://127.0.0.1:3333", 65536)
 }

@@ -26,37 +26,44 @@ type xsub struct {
 	sync.Mutex
 }
 
-func (p *xsub) Init(sock ProtocolSocket) {
-	p.sock = sock
-	p.subs = [][]byte{}
+func (x *xsub) Init(sock ProtocolSocket) {
+	x.sock = sock
+	x.subs = [][]byte{}
 }
 
-func (x *xsub) ProcessRecv() {
-	sock := x.sock
+func (x *xsub) receiver(ep Endpoint) {
 	for {
-		ep := sock.NextRecvEndpoint()
-		if ep == nil {
+		var matched = false
+
+		msg := ep.RecvMsg()
+		if msg == nil {
 			return
-		}
-		m := ep.RecvMsg()
-		if m == nil {
-			continue
 		}
 
 		x.Lock()
 		for _, sub := range x.subs {
-			if bytes.HasPrefix(m.Body, sub) {
+			if bytes.HasPrefix(msg.Body, sub) {
 				// Matched, send it up.  Best effort.
-				sock.PushUp(m)
+				matched = true
+				break
 			}
 		}
 		x.Unlock()
-	}
-}
 
-func (x *xsub) ProcessSend() {
-	// This is a an error!  Just leave the packets at the
-	// "stream head".
+		if !matched {
+			msg.Free()
+			continue
+		}
+
+		select {
+		case x.sock.RecvChannel() <- msg:
+		case <-x.sock.CloseChannel():
+			msg.Free()
+			return
+		default: // no room, drop it
+			msg.Free()
+		}
+	}
 }
 
 func (*xsub) Name() string {
@@ -86,7 +93,10 @@ const (
 	XSubOptionUnsubscribe = "XSUB.UNSUBSCRIBE"
 )
 
-func (*xsub) AddEndpoint(Endpoint) {}
+func (x *xsub) AddEndpoint(ep Endpoint) {
+	go x.receiver(ep)
+}
+
 func (*xsub) RemEndpoint(Endpoint) {}
 
 func (x *xsub) SetOption(name string, value interface{}) error {

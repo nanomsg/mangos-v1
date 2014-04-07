@@ -26,14 +26,9 @@ type socket struct {
 
 	sync.Mutex
 
-	uwq      chan *Message // upper write queue
-	urq      chan *Message // upper read queue
-	closeq   chan bool     // closed when user requests close
-	sndwakeq chan bool
-	rcvwakeq chan bool
-
-	sndlock sync.Mutex
-	rcvlock sync.Mutex
+	uwq    chan *Message // upper write queue
+	urq    chan *Message // upper read queue
+	closeq chan struct{} // closed when user requests close
 
 	closing bool // true if Socket was closed at API level
 
@@ -41,9 +36,7 @@ type socket struct {
 	wdeadline  time.Time
 	reconntime time.Duration // reconnect time after error or disconnect
 
-	pipes   []*pipe
-	cansend List // list of pipes that can send
-	canrecv List // list of pipes that can receive
+	pipes []*pipe
 
 	accepters []PipeAccepter
 
@@ -56,66 +49,19 @@ type socket struct {
 	recvhook  ProtocolRecvHook
 }
 
-func (sock *socket) notifySendReady(p *pipe) {
-	if p != nil {
-		sock.sndlock.Lock()
-		sock.cansend.InsertTail(&p.cansend)
-		sock.sndlock.Unlock()
-	}
-	select {
-	case sock.sndwakeq <- true:
-	default:
-	}
-}
-
-func (sock *socket) wakeSend() {
-	select {
-	case sock.sndwakeq <- true:
-	default:
-	}
-}
-
-func (sock *socket) waitSendReady() chan bool {
-	return sock.sndwakeq
-}
-
-func (sock *socket) notifyRecvReady(p *pipe) {
-	sock.rcvlock.Lock()
-	sock.canrecv.InsertTail(&p.canrecv)
-	sock.rcvlock.Unlock()
-	select {
-	case sock.rcvwakeq <- true:
-	default:
-	}
-}
-
-func (sock *socket) waitRecvReady() chan bool {
-	return sock.rcvwakeq
-}
-
 func (sock *socket) addPipe(tranpipe Pipe) *pipe {
-	p := newPipe(tranpipe)
+	p := newPipe(tranpipe, sock)
 	sock.Lock()
 	p.index = len(sock.pipes)
 	sock.pipes = append(sock.pipes, p)
 	sock.Unlock()
 	sock.proto.AddEndpoint(p)
-	p.start(sock)
-	sock.notifySendReady(p)
 	return p
 }
 
 func (sock *socket) remPipe(p *pipe) {
 
 	sock.proto.RemEndpoint(p)
-
-	sock.rcvlock.Lock()
-	sock.canrecv.Remove(&p.canrecv)
-	sock.rcvlock.Unlock()
-
-	sock.sndlock.Lock()
-	sock.cansend.Remove(&p.cansend)
-	sock.sndlock.Unlock()
 
 	sock.Lock()
 	if p.index >= 0 {
@@ -132,11 +78,7 @@ func newSocket(proto Protocol) *socket {
 	sock.loadTransports()
 	sock.uwq = make(chan *Message, 10)
 	sock.urq = make(chan *Message, 10)
-	sock.closeq = make(chan bool)
-	sock.sndwakeq = make(chan bool)
-	sock.rcvwakeq = make(chan bool)
-	sock.canrecv.Init()
-	sock.cansend.Init()
+	sock.closeq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
 
@@ -156,94 +98,22 @@ func newSocket(proto Protocol) *socket {
 
 	proto.Init(sock)
 
-	go sock.txProcessor()
-	go sock.rxProcessor()
 	return sock
-}
-
-// This routine implements the main processing loop.  Since most of the
-// handling is specific to each protocol, we just call the protocol's
-// Process function, but we take care to keep doing so until it claims to
-// have performed no new work.  Then we wait until some event arrives
-// indicating a state change.
-func (sock *socket) txProcessor() {
-	for {
-		sock.proto.ProcessSend()
-
-		select {
-		case <-sock.waitSendReady():
-			continue
-		case <-sock.closeq:
-			return
-		}
-	}
-}
-
-func (sock *socket) rxProcessor() {
-	for {
-		sock.proto.ProcessRecv()
-
-		select {
-		case <-sock.waitRecvReady():
-			continue
-		case <-sock.closeq:
-			return
-		}
-	}
 }
 
 // Implementation of ProtocolHandle bits on coreHandle.  This is the middle
 // API presented to Protocol implementations.
 
-func (sock *socket) NextSendEndpoint() Endpoint {
-	sock.sndlock.Lock()
-	for n := sock.cansend.HeadNode(); n != nil; n = sock.cansend.HeadNode() {
-		// quick test avoids pointless pushes later
-		p := n.Value.(*pipe)
-		if len(p.wq) < cap(p.wq) {
-			sock.sndlock.Unlock()
-			return p
-		}
-		sock.cansend.Remove(n)
-	}
-	sock.sndlock.Unlock()
-	return nil
+func (sock *socket) SendChannel() <-chan *Message {
+	return sock.uwq
 }
 
-func (sock *socket) NextRecvEndpoint() Endpoint {
-	sock.rcvlock.Lock()
-	for n := sock.canrecv.HeadNode(); n != nil; n = sock.canrecv.HeadNode() {
-		// quick test avoids pointless pushes later
-		p := n.Value.(*pipe)
-		if len(p.rq) > 0 {
-			sock.rcvlock.Unlock()
-			return p
-		}
-		sock.canrecv.Remove(n)
-	}
-	sock.rcvlock.Unlock()
-	return nil
+func (sock *socket) RecvChannel() chan<- *Message {
+	return sock.urq
 }
 
-// PullDown implements the ProtocolHandle PullDown method.
-func (sock *socket) PullDown() *Message {
-	select {
-	case msg := <-sock.uwq:
-		return msg
-	default:
-		return nil
-	}
-}
-
-// PushUp implements the ProtocolHandle PushUp method.
-func (sock *socket) PushUp(msg *Message) bool {
-	select {
-	case sock.urq <- msg:
-		return true
-	default:
-		// Droppped message!
-		return false
-	}
+func (sock *socket) CloseChannel() chan struct{} {
+	return sock.closeq
 }
 
 //
@@ -251,12 +121,12 @@ func (sock *socket) PushUp(msg *Message) bool {
 // presented to applications.
 //
 
-func (sock *socket) Close() {
+func (sock *socket) Close() error {
 	// XXX: flushq's?  linger?
 	sock.Lock()
 	if sock.closing {
 		sock.Unlock()
-		return
+		return ErrClosed
 	}
 	sock.closing = true
 	close(sock.closeq)
@@ -272,6 +142,7 @@ func (sock *socket) Close() {
 		p.Close()
 	}
 
+	return nil
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
@@ -289,7 +160,6 @@ func (sock *socket) SendMsg(msg *Message) error {
 		case <-sock.closeq:
 			return ErrClosed
 		case sock.uwq <- msg:
-			sock.wakeSend()
 			return nil
 		}
 	}

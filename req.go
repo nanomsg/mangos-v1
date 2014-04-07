@@ -30,10 +30,8 @@ type req struct {
 	waker  *time.Timer
 
 	// fields describing the outstanding request
-	reqmsg  *Message
-	reqid   uint32
-	reqep   Endpoint
-	reqtime time.Time // when the next retry should be performed
+	reqmsg *Message
+	reqid  uint32
 }
 
 // Init implements the Protocol Init method.
@@ -41,9 +39,11 @@ func (p *req) Init(sock ProtocolSocket) {
 	p.sock = sock
 	p.nextid = rand.New(rand.NewSource(time.Now().UnixNano())).Uint32()
 	p.retry = time.Minute * 1 // retry after a minute
-	//p.retry = time.Millisecond * 100 // retry after a minute
+	p.waker = time.NewTimer(p.retry)
+	p.waker.Stop()
 
 	p.xreq.Init(sock)
+	go p.resender()
 }
 
 // nextID returns the next request ID.
@@ -55,72 +55,36 @@ func (p *req) nextID() uint32 {
 	return v
 }
 
-// cancel cancels any outstanding request, and resend timers.
-func (p *req) cancel() {
-	if p.waker != nil {
-		p.waker.Stop()
-		p.waker = nil
-	}
-}
+// resend sends the request message again, after a timer has expired.
+// It makes use of the underlying resend channel on the xreq.
+func (p *req) resender() {
 
-func (p *req) resend() {
-	p.Lock()
-	defer p.Unlock()
-
-	if p.reqmsg == nil {
-		return
-	}
-
-	if time.Now().Before(p.reqtime) {
-		return
-	}
-
-	ep := p.sock.NextSendEndpoint()
-	if ep != nil {
-		// If we're resending a message, we shouldn't need
-		// to worry about flow control, because there should
-		// only be a single outstanding message at a time!
-		p.reqmsg.AddRef()
-		if ep.SendMsg(p.reqmsg) != nil {
-			p.reqmsg.DecRef()
+	for {
+		select {
+		case <-p.sock.CloseChannel():
+			return
+		case <-p.waker.C:
+			debugf("RESEND!")
 		}
-		p.reqtime = time.Now().Add(p.retry)
-		go p.reschedule()
-	}
-}
 
-// reschedule arranges for the existing request to be rescheduled for delivery
-// after the configured resend time has passed.
-func (p *req) reschedule() {
-	p.Lock()
-	if p.waker != nil {
-		p.waker.Stop()
-	}
-	// If we don't get a reply, wake us up to resend.
-	//p.reqtime = time.Now().Add(p.retry)
-	p.waker = time.AfterFunc(p.retry, p.resend)
-	p.Unlock()
-}
+		p.Lock()
+		msg := p.reqmsg
+		if msg == nil {
+			p.Unlock()
+			continue
+		}
+		msg = msg.Dup()
+		p.Unlock()
 
-// needresend returns true whenever either the timer has expired,
-// or the pipe we sent it on has been closed.
-func (p *req) xneedresend() bool {
-	if p.reqmsg == nil {
-		return false
+		select {
+		case p.xreq.resend <- msg:
+			p.Lock()
+			p.waker.Reset(p.retry)
+			p.Unlock()
+		case <-p.sock.CloseChannel():
+			continue
+		}
 	}
-	if !time.Now().Before(p.reqtime) {
-		return true
-	}
-	if p.reqep == nil {
-		return true
-	}
-	return false
-}
-
-func (p *req) ProcessSend() {
-
-	p.resend()
-	p.xreq.ProcessSend()
 }
 
 func (*req) Name() string {
@@ -147,19 +111,13 @@ func (p *req) SendHook(msg *Message) bool {
 	p.Lock()
 	defer p.Unlock()
 
-	// We only support a single outstanding request at a time.
-	// If any other message was pending, cancel it.
-	p.cancel()
-
 	// We need to generate a new request id, and append it to the header.
 	p.reqid = p.nextID()
 	msg.putUint32(p.reqid)
-	msg.AddRef()
-	p.reqmsg = msg
+	p.reqmsg = msg.Dup()
 
 	// Schedule a retry, in case we don't get a reply.
-	p.reqtime = time.Now().Add(p.retry)
-	go p.reschedule()
+	p.waker.Reset(p.retry)
 
 	return true
 }
@@ -174,7 +132,7 @@ func (p *req) RecvHook(msg *Message) bool {
 	if id, err := msg.getUint32(); err != nil || id != p.reqid {
 		return false
 	}
-	p.cancel()
+	p.waker.Stop()
 	p.reqmsg.Free()
 	p.reqmsg = nil
 	return true
@@ -183,7 +141,7 @@ func (p *req) RecvHook(msg *Message) bool {
 type reqFactory int
 
 func (reqFactory) NewProtocol() Protocol {
-	return new(req)
+	return &req{}
 }
 
 // ReqFactory implements the Protocol Factory for the REQ (request) protocol.
