@@ -128,12 +128,6 @@ func (m *Message) Dup() *Message {
 	return m
 }
 
-// DecRef is an alias for Free.  It only actually free's the message when
-// the reference count drops to zero.
-func (m *Message) DecRef() {
-	m.Free()
-}
-
 // NewMessage is the supported way to obtain a new Message.  This makes
 // use of a "cache" which greatly reduces the load on the garbage collector.
 func NewMessage(sz int) *Message {
