@@ -149,6 +149,8 @@ func init() {
 	registerProtocolFactory(SubName, SubFactory)
 	registerProtocolFactory(XPairName, XPairFactory)
 	registerProtocolFactory(PairName, PairFactory)
+	registerProtocolFactory(XBusName, XBusFactory)
+	registerProtocolFactory(BusName, BusFactory)
 }
 
 // ProtocolFactory implements the factory pattern for Protocol instances.
@@ -175,6 +177,9 @@ func getProtocol(name string) Protocol {
 	f := protocols[strings.ToLower(name)]
 	protocolsL.Unlock()
 
+	if f == nil {
+		return nil
+	}
 	return f.NewProtocol()
 }
 
