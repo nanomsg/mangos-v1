@@ -66,6 +66,7 @@ func (sock *socket) remPipe(p *pipe) {
 	sock.Lock()
 	if p.index >= 0 {
 		sock.pipes[p.index] = sock.pipes[len(sock.pipes)-1]
+		sock.pipes[p.index].index = p.index
 		sock.pipes = sock.pipes[:len(sock.pipes)-1]
 		p.index = -1
 	}

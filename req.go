@@ -34,7 +34,6 @@ type req struct {
 	reqid  uint32
 }
 
-// Init implements the Protocol Init method.
 func (p *req) Init(sock ProtocolSocket) {
 	p.sock = sock
 	p.nextid = rand.New(rand.NewSource(time.Now().UnixNano())).Uint32()
@@ -64,7 +63,6 @@ func (p *req) resender() {
 		case <-p.sock.CloseChannel():
 			return
 		case <-p.waker.C:
-			debugf("RESEND!")
 		}
 
 		p.Lock()

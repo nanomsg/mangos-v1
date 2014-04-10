@@ -79,10 +79,6 @@ func (x *xpub) sender() {
 	}
 }
 
-func (x *xpub) SendHook(m *Message) bool {
-	return true
-}
-
 func (x *xpub) AddEndpoint(ep Endpoint) {
 	pe := &pubEp{ep: ep, sock: x.sock, q: make(chan *Message)}
 	x.Lock()
