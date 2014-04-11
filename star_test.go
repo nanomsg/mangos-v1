@@ -20,14 +20,14 @@ import (
 	"time"
 )
 
-type busTester struct {
+type starTester struct {
 	id     int
 	sock   Socket
 	rdoneq chan bool
 	sdoneq chan bool
 }
 
-func busTestSender(t *testing.T, bt *busTester, cnt int) {
+func starTestSender(t *testing.T, bt *starTester, cnt int) {
 	defer close(bt.sdoneq)
 	for i := 0; i < cnt; i++ {
 		// Inject a small delay to give receivers a chance to catch up
@@ -44,11 +44,11 @@ func busTestSender(t *testing.T, bt *busTester, cnt int) {
 	}
 }
 
-func busTestReceiver(t *testing.T, bt *busTester, cnt int, npeer int) {
-	var rcpt = make([]int, npeer+1)
+func starTestReceiver(t *testing.T, bt *starTester, cnt int, numId int) {
+	var rcpt = make([]int, numId)
 	defer close(bt.rdoneq)
 
-	for tot := 0; tot < npeer*cnt; {
+	for tot := 0; tot < (numId-1)*cnt; {
 		msg, err := bt.sock.RecvMsg()
 		if err != nil {
 			t.Errorf("Peer %d: Recv fail: %v", bt.id, err)
@@ -62,10 +62,6 @@ func busTestReceiver(t *testing.T, bt *busTester, cnt int, npeer int) {
 		peer := int(msg.Body[0])
 		if peer == bt.id {
 			t.Errorf("Peer %d: Got its own message!", bt.id)
-			return
-		}
-		if peer > npeer {
-			t.Fatalf("Peer %d: Got bad peer %d, %d", bt.id, peer, npeer)
 			return
 		}
 		if int(msg.Body[1]) != rcpt[peer] {
@@ -87,11 +83,11 @@ func busTestReceiver(t *testing.T, bt *busTester, cnt int, npeer int) {
 	t.Logf("Peer %d: Finish", bt.id)
 }
 
-func busTestNewServer(t *testing.T, addr string, id int) *busTester {
+func starTestNewServer(t *testing.T, addr string, id int) *starTester {
 	var err error
-	bt := &busTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
+	bt := &starTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
 
-	if bt.sock, err = NewSocket(BusName); err != nil {
+	if bt.sock, err = NewSocket(StarName); err != nil {
 		t.Errorf("Failed getting server %d socket: %v", id, err)
 		return nil
 	}
@@ -104,11 +100,11 @@ func busTestNewServer(t *testing.T, addr string, id int) *busTester {
 	return bt
 }
 
-func busTestNewClient(t *testing.T, addr string, id int) *busTester {
+func starTestNewClient(t *testing.T, addr string, id int) *starTester {
 	var err error
-	bt := &busTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
+	bt := &starTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
 
-	if bt.sock, err = NewSocket(BusName); err != nil {
+	if bt.sock, err = NewSocket(StarName); err != nil {
 		t.Errorf("Failed getting client %d socket: %v", id, err)
 		return nil
 	}
@@ -120,7 +116,7 @@ func busTestNewClient(t *testing.T, addr string, id int) *busTester {
 	return bt
 }
 
-func busTestCleanup(t *testing.T, bts []*busTester) {
+func starTestCleanup(t *testing.T, bts []*starTester) {
 	for id := 0; id < len(bts); id++ {
 		t.Logf("Cleanup %d", id)
 		if bts[id].sock != nil {
@@ -129,21 +125,20 @@ func busTestCleanup(t *testing.T, bts []*busTester) {
 	}
 }
 
-func TestBus(t *testing.T) {
+func TestStar(t *testing.T) {
 	addr := "tcp://127.0.0.1:3538"
 
 	num := 5
 	pkts := 7
-	npeer := 0
-	bts := make([]*busTester, num)
-	defer busTestCleanup(t, bts)
+	bts := make([]*starTester, num)
+	defer starTestCleanup(t, bts)
 
-	t.Logf("Creating bus network")
+	t.Logf("Creating star network")
 	for id := 0; id < num; id++ {
 		if id == 0 {
-			bts[id] = busTestNewServer(t, addr, id)
+			bts[id] = starTestNewServer(t, addr, id)
 		} else {
-			bts[id] = busTestNewClient(t, addr, id)
+			bts[id] = starTestNewClient(t, addr, id)
 		}
 		if bts[id] == nil {
 			t.Errorf("Failed creating %d", id)
@@ -156,19 +151,11 @@ func TestBus(t *testing.T) {
 
 	t.Logf("Starting send/recv")
 	for id := 0; id < num; id++ {
-		// The accepter has <clients> peers.
-		// The clients have only the server as a peer.
-		if id == 0 {
-			npeer = num - 1
-		} else {
-			npeer = 1
-		}
-		npeer := npeer
-		go busTestReceiver(t, bts[id], pkts, npeer)
-		go busTestSender(t, bts[id], pkts)
+		go starTestReceiver(t, bts[id], pkts, num)
+		go starTestSender(t, bts[id], pkts)
 	}
 
-	tmout := time.After(5 * time.Second)
+	tmout := time.After(30 * time.Second)
 
 	for id := 0; id < num; id++ {
 		select {

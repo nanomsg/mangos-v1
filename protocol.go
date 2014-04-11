@@ -151,6 +151,9 @@ func init() {
 	registerProtocolFactory(PairName, PairFactory)
 	registerProtocolFactory(XBusName, XBusFactory)
 	registerProtocolFactory(BusName, BusFactory)
+	registerProtocolFactory(StarName, StarFactory)
+	registerProtocolFactory(XStarName, XStarFactory)
+
 }
 
 // ProtocolFactory implements the factory pattern for Protocol instances.
@@ -197,6 +200,9 @@ const (
 	ProtoSurveyor   = (6 * 16)
 	ProtoRespondent = (6 * 16) + 1
 	ProtoBus        = (7 * 16)
+
+	// Experimental Protocols - Use at Risk
+	ProtoStar = (100 * 16)
 )
 
 // Protocol names.  These correlate to specific Protocol implementations.
@@ -206,11 +212,17 @@ const (
 	RepName   = "REP"   // Reply Protocol
 	PubName   = "PUB"   // Publish Protocol
 	SubName   = "SUB"   // Subscribe Protocol
+	PushName  = "PUSH"  // Push Protocol
+	PullName  = "PULL"  // Pull Protocol
 	BusName   = "BUS"   // Bus Protocol
 	XPairName = "XPAIR" // Raw Pair Protocol
 	XReqName  = "XREQ"  // Raw Request Protocol
 	XRepName  = "XREP"  // Raw Reply Protocol
 	XPubName  = "XPUB"  // Raw Publish Protocol
 	XSubName  = "XSUB"  // Raw Subscribe Protocol
+	XPushName = "XPUSH" // Raw Push Protocol
+	XPullName = "XPULL" // Raw Pull Protocol
 	XBusName  = "XBUS"  // Raw Bus Protocol
+	StarName  = "STAR"  // Star Protocol (Experimental)
+	XStarName = "XSTAR" // Raw Star Protocol (Experimental)
 )

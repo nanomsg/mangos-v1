@@ -18,27 +18,27 @@ import (
 	"sync"
 )
 
-type busEp struct {
+type starEp struct {
 	ep Endpoint
 	q  chan *Message
-	x  *xbus
+	x  *xstar
 }
 
-type xbus struct {
+type xstar struct {
 	sock ProtocolSocket
 	sync.Mutex
-	eps map[uint32]*busEp
+	eps    map[uint32]*starEp
+	redist bool
 }
 
-// Init implements the Protocol Init method.
-func (x *xbus) Init(sock ProtocolSocket) {
+func (x *xstar) Init(sock ProtocolSocket) {
 	x.sock = sock
-	x.eps = make(map[uint32]*busEp)
+	x.eps = make(map[uint32]*starEp)
 	go x.sender()
 }
 
 // Bottom sender.
-func (pe *busEp) sender() {
+func (pe *starEp) sender() {
 	for {
 		var msg *Message
 
@@ -55,11 +55,11 @@ func (pe *busEp) sender() {
 	}
 }
 
-func (x *xbus) broadcast(msg *Message, sender uint32) {
+func (x *xstar) broadcast(msg *Message, sender *starEp) {
 
 	x.Lock()
-	for id, pe := range x.eps {
-		if sender == id {
+	for _, pe := range x.eps {
+		if sender == pe {
 			continue
 		}
 		msg := msg.Dup()
@@ -71,49 +71,49 @@ func (x *xbus) broadcast(msg *Message, sender uint32) {
 		}
 	}
 	x.Unlock()
+
+	// Grab a local copy and send it up if we aren't originator
+	if sender != nil {
+		select {
+		case x.sock.RecvChannel() <- msg:
+		case <-x.sock.CloseChannel():
+			return
+		default:
+			// No room, so we just drop it.
+		}
+	} else {
+		// Not sending it up, so we need to release it.
+		msg.Free()
+	}
 }
 
-func (x *xbus) sender() {
+func (x *xstar) sender() {
 	for {
 		var msg *Message
-		var id uint32
 		select {
 		case msg = <-x.sock.SendChannel():
 		case <-x.sock.CloseChannel():
 			return
 		}
-
-		// If a header was present, it means this message is being
-		// rebroadcast.  It should be a pipe ID.
-		if len(msg.Header) >= 4 {
-			id, _ = msg.getUint32()
-			msg.Header = msg.Header[4:]
-		}
-		x.broadcast(msg, id)
-		msg.Free()
+		x.broadcast(msg, nil)
 	}
 }
 
-func (pe *busEp) receiver() {
+func (pe *starEp) receiver() {
 	for {
 		msg := pe.ep.RecvMsg()
 		if msg == nil {
 			return
 		}
-		msg.putUint32(pe.ep.GetID())
 
-		select {
-		case pe.x.sock.RecvChannel() <- msg:
-		case <-pe.x.sock.CloseChannel():
-			return
-		default:
-			// No room, so we just drop it.
+		if pe.x.redist {
+			pe.x.broadcast(msg, pe)
 		}
 	}
 }
 
-func (x *xbus) AddEndpoint(ep Endpoint) {
-	pe := &busEp{ep: ep, x: x, q: make(chan *Message, 5)}
+func (x *xstar) AddEndpoint(ep Endpoint) {
+	pe := &starEp{ep: ep, x: x, q: make(chan *Message, 5)}
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()
@@ -121,37 +121,37 @@ func (x *xbus) AddEndpoint(ep Endpoint) {
 	go pe.receiver()
 }
 
-func (x *xbus) RemEndpoint(ep Endpoint) {
+func (x *xstar) RemEndpoint(ep Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()
 }
 
-func (*xbus) Name() string {
-	return XBusName
+func (*xstar) Name() string {
+	return XStarName
 }
 
-func (*xbus) Number() uint16 {
-	return ProtoBus
+func (*xstar) Number() uint16 {
+	return ProtoStar
 }
 
-func (*xbus) IsRaw() bool {
+func (*xstar) IsRaw() bool {
 	return true
 }
 
-func (*xbus) ValidPeer(peer uint16) bool {
-	if peer == ProtoBus {
+func (*xstar) ValidPeer(peer uint16) bool {
+	if peer == ProtoStar {
 		return true
 	}
 	return false
 }
 
-type xbusFactory int
+type xstarFactory int
 
-func (xbusFactory) NewProtocol() Protocol {
-	return &xbus{}
+func (xstarFactory) NewProtocol() Protocol {
+	return &xstar{}
 }
 
-// XBusFactory implements the Protocol Factory for the XBUS protocol.
-// The XBUS Protocol is the raw form of the BUS protocol.
-var XBusFactory xbusFactory
+// XStarFactory implements the Protocol Factory for the XSTAR protocol.
+// The XSTAR Protocol is the raw form of the STAR protocol.
+var XStarFactory xstarFactory

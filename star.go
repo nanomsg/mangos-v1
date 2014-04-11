@@ -14,29 +14,24 @@
 
 package sp
 
-type bus struct {
-	xbus
+type star struct {
+	xstar
 }
 
-func (*bus) Name() string {
-	return BusName
+func (*star) Name() string {
+	return StarName
 }
 
-func (*bus) IsRaw() bool {
+func (*star) IsRaw() bool {
 	return false
 }
 
-func (p *bus) RecvHook(msg *Message) bool {
-	if len(msg.Header) >= 4 {
-		msg.Header = msg.Header[4:]
-	}
-	return true
+type starFactory int
+
+func (starFactory) NewProtocol() Protocol {
+	s := &star{}
+	s.xstar.redist = true
+	return s
 }
 
-type busFactory int
-
-func (busFactory) NewProtocol() Protocol {
-	return &bus{}
-}
-
-var BusFactory busFactory
+var StarFactory starFactory

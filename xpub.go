@@ -31,7 +31,6 @@ type xpub struct {
 	eps map[uint32]*pubEp
 }
 
-// Init implements the Protocol Init method.
 func (x *xpub) Init(sock ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*pubEp)
@@ -93,22 +92,18 @@ func (x *xpub) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-// Name implements the Protocol Name method.  It returns "XRep".
 func (*xpub) Name() string {
 	return XPubName
 }
 
-// Number implements the Protocol Number method.
 func (*xpub) Number() uint16 {
 	return ProtoPub
 }
 
-// IsRaw implements the Protocol IsRaw method.
 func (*xpub) IsRaw() bool {
 	return true
 }
 
-// ValidPeer implements the Protocol ValidPeer method.
 func (*xpub) ValidPeer(peer uint16) bool {
 	if peer == ProtoSub {
 		return true
