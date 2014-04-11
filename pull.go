@@ -14,22 +14,22 @@
 
 package sp
 
-type pair struct {
-	xpair
+type pull struct {
+	xpull
 }
 
-func (*pair) Name() string {
-	return PairName
+func (*pull) Name() string {
+	return PullName
 }
 
-func (*pair) IsRaw() bool {
+func (*pull) IsRaw() bool {
 	return false
 }
 
-type pairFactory int
+type pullFactory int
 
-func (pairFactory) NewProtocol() Protocol {
-	return &pair{}
+func (pullFactory) NewProtocol() Protocol {
+	return &pull{}
 }
 
-var PairFactory pairFactory
+var PullFactory pullFactory

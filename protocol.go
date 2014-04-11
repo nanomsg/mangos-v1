@@ -151,6 +151,10 @@ func init() {
 	registerProtocolFactory(PairName, PairFactory)
 	registerProtocolFactory(XBusName, XBusFactory)
 	registerProtocolFactory(BusName, BusFactory)
+	registerProtocolFactory(PullName, PullFactory)
+	registerProtocolFactory(XPullName, XPullFactory)
+	registerProtocolFactory(PushName, PushFactory)
+	registerProtocolFactory(XPushName, XPushFactory)
 	registerProtocolFactory(StarName, StarFactory)
 	registerProtocolFactory(XStarName, XStarFactory)
 
