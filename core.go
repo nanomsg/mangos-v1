@@ -154,15 +154,13 @@ func (sock *socket) SendMsg(msg *Message) error {
 		}
 	}
 	timeout := mkTimer(sock.wdeadline)
-	for {
-		select {
-		case <-timeout:
-			return ErrSendTimeout
-		case <-sock.closeq:
-			return ErrClosed
-		case sock.uwq <- msg:
-			return nil
-		}
+	select {
+	case <-timeout:
+		return ErrSendTimeout
+	case <-sock.closeq:
+		return ErrClosed
+	case sock.uwq <- msg:
+		return nil
 	}
 }
 
