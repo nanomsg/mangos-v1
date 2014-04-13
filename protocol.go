@@ -122,9 +122,30 @@ type ProtocolSendHook interface {
 // except by using functions made available on the ProtocolSocket.  Note
 // that all functions listed here are non-blocking.
 type ProtocolSocket interface {
+	// SendChannel represents the channel used to send messages.  The
+	// application injects messages to it, and the protocol consumes
+	// messages from it.
 	SendChannel() <-chan *Message
+
+	// RecvChannel is the channel used to receive messages.  The protocol
+	// should inject messages to it, and the application will consume them
+	// later.
 	RecvChannel() chan<- *Message
+
+	// The protocol can wait on this channel to close.  When it is closed,
+	// it indicates that the application has closed the upper socket, and
+	// the protocol should stop any further operations on this instance.
 	CloseChannel() chan struct{}
+
+	// GetOption may be used by the protocol to retrieve an option from
+	// the socket.  This can ultimately wind up calling into the socket's
+	// own GetOption handler, so care should be used!
+	GetOption(string) (interface{}, error)
+
+	// SetOption is used by the Protocol to set an option on the socket.
+	// Note that this may set transport options, or even call back down
+	// into the protocol's own SetOption interface!
+	SetOption(string, interface{}) error
 }
 
 var protocolsL sync.Mutex
@@ -211,22 +232,26 @@ const (
 
 // Protocol names.  These correlate to specific Protocol implementations.
 const (
-	PairName  = "PAIR"  // Pair Protocol
-	ReqName   = "REQ"   // Request Protocol
-	RepName   = "REP"   // Reply Protocol
-	PubName   = "PUB"   // Publish Protocol
-	SubName   = "SUB"   // Subscribe Protocol
-	PushName  = "PUSH"  // Push Protocol
-	PullName  = "PULL"  // Pull Protocol
-	BusName   = "BUS"   // Bus Protocol
-	XPairName = "XPAIR" // Raw Pair Protocol
-	XReqName  = "XREQ"  // Raw Request Protocol
-	XRepName  = "XREP"  // Raw Reply Protocol
-	XPubName  = "XPUB"  // Raw Publish Protocol
-	XSubName  = "XSUB"  // Raw Subscribe Protocol
-	XPushName = "XPUSH" // Raw Push Protocol
-	XPullName = "XPULL" // Raw Pull Protocol
-	XBusName  = "XBUS"  // Raw Bus Protocol
-	StarName  = "STAR"  // Star Protocol (Experimental)
-	XStarName = "XSTAR" // Raw Star Protocol (Experimental)
+	PairName        = "PAIR"        // Pair Protocol
+	ReqName         = "REQ"         // Request Protocol
+	RepName         = "REP"         // Reply Protocol
+	PubName         = "PUB"         // Publish Protocol
+	SubName         = "SUB"         // Subscribe Protocol
+	PushName        = "PUSH"        // Push Protocol
+	PullName        = "PULL"        // Pull Protocol
+	SurveryorName   = "SURVERYOR"   // Surveyor Protocol
+	RespondentName  = "RESPONDENT"  // Respondent Protocol
+	BusName         = "BUS"         // Bus Protocol
+	StarName        = "STAR"        // Star Protocol (Experimental)
+	XPairName       = "XPAIR"       // Raw Pair Protocol
+	XReqName        = "XREQ"        // Raw Request Protocol
+	XRepName        = "XREP"        // Raw Reply Protocol
+	XPubName        = "XPUB"        // Raw Publish Protocol
+	XSubName        = "XSUB"        // Raw Subscribe Protocol
+	XPushName       = "XPUSH"       // Raw Push Protocol
+	XPullName       = "XPULL"       // Raw Pull Protocol
+	XBusName        = "XBUS"        // Raw Bus Protocol
+	XSurveyorName   = "XSURVERYOR"  // Raw Surveyor Protocol
+	XRespondentName = "XRESPONDENT" // Raw Respondent Protocol
+	XStarName       = "XSTAR"       // Raw Star Protocol (Experimental)
 )

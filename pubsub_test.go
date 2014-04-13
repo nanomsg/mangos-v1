@@ -123,13 +123,13 @@ func TestPubSub(t *testing.T) {
 			return
 		}
 		defer clisock.Close()
-		err = clisock.SetOption(SubOptionSubscribe, []byte("END"))
+		err = clisock.SetOption(OptionSubscribe, []byte("END"))
 		if err != nil {
 			t.Errorf("Failed to subscribe to END: %v", err)
 			return
 		}
 
-		err = clisock.SetOption(SubOptionSubscribe, []byte("/rain"))
+		err = clisock.SetOption(OptionSubscribe, []byte("/rain"))
 		if err != nil {
 			t.Errorf("Failed subscribing to the rain: %v", err)
 			return
@@ -142,7 +142,7 @@ func TestPubSub(t *testing.T) {
 		t.Logf("Client dial complete")
 
 		// Now try to synch with publisher... look for START message
-		err = clisock.SetOption(SubOptionSubscribe, []byte("START"))
+		err = clisock.SetOption(OptionSubscribe, []byte("START"))
 		if err != nil {
 			t.Errorf("Failed to subscribe to START: %v", err)
 			return
@@ -162,7 +162,7 @@ func TestPubSub(t *testing.T) {
 		t.Logf("Waking server")
 		close(rdych)
 
-		err = clisock.SetOption(SubOptionUnsubscribe, []byte("START"))
+		err = clisock.SetOption(OptionUnsubscribe, []byte("START"))
 		if err != nil {
 			t.Logf("Failed to unsubscribe from START: %v", err)
 			return

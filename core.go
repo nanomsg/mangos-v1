@@ -150,6 +150,7 @@ func (sock *socket) SendMsg(msg *Message) error {
 	if sock.sendhook != nil {
 		if ok := sock.sendhook.SendHook(msg); !ok {
 			// just drop it silently
+			msg.Free()
 			return nil
 		}
 	}
@@ -181,6 +182,7 @@ func (sock *socket) RecvMsg() (*Message, error) {
 				if ok := sock.recvhook.RecvHook(msg); ok {
 					return msg, nil
 				} // else loop
+				msg.Free()
 			} else {
 				return msg, nil
 			}
@@ -333,6 +335,14 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 			return err
 		}
 	}
+	switch name {
+	case OptionRecvDeadline:
+		sock.rdeadline = value.(time.Time)
+		return nil
+	case OptionSendDeadline:
+		sock.wdeadline = value.(time.Time)
+		return nil
+	}
 	return ErrBadOption
 }
 
@@ -355,6 +365,13 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		if err != ErrBadOption {
 			return nil, err
 		}
+	}
+
+	switch name {
+	case OptionRecvDeadline:
+		return sock.rdeadline, nil
+	case OptionSendDeadline:
+		return sock.wdeadline, nil
 	}
 	return nil, ErrBadOption
 }

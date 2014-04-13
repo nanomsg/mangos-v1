@@ -28,25 +28,6 @@ func (*sub) IsRaw() bool {
 	return false
 }
 
-const (
-	// SubOptionSubscribe is the name of the subscribe option.
-	SubOptionSubscribe = "SUB.SUBSCRIBE"
-
-	// SubOptionUnsubscribe is the name of the unsubscribe option
-	SubOptionUnsubscribe = "SUB.UNSUBSCRIBE"
-)
-
-// SetOption implements the ProtocolSetOptionHandler SetOption method.
-func (p *sub) SetOption(name string, value interface{}) error {
-	switch {
-	case name == SubOptionSubscribe:
-		return p.xsub.SetOption(XSubOptionSubscribe, value)
-	case name == SubOptionUnsubscribe:
-		return p.xsub.SetOption(XSubOptionUnsubscribe, value)
-	}
-	return ErrBadOption
-}
-
 type subFactory int
 
 func (subFactory) NewProtocol() Protocol {

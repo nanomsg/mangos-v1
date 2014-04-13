@@ -77,7 +77,11 @@ func (p *req) resender() {
 		select {
 		case p.xreq.resend <- msg:
 			p.Lock()
-			p.waker.Reset(p.retry)
+			if p.retry > 0 {
+				p.waker.Reset(p.retry)
+			} else {
+				p.waker.Stop()
+			}
 			p.Unlock()
 		case <-p.sock.CloseChannel():
 			continue
@@ -115,7 +119,11 @@ func (p *req) SendHook(msg *Message) bool {
 	p.reqmsg = msg.Dup()
 
 	// Schedule a retry, in case we don't get a reply.
-	p.waker.Reset(p.retry)
+	if p.retry > 0 {
+		p.waker.Reset(p.retry)
+	} else {
+		p.waker.Stop()
+	}
 
 	return true
 }
@@ -134,6 +142,18 @@ func (p *req) RecvHook(msg *Message) bool {
 	p.reqmsg.Free()
 	p.reqmsg = nil
 	return true
+}
+
+func (p *req) SetOption(option string, value interface{}) error {
+	switch option {
+	case OptionRetryTime:
+		p.Lock()
+		p.retry = value.(time.Duration)
+		p.Unlock()
+		return nil
+	default:
+		return ErrBadOption
+	}
 }
 
 type reqFactory int

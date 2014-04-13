@@ -85,14 +85,6 @@ func (*xsub) ValidPeer(peer uint16) bool {
 	return false
 }
 
-const (
-	// XSubOptionSubscribe is the name of the subscribe option.
-	XSubOptionSubscribe = "XSUB.SUBSCRIBE"
-
-	// XSubOptionUnsubscribe is the name of the unsubscribe option
-	XSubOptionUnsubscribe = "XSUB.UNSUBSCRIBE"
-)
-
 func (x *xsub) AddEndpoint(ep Endpoint) {
 	go x.receiver(ep)
 }
@@ -112,7 +104,7 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 		return ErrBadValue
 	}
 	switch {
-	case name == XSubOptionSubscribe:
+	case name == OptionSubscribe:
 		for _, sub := range x.subs {
 			if bytes.Equal(sub, vb) {
 				// Already present
@@ -122,7 +114,7 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 		x.subs = append(x.subs, vb)
 		return nil
 
-	case name == XSubOptionUnsubscribe:
+	case name == OptionUnsubscribe:
 		for i, sub := range x.subs {
 			if bytes.Equal(sub, vb) {
 				x.subs[i] = x.subs[len(x.subs)-1]

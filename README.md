@@ -3,28 +3,28 @@
 [![GoDoc](https://godoc.org/bitbucket.org/gdamore/sp?status.png)](https://godoc.org/bitbucket.org/gdamore/sp)
 
 Package sp is an implementation in pure Go of the SP ("Scalable Protocols")
-protocols.  This makes heavy use of go channels, internally, but it can
-operate on systems that lack support for cgo.  It has no external dependencies.
+protocols.  This makes heavy use of go channels, internally, but it can operate
+on systems that lack support for cgo.  It has no external dependencies.
 
 The reference implementation of the SP protocols is available as
 [nanomsg](http://www.nanomsg.org)
  
-The design is intended to make it easy to add new transports with almost
-trivial effort, as well as new topologies ("protocols" in SP terminology.)
+The design is intended to make it easy to add new transports with almost trivial
+effort, as well as new topologies ("protocols" in SP terminology.)
 
 At present,  Req/Rep, Pub/Sub, Pair, Bus, and Push/Pull over TCP, IPC, and TLS
 are supported.
 
 Additionally, there is an experimental new pattern called STAR available.  This
-pattern is like Bus, except that the messages are delivered
-not just to immediate peers, but to all members of the topology.  Developers
-must be careful not to create cycles in their network when using this pattern,
-otherwise infinite loops can occur.
+pattern is like Bus, except that the messages are delivered not just to
+immediate peers, but to all members of the topology.  Developers must be careful
+not to create cycles in their network when using this pattern, otherwise
+infinite loops can occur.
 
 TLS support is experimental.  Use addresses of the form
-"tls+tcp://<host>:<port>" to access it.  Note that ipc:// is not supported
-on Windows (by either this or the reference implementation.)  Forcing the local
-TCP port in Dial is not supported yet (this is rarely useful).
+"tls+tcp://<host>:<port>" to access it.  Note that ipc:// is not supported on
+Windows (by either this or the reference implementation.)  Forcing the local TCP
+port in Dial is not supported yet (this is rarely useful).
 
 Basic interoperability with nanomsg has been tested with nanocat.
 
