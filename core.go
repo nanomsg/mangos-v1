@@ -154,7 +154,9 @@ func (sock *socket) SendMsg(msg *Message) error {
 			return nil
 		}
 	}
+	sock.Lock()
 	timeout := mkTimer(sock.wdeadline)
+	sock.Unlock()
 	select {
 	case <-timeout:
 		return ErrSendTimeout
@@ -171,7 +173,9 @@ func (sock *socket) Send(b []byte) error {
 }
 
 func (sock *socket) RecvMsg() (*Message, error) {
+	sock.Lock()
 	timeout := mkTimer(sock.rdeadline)
+	sock.Unlock()
 
 	for {
 		select {
@@ -337,10 +341,14 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 	}
 	switch name {
 	case OptionRecvDeadline:
+		sock.Lock()
 		sock.rdeadline = value.(time.Time)
+		sock.Unlock()
 		return nil
 	case OptionSendDeadline:
+		sock.Lock()
 		sock.wdeadline = value.(time.Time)
+		sock.Unlock()
 		return nil
 	}
 	return ErrBadOption
@@ -369,8 +377,12 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 
 	switch name {
 	case OptionRecvDeadline:
+		sock.Lock()
+		defer sock.Unlock()
 		return sock.rdeadline, nil
 	case OptionSendDeadline:
+		sock.Lock()
+		defer sock.Unlock()
 		return sock.wdeadline, nil
 	}
 	return nil, ErrBadOption

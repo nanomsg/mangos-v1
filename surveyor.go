@@ -21,6 +21,7 @@ import (
 )
 
 type surveyor struct {
+	nextid   uint32
 	surveyid uint32
 	duration time.Duration
 	timeout  time.Time
@@ -30,7 +31,7 @@ type surveyor struct {
 
 func (s *surveyor) Init(sock ProtocolSocket) {
 	// Start with a random survey ID
-	s.surveyid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
+	s.nextid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
 	s.duration = time.Second * 1
 	s.xsurveyor.Init(sock)
 }
@@ -68,7 +69,8 @@ func (s *surveyor) SendHook(msg *Message) bool {
 
 	var timeout time.Time
 	s.Lock()
-	s.surveyid++
+	s.surveyid = s.nextid
+	s.nextid++
 	msg.putUint32(s.surveyid)
 	if s.duration > 0 {
 		timeout = time.Now().Add(s.duration)
@@ -83,7 +85,9 @@ func (s *surveyor) SendHook(msg *Message) bool {
 func (s *surveyor) SetOption(name string, val interface{}) error {
 	switch name {
 	case OptionSurveyTime:
+		s.Lock()
 		s.duration = val.(time.Duration)
+		s.Unlock()
 		return nil
 	default:
 		return ErrBadOption
@@ -93,7 +97,10 @@ func (s *surveyor) SetOption(name string, val interface{}) error {
 func (s *surveyor) GetOption(name string) (interface{}, error) {
 	switch name {
 	case OptionSurveyTime:
-		return s.duration, nil
+		s.Lock()
+		d := s.duration
+		s.Unlock()
+		return d, nil
 	default:
 		return nil, ErrBadOption
 	}

@@ -58,8 +58,6 @@ func (p *inproc) Recv() (*Message, error) {
 		return msg, nil
 	case <-p.closeq:
 		return nil, ErrClosed
-	case <-p.peer.closeq:
-		return nil, ErrClosed
 	}
 }
 
@@ -79,9 +77,6 @@ func (p *inproc) Send(msg *Message) error {
 	case p.wq <- nmsg:
 		return nil
 	case <-p.closeq:
-		nmsg.Free()
-		return ErrClosed
-	case <-p.peer.closeq:
 		nmsg.Free()
 		return ErrClosed
 	}

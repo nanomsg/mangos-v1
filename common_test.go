@@ -16,6 +16,7 @@ package sp
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ type spTestCaseImpl struct {
 	id      int
 	addr    string
 	msgsz   int // size of messages
+	txdelay time.Duration
 	wanttx  int32
 	wantrx  int32
 	numtx   int32
@@ -34,6 +36,7 @@ type spTestCaseImpl struct {
 	sock    Socket
 	rdoneq  chan struct{}
 	sdoneq  chan struct{}
+	sync.Mutex
 }
 
 type TestCase interface {
@@ -59,6 +62,7 @@ type TestCase interface {
 	WaitSend() bool
 	SendDone()
 	Close()
+	SendDelay() time.Duration
 }
 
 func (c *spTestCaseImpl) Init(t *testing.T, addr string, proto string) bool {
@@ -68,9 +72,11 @@ func (c *spTestCaseImpl) Init(t *testing.T, addr string, proto string) bool {
 	c.addr = addr
 	c.numrx = 0 // Reset
 	c.numtx = 0 // Reset
+	c.Lock()
 	c.sdoneq = make(chan struct{})
 	c.rdoneq = make(chan struct{})
-	c.timeout = time.Second * 10
+	c.Unlock()
+	c.timeout = time.Second * 3
 	if c.sock, err = NewSocket(proto); err != nil {
 		c.t.Errorf("Id %d: Failed creating socket: %v", c.id, err)
 		return false
@@ -139,11 +145,15 @@ func (c *spTestCaseImpl) GetID() int {
 }
 
 func (c *spTestCaseImpl) SendDone() {
+	c.Lock()
 	close(c.sdoneq)
+	c.Unlock()
 }
 
 func (c *spTestCaseImpl) RecvDone() {
+	c.Lock()
 	close(c.rdoneq)
+	c.Unlock()
 }
 
 func (c *spTestCaseImpl) WaitSend() bool {
@@ -171,7 +181,7 @@ func (c *spTestCaseImpl) Dial() bool {
 		return false
 	}
 	// Allow time for transports to establish connection
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 500)
 	return true
 }
 
@@ -182,15 +192,24 @@ func (c *spTestCaseImpl) Listen() bool {
 		return false
 	}
 	// Allow time for transports to establish connection
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 500)
 	return true
 }
 
 func (c *spTestCaseImpl) Close() {
-	c.sock.Close()
+	if c.sock != nil {
+		c.sock.Close()
+		c.sock = nil
+	}
+}
+
+func (c *spTestCaseImpl) SendDelay() time.Duration {
+	return c.txdelay
 }
 
 func SendTester(c TestCase) bool {
+
+	time.Sleep(c.SendDelay())
 	defer c.SendDone()
 	for c.GetSend() < c.WantSend() {
 		msg := c.NewMessage()
@@ -269,9 +288,15 @@ func StartListenTest(c TestCase) {
 
 }
 
-func RunTests(t *testing.T, addr string, srvProto string, servers []TestCase, cliProto string, clients []TestCase) {
+func RunTests(t *testing.T, addr string, srvProto string, servers []TestCase,
+	cliProto string, clients []TestCase) {
 
-	t.Logf("Address %s, %d %s Servers, %d %s Clients", addr, len(servers), srvProto, len(clients), cliProto)
+	// We need to inject a slight bit of sleep to allow any sessions to
+	// drain before we close connections.
+	defer time.Sleep(50 * time.Millisecond)
+
+	t.Logf("Address %s, %d %s Servers, %d %s Clients", addr, len(servers),
+		srvProto, len(clients), cliProto)
 	for i := range servers {
 		if !servers[i].Init(t, addr, srvProto) {
 			return
@@ -299,8 +324,9 @@ func RunTests(t *testing.T, addr string, srvProto string, servers []TestCase, cl
 }
 
 // This runs all tests on all transports.
-func RunTestsTransports(t *testing.T, srvProto string, servers []TestCase, cliProto string, clients []TestCase) {
-	RunTests(t, "inproc://MYNAME", srvProto, servers, cliProto, clients)
-	RunTests(t, "ipc:///tmp/testing", srvProto, servers, cliProto, clients)
+func RunTestsTransports(t *testing.T, srvProto string, servers []TestCase,
+	cliProto string, clients []TestCase) {
+	//RunTests(t, "inproc://MYNAME", srvProto, servers, cliProto, clients)
+	//RunTests(t, "ipc:///tmp/testing", srvProto, servers, cliProto, clients)
 	RunTests(t, "tcp://127.0.0.1:3939", srvProto, servers, cliProto, clients)
 }

@@ -33,6 +33,7 @@ type xrespPeer struct {
 
 func (x *xresp) Init(sock ProtocolSocket) {
 	x.sock = sock
+	go x.sender()
 }
 
 func (x *xresp) sender() {
@@ -119,6 +120,7 @@ func (x *xresp) AddEndpoint(ep Endpoint) {
 	}
 	peer := &xrespPeer{ep: ep, x: x, q: make(chan *Message, 1)}
 	x.peer = peer
+	peer.closeq = make(chan struct{})
 	go peer.receiver()
 	go peer.sender()
 	x.Unlock()

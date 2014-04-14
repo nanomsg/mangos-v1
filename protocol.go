@@ -170,12 +170,16 @@ func init() {
 	registerProtocolFactory(SubName, SubFactory)
 	registerProtocolFactory(XPairName, XPairFactory)
 	registerProtocolFactory(PairName, PairFactory)
-	registerProtocolFactory(XBusName, XBusFactory)
-	registerProtocolFactory(BusName, BusFactory)
 	registerProtocolFactory(PullName, PullFactory)
 	registerProtocolFactory(XPullName, XPullFactory)
 	registerProtocolFactory(PushName, PushFactory)
 	registerProtocolFactory(XPushName, XPushFactory)
+	registerProtocolFactory(SurveryorName, SurveyorFactory)
+	registerProtocolFactory(XSurveyorName, XSurveryorFactory)
+	registerProtocolFactory(RespondentName, RespondentFactory)
+	registerProtocolFactory(XRespondentName, XRespondentFactory)
+	registerProtocolFactory(XBusName, XBusFactory)
+	registerProtocolFactory(BusName, BusFactory)
 	registerProtocolFactory(StarName, StarFactory)
 	registerProtocolFactory(XStarName, XStarFactory)
 
@@ -239,7 +243,7 @@ const (
 	SubName         = "SUB"         // Subscribe Protocol
 	PushName        = "PUSH"        // Push Protocol
 	PullName        = "PULL"        // Pull Protocol
-	SurveryorName   = "SURVERYOR"   // Surveyor Protocol
+	SurveryorName   = "SURVEYOR"    // Surveyor Protocol
 	RespondentName  = "RESPONDENT"  // Respondent Protocol
 	BusName         = "BUS"         // Bus Protocol
 	StarName        = "STAR"        // Star Protocol (Experimental)
@@ -251,7 +255,7 @@ const (
 	XPushName       = "XPUSH"       // Raw Push Protocol
 	XPullName       = "XPULL"       // Raw Pull Protocol
 	XBusName        = "XBUS"        // Raw Bus Protocol
-	XSurveyorName   = "XSURVERYOR"  // Raw Surveyor Protocol
+	XSurveyorName   = "XSURVEYOR"   // Raw Surveyor Protocol
 	XRespondentName = "XRESPONDENT" // Raw Respondent Protocol
 	XStarName       = "XSTAR"       // Raw Star Protocol (Experimental)
 )

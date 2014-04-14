@@ -36,6 +36,7 @@ type xsurveyorP struct {
 func (x *xsurveyor) Init(sock ProtocolSocket) {
 	x.sock = sock
 	x.peers = make(map[uint32]*xsurveyorP)
+	go x.sender()
 }
 
 func (x *xsurveyor) sender() {
@@ -108,6 +109,7 @@ func (x *xsurveyor) AddEndpoint(ep Endpoint) {
 	peer := &xsurveyorP{ep: ep, x: x, q: make(chan *Message, 1)}
 	x.Lock()
 	x.peers[ep.GetID()] = peer
+	peer.closeq = make(chan struct{})
 	go peer.receiver()
 	go peer.sender()
 	x.Unlock()
