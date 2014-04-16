@@ -15,32 +15,11 @@
 package sp
 
 import (
-	"encoding/binary"
 	"fmt"
 	"runtime"
 	"strings"
 	"time"
 )
-
-func putUint64(b []byte, v uint64) {
-	binary.BigEndian.PutUint64(b, v)
-}
-
-func getUint64(b []byte) uint64 {
-	return binary.BigEndian.Uint64(b)
-}
-
-func putUint32(b []byte, v uint32) {
-	binary.BigEndian.PutUint32(b, v)
-}
-
-func getUint32(b []byte) uint32 {
-	return binary.BigEndian.Uint32(b)
-}
-
-func appendUint32(b []byte, v uint32) []byte {
-	return append(b, byte(v>>24), byte(v>>16), byte(v)>>8, byte(v))
-}
 
 // mkTimer creates a timer based upon an absolute time.  If however
 // a zero valued time is passed, then a nil channel is passed

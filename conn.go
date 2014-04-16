@@ -24,14 +24,20 @@ import (
 // conn implements the Pipe interface on top of net.Conn.  The
 // assumption is that transports using this have similar wire protocols,
 // and conn is meant to be used as a building block.
-//
 type conn struct {
-	conn   net.Conn
+	c      net.Conn
 	rlock  sync.Mutex
 	wlock  sync.Mutex
 	rproto uint16
 	lproto uint16
 	open   bool
+}
+
+// connipc is *almost* like a regular conn, but the IPC protocol insists
+// on stuffing a leading byte (valued 1) in front of messages.  This is for
+// compatibility with nanomsg -- the value cannot ever be anything but 1.
+type connipc struct {
+	conn
 }
 
 // Recv implements the Pipe Recv method.  The message received is expected as
@@ -46,7 +52,7 @@ func (p *conn) Recv() (*Message, error) {
 	p.rlock.Lock()
 	defer p.rlock.Unlock()
 
-	if err = binary.Read(p.conn, binary.BigEndian, &sz); err != nil {
+	if err = binary.Read(p.c, binary.BigEndian, &sz); err != nil {
 		return nil, err
 	}
 
@@ -57,12 +63,12 @@ func (p *conn) Recv() (*Message, error) {
 	// this can actually be more efficient since we don't allocate
 	// any more space than our peer says we need to.
 	if sz > 1024*1024 || sz < 0 {
-		p.conn.Close()
+		p.c.Close()
 		return nil, ErrTooLong
 	}
 	msg = NewMessage(int(sz))
 	msg.Body = msg.Body[0:sz]
-	if _, err = io.ReadFull(p.conn, msg.Body); err != nil {
+	if _, err = io.ReadFull(p.c, msg.Body); err != nil {
 		msg.Free()
 		return nil, err
 	}
@@ -73,9 +79,7 @@ func (p *conn) Recv() (*Message, error) {
 // size (network byte order) followed by the message itself.
 func (p *conn) Send(msg *Message) error {
 
-	h := make([]byte, 8)
 	l := uint64(len(msg.Header) + len(msg.Body))
-	putUint64(h, l)
 
 	// prevent interleaved writes
 	p.wlock.Lock()
@@ -83,14 +87,14 @@ func (p *conn) Send(msg *Message) error {
 	defer msg.Free()
 
 	// send length header
-	if err := binary.Write(p.conn, binary.BigEndian, l); err != nil {
+	if err := binary.Write(p.c, binary.BigEndian, l); err != nil {
 		return err
 	}
-	if _, err := p.conn.Write(msg.Header); err != nil {
+	if _, err := p.c.Write(msg.Header); err != nil {
 		return err
 	}
 	// hope this works
-	if _, err := p.conn.Write(msg.Body); err != nil {
+	if _, err := p.c.Write(msg.Body); err != nil {
 		return err
 	}
 	return nil
@@ -109,7 +113,7 @@ func (p *conn) RemoteProtocol() uint16 {
 // Close implements the Pipe Close method.
 func (p *conn) Close() error {
 	p.open = false
-	return p.conn.Close()
+	return p.c.Close()
 }
 
 // IsOpen implements the PipeIsOpen method.
@@ -127,12 +131,89 @@ func (p *conn) IsOpen() bool {
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
 func NewConnPipe(c net.Conn, lproto uint16) (Pipe, error) {
-	p := &conn{conn: c, lproto: lproto}
+	p := &conn{c: c, lproto: lproto}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
 
 	return p, nil
+}
+
+// NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
+func NewConnPipeIPC(c net.Conn, lproto uint16) (Pipe, error) {
+	p := &connipc{}
+	p.c = c
+	p.lproto = lproto
+	if err := p.handshake(); err != nil {
+		return nil, err
+	}
+
+	return p, nil
+}
+
+func (p *connipc) Send(msg *Message) error {
+
+	l := uint64(len(msg.Header) + len(msg.Body))
+	one := [1]byte{1}
+	var err error
+
+	// prevent interleaved writes
+	p.wlock.Lock()
+	defer p.wlock.Unlock()
+	defer msg.Free()
+
+	// send length header
+	if _, err = p.c.Write(one[:]); err != nil {
+		return err
+	}
+	if err = binary.Write(p.c, binary.BigEndian, l); err != nil {
+		return err
+	}
+	if _, err = p.c.Write(msg.Header); err != nil {
+		return err
+	}
+	// hope this works
+	if _, err = p.c.Write(msg.Body); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *connipc) Recv() (*Message, error) {
+
+	var sz int64
+	var err error
+	var msg *Message
+	var one [1]byte
+
+	// prevent interleaved reads
+	p.rlock.Lock()
+	defer p.rlock.Unlock()
+
+	if _, err = p.c.Read(one[:]); err != nil {
+		return nil, err
+	}
+	if err = binary.Read(p.c, binary.BigEndian, &sz); err != nil {
+		return nil, err
+	}
+
+	// TBD: This fixed limit is kind of silly, but it keeps
+	// a bogus peer from causing us to try to allocate ridiculous
+	// amounts of memory.  If you don't like it, then prealloc
+	// a buffer.  But for protocols that only use small messages
+	// this can actually be more efficient since we don't allocate
+	// any more space than our peer says we need to.
+	if sz > 1024*1024 || sz < 0 {
+		p.c.Close()
+		return nil, ErrTooLong
+	}
+	msg = NewMessage(int(sz))
+	msg.Body = msg.Body[0:sz]
+	if _, err = io.ReadFull(p.c, msg.Body); err != nil {
+		msg.Free()
+		return nil, err
+	}
+	return msg, nil
 }
 
 // connHeader is exchanged during the initial handshake.
@@ -152,20 +233,20 @@ func (p *conn) handshake() error {
 	var err error
 
 	h := connHeader{S: 'S', P: 'P', Proto: p.lproto}
-	if err = binary.Write(p.conn, binary.BigEndian, &h); err != nil {
+	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {
 		return err
 	}
-	if err = binary.Read(p.conn, binary.BigEndian, &h); err != nil {
-		p.conn.Close()
+	if err = binary.Read(p.c, binary.BigEndian, &h); err != nil {
+		p.c.Close()
 		return err
 	}
 	if h.Zero != 0 || h.S != 'S' || h.P != 'P' || h.Rsvd != 0 {
-		p.conn.Close()
+		p.c.Close()
 		return ErrBadHeader
 	}
 	// The only version number we support at present is "0", at offset 3.
 	if h.Version != 0 {
-		p.conn.Close()
+		p.c.Close()
 		return ErrBadVersion
 	}
 
