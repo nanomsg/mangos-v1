@@ -30,7 +30,7 @@ func (d *ipcDialer) Dial() (Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewConnPipe(conn, d.proto)
+	return NewConnPipeIPC(conn, d.proto)
 }
 
 type ipcAccepter struct {
@@ -46,7 +46,7 @@ func (a *ipcAccepter) Accept() (Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewConnPipe(conn, a.proto)
+	return NewConnPipeIPC(conn, a.proto)
 }
 
 // Close implements the PipeAccepter Close method.
