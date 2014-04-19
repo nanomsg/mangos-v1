@@ -20,7 +20,8 @@ import (
 
 // Rep is an implementation of the REP Protocol.
 type rep struct {
-	backtrace []byte
+	backtracebuf []byte
+	backtrace    []byte
 	xrep
 	sync.Mutex
 }
@@ -35,13 +36,20 @@ func (*rep) IsRaw() bool {
 	return false
 }
 
+func (p *rep) Init(sock ProtocolSocket) {
+	// alloc up some scratch space; we reuse this to avoid hitting up
+	// the allocator frequently
+	p.backtracebuf = make([]byte, 64)
+	p.xrep.Init(sock)
+}
+
 // RecvHook implements the Protocol RecvHook Method.
 // We save the backtrace from this message.  This means that if the app calls
 // Recv before calling Send, the saved backtrace will be lost.  This is how
 // the application discards / cancels a request to which it declines to reply.
 func (p *rep) RecvHook(m *Message) bool {
 	p.Lock()
-	p.backtrace = m.Header
+	p.backtrace = append(p.backtracebuf[0:0], m.Header...)
 	p.Unlock()
 	m.Header = nil
 	return true
@@ -52,7 +60,7 @@ func (p *rep) SendHook(m *Message) bool {
 	// Store our saved backtrace.  Note that if none was previously stored,
 	// there is no one to reply to, and we drop the message.
 	p.Lock()
-	m.Header = p.backtrace
+	m.Header = append(m.Header[0:0], p.backtrace...)
 	p.backtrace = nil
 	p.Unlock()
 	if m.Header == nil {
