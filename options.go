@@ -17,6 +17,16 @@ package sp
 // The following are Options used by SetOption, GetOption.
 
 const (
+	// OptionRaw is used to enable RAW mode processing.  The details of
+	// how this varies from normal mode vary from protocol to protocol.
+	// RAW mode corresponds to AF_SP_RAW in the C variant, and must be
+	// used with Devices.  In particular, RAW mode sockets are completely
+	// stateless -- any state between recv/send messages is included in
+	// the message headers.  Protocol names starting with "X" default
+	// to the RAW mode of the same protocol without the leading "X".
+	// The value passed is a bool.
+	OptionRaw = "RAW"
+
 	// OptionRecvDeadline is the absolute time when the next Recv should
 	// timeout.  The value is a time.Time.  Zero value may be passed to
 	// indicate that no timeout should be applied.  By default there is

@@ -28,6 +28,7 @@ type xbus struct {
 	sock ProtocolSocket
 	sync.Mutex
 	eps map[uint32]*busEp
+	raw bool
 }
 
 // Init implements the Protocol Init method.
@@ -127,16 +128,8 @@ func (x *xbus) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (*xbus) Name() string {
-	return XBusName
-}
-
 func (*xbus) Number() uint16 {
 	return ProtoBus
-}
-
-func (*xbus) IsRaw() bool {
-	return true
 }
 
 func (*xbus) ValidPeer(peer uint16) bool {
@@ -146,12 +139,36 @@ func (*xbus) ValidPeer(peer uint16) bool {
 	return false
 }
 
-type xbusFactory int
+func (x *xbus) RecvHook(msg *Message) bool {
+	if !x.raw && len(msg.Header) >= 4 {
+		msg.Header = msg.Header[4:]
+	}
+	return true
+}
 
-func (xbusFactory) NewProtocol() Protocol {
+func (x *xbus) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xbus) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
+}
+
+type busFactory int
+
+func (busFactory) NewProtocol() Protocol {
 	return &xbus{}
 }
 
-// XBusFactory implements the Protocol Factory for the XBUS protocol.
-// The XBUS Protocol is the raw form of the BUS protocol.
-var XBusFactory xbusFactory
+var BusFactory busFactory

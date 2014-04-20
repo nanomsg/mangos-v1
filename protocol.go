@@ -57,19 +57,9 @@ type Protocol interface {
 	// Typically this indicates a disconnected or closed connection.
 	RemEndpoint(Endpoint)
 
-	// Name returns the protocol name as a string.  or example, "REP"
-	// or "XREP".  (Note that this allows us to provide for different
-	// handling semantics using the same protocol number.)
-	Name() string
-
 	// ProtocolNumber returns a 16-bit value for the protocol number,
 	// as assigned by the SP governing body. (IANA?)
 	Number() uint16
-
-	// IsRaw returns true when the protocol handler is a raw mode
-	// protocol (such as XReq rather than Req).  This is useful to
-	// the Device framework.
-	IsRaw() bool
 
 	// ValidPeer returns true of the argument protocol number is a valid
 	// peer for this protocol, false otherwise.  For example, REP is a
@@ -160,29 +150,17 @@ func init() {
 	protocols = make(map[string]ProtocolFactory)
 
 	// Lets go ahead and pre-register the stock transports.
-	registerProtocolFactory(XReqName, XReqFactory)
-	registerProtocolFactory(XRepName, XRepFactory)
 	registerProtocolFactory(ReqName, ReqFactory)
 	registerProtocolFactory(RepName, RepFactory)
-	registerProtocolFactory(XPubName, XPubFactory)
-	registerProtocolFactory(XSubName, XSubFactory)
 	registerProtocolFactory(PubName, PubFactory)
 	registerProtocolFactory(SubName, SubFactory)
-	registerProtocolFactory(XPairName, XPairFactory)
 	registerProtocolFactory(PairName, PairFactory)
 	registerProtocolFactory(PullName, PullFactory)
-	registerProtocolFactory(XPullName, XPullFactory)
 	registerProtocolFactory(PushName, PushFactory)
-	registerProtocolFactory(XPushName, XPushFactory)
 	registerProtocolFactory(SurveryorName, SurveyorFactory)
-	registerProtocolFactory(XSurveyorName, XSurveryorFactory)
 	registerProtocolFactory(RespondentName, RespondentFactory)
-	registerProtocolFactory(XRespondentName, XRespondentFactory)
-	registerProtocolFactory(XBusName, XBusFactory)
 	registerProtocolFactory(BusName, BusFactory)
 	registerProtocolFactory(StarName, StarFactory)
-	registerProtocolFactory(XStarName, XStarFactory)
-
 }
 
 // ProtocolFactory implements the factory pattern for Protocol instances.

@@ -92,16 +92,8 @@ func (x *xpub) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (*xpub) Name() string {
-	return XPubName
-}
-
 func (*xpub) Number() uint16 {
 	return ProtoPub
-}
-
-func (*xpub) IsRaw() bool {
-	return true
 }
 
 func (*xpub) ValidPeer(peer uint16) bool {
@@ -111,12 +103,12 @@ func (*xpub) ValidPeer(peer uint16) bool {
 	return false
 }
 
-type xpubFactory int
+type pubFactory int
 
-func (xpubFactory) NewProtocol() Protocol {
+func (pubFactory) NewProtocol() Protocol {
 	return &xpub{}
 }
 
 // XPubFactory implements the Protocol Factory for the XPUB protocol.
 // The XPUB Protocol is the raw form of the PUB (Publish) protocol.
-var XPubFactory xpubFactory
+var PubFactory pubFactory

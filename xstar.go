@@ -27,8 +27,8 @@ type starEp struct {
 type xstar struct {
 	sock ProtocolSocket
 	sync.Mutex
-	eps    map[uint32]*starEp
-	redist bool
+	eps map[uint32]*starEp
+	raw bool
 }
 
 func (x *xstar) Init(sock ProtocolSocket) {
@@ -106,7 +106,7 @@ func (pe *starEp) receiver() {
 			return
 		}
 
-		if pe.x.redist {
+		if !pe.x.raw {
 			pe.x.broadcast(msg, pe)
 		}
 	}
@@ -127,16 +127,8 @@ func (x *xstar) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (*xstar) Name() string {
-	return XStarName
-}
-
 func (*xstar) Number() uint16 {
 	return ProtoStar
-}
-
-func (*xstar) IsRaw() bool {
-	return true
 }
 
 func (*xstar) ValidPeer(peer uint16) bool {
@@ -146,12 +138,31 @@ func (*xstar) ValidPeer(peer uint16) bool {
 	return false
 }
 
-type xstarFactory int
+func (x *xstar) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
 
-func (xstarFactory) NewProtocol() Protocol {
+func (x *xstar) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
+}
+
+type starFactory int
+
+func (starFactory) NewProtocol() Protocol {
 	return &xstar{}
 }
 
 // XStarFactory implements the Protocol Factory for the XSTAR protocol.
 // The XSTAR Protocol is the raw form of the STAR protocol.
-var XStarFactory xstarFactory
+var StarFactory starFactory

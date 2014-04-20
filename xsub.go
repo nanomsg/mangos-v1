@@ -66,16 +66,8 @@ func (x *xsub) receiver(ep Endpoint) {
 	}
 }
 
-func (*xsub) Name() string {
-	return XSubName
-}
-
 func (*xsub) Number() uint16 {
 	return ProtoSub
-}
-
-func (*xsub) IsRaw() bool {
-	return true
 }
 
 func (*xsub) ValidPeer(peer uint16) bool {
@@ -139,12 +131,12 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 	}
 }
 
-type xsubFactory int
+type subFactory int
 
-func (xsubFactory) NewProtocol() Protocol {
+func (subFactory) NewProtocol() Protocol {
 	return &xsub{}
 }
 
 // XSubFactory implements the Protocol Factory for the XSUB protocol.
 // The XSUB Protocol is the raw form of the SUB (Subscribe) protocol.
-var XSubFactory xsubFactory
+var SubFactory subFactory

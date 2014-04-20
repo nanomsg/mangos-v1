@@ -16,12 +16,18 @@ package sp
 
 import (
 	"sync"
+	"time"
 )
 
 type xsurveyor struct {
 	sock     ProtocolSocket
 	peers    map[uint32]*xsurveyorP
-	surveyid uint32
+	raw      bool
+	nextID   uint32
+	surveyID uint32
+	duration time.Duration
+	timeout  time.Time
+
 	sync.Mutex
 }
 
@@ -32,7 +38,6 @@ type xsurveyorP struct {
 	x      *xsurveyor
 }
 
-// Init implements the Protocol Init method.
 func (x *xsurveyor) Init(sock ProtocolSocket) {
 	x.sock = sock
 	x.peers = make(map[uint32]*xsurveyorP)
@@ -126,22 +131,10 @@ func (x *xsurveyor) RemEndpoint(ep Endpoint) {
 	close(peer.closeq)
 }
 
-// Name implements the Protocol Name method.  It returns "XRep".
-func (*xsurveyor) Name() string {
-	return XSurveyorName
-}
-
-// Number implements the Protocol Number method.
 func (*xsurveyor) Number() uint16 {
 	return ProtoSurveyor
 }
 
-// IsRaw implements the Protocol IsRaw method.
-func (*xsurveyor) IsRaw() bool {
-	return true
-}
-
-// ValidPeer implements the Protocol ValidPeer method.
 func (*xsurveyor) ValidPeer(peer uint16) bool {
 	if peer == ProtoRespondent {
 		return true
@@ -149,10 +142,80 @@ func (*xsurveyor) ValidPeer(peer uint16) bool {
 	return false
 }
 
-type xsurveryorFactory int
+func (x *xsurveyor) SendHook(msg *Message) bool {
 
-func (xsurveryorFactory) NewProtocol() Protocol {
+	var timeout time.Time
+	if x.raw {
+		return true
+	}
+
+	x.Lock()
+	x.surveyID = x.nextID
+	x.nextID++
+	msg.putUint32(x.surveyID)
+	if x.duration > 0 {
+		timeout = time.Now().Add(x.duration)
+	}
+	x.Unlock()
+
+	// We cheat and grab the recv deadline.
+	x.sock.SetOption(OptionRecvDeadline, timeout)
+	return true
+}
+
+func (x *xsurveyor) RecvHook(msg *Message) bool {
+	if x.raw {
+		return true
+	}
+
+	x.Lock()
+	defer x.Unlock()
+
+	if id, err := msg.getUint32(); err != nil || id != x.surveyID {
+		return false
+	}
+	if x.timeout.IsZero() {
+		return true
+	}
+	if time.Now().After(x.timeout) {
+		return false
+	}
+	return true
+}
+
+func (x *xsurveyor) SetOption(name string, val interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = val.(bool)
+		return nil
+	case OptionSurveyTime:
+		x.Lock()
+		x.duration = val.(time.Duration)
+		x.Unlock()
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xsurveyor) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	case OptionSurveyTime:
+		x.Lock()
+		d := x.duration
+		x.Unlock()
+		return d, nil
+	default:
+		return nil, ErrBadOption
+	}
+}
+
+type surveyorFactory int
+
+func (surveyorFactory) NewProtocol() Protocol {
 	return &xsurveyor{}
 }
 
-var XSurveryorFactory xsurveryorFactory
+var SurveyorFactory surveyorFactory

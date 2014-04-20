@@ -18,7 +18,6 @@ import (
 	"sync"
 )
 
-// xrep is an implementation of the XREP Protocol.
 type xpair struct {
 	sock ProtocolSocket
 	peer Endpoint
@@ -83,16 +82,8 @@ func (x *xpair) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (*xpair) Name() string {
-	return XPairName
-}
-
 func (*xpair) Number() uint16 {
 	return ProtoPair
-}
-
-func (*xpair) IsRaw() bool {
-	return true
 }
 
 func (*xpair) ValidPeer(peer uint16) bool {
@@ -102,12 +93,12 @@ func (*xpair) ValidPeer(peer uint16) bool {
 	return false
 }
 
-type xpairFactory int
+type pairFactory int
 
-func (xpairFactory) NewProtocol() Protocol {
+func (pairFactory) NewProtocol() Protocol {
 	return &xpair{}
 }
 
 // XPairFactory implements the Protocol Factory for the XPAIR protocol.
 // The XPAIR Protocol is the raw form of the PAIR (Pair) protocol.
-var XPairFactory xpairFactory
+var PairFactory pairFactory

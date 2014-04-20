@@ -19,8 +19,11 @@ import (
 )
 
 type xresp struct {
-	sock ProtocolSocket
-	peer *xrespPeer
+	sock     ProtocolSocket
+	peer     *xrespPeer
+	raw      bool
+	surveyID uint32
+	surveyOk bool
 	sync.Mutex
 }
 
@@ -111,6 +114,37 @@ func (peer *xrespPeer) receiver() {
 	}
 }
 
+func (x *xresp) RecvHook(msg *Message) bool {
+	var err error
+	if x.raw {
+		// Raw mode receivers get the message unadulterated.
+		return true
+	}
+	x.Lock()
+	defer x.Unlock()
+
+	if x.surveyID, err = msg.getUint32(); err != nil {
+		return false
+	}
+	x.surveyOk = true
+	return true
+}
+
+func (x *xresp) SendHook(msg *Message) bool {
+	if x.raw {
+		// Raw mode senders expected to have prepared header already.
+		return true
+	}
+	x.Lock()
+	defer x.Unlock()
+	if !x.surveyOk {
+		return false
+	}
+	msg.putUint32(x.surveyID)
+	x.surveyOk = false
+	return true
+}
+
 func (x *xresp) AddEndpoint(ep Endpoint) {
 	x.Lock()
 	if x.peer != nil {
@@ -136,16 +170,8 @@ func (x *xresp) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (*xresp) Name() string {
-	return XRespondentName
-}
-
 func (*xresp) Number() uint16 {
 	return ProtoRespondent
-}
-
-func (*xresp) IsRaw() bool {
-	return true
 }
 
 func (*xresp) ValidPeer(peer uint16) bool {
@@ -155,10 +181,29 @@ func (*xresp) ValidPeer(peer uint16) bool {
 	return false
 }
 
-type xrespFactory int
+func (x *xresp) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
 
-func (xrespFactory) NewProtocol() Protocol {
+func (x *xresp) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
+}
+
+type respFactory int
+
+func (respFactory) NewProtocol() Protocol {
 	return &xresp{}
 }
 
-var XRespondentFactory xrespFactory
+var RespondentFactory respFactory

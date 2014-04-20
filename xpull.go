@@ -38,16 +38,8 @@ func (x *xpull) receiver(ep Endpoint) {
 	}
 }
 
-func (*xpull) Name() string {
-	return XPullName
-}
-
 func (*xpull) Number() uint16 {
 	return ProtoPull
-}
-
-func (*xpull) IsRaw() bool {
-	return true
 }
 
 func (*xpull) ValidPeer(peer uint16) bool {
@@ -67,12 +59,10 @@ func (*xpull) SendHook(msg *Message) bool {
 	return false
 }
 
-type xpullFactory int
+type pullFactory int
 
-func (xpullFactory) NewProtocol() Protocol {
+func (pullFactory) NewProtocol() Protocol {
 	return &xpull{}
 }
 
-// XPullFactory implements the Protocol Factory for the XPULL protocol.
-// The XPULL Protocol is the raw form of the PULL (Pull) protocol.
-var XPullFactory xpullFactory
+var PullFactory pullFactory

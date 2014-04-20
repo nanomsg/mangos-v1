@@ -43,16 +43,8 @@ func (x *xpush) sender(ep Endpoint) {
 	}
 }
 
-func (*xpush) Name() string {
-	return XPushName
-}
-
 func (*xpush) Number() uint16 {
 	return ProtoPush
-}
-
-func (*xpush) IsRaw() bool {
-	return true
 }
 
 func (*xpush) ValidPeer(peer uint16) bool {
@@ -68,12 +60,10 @@ func (x *xpush) AddEndpoint(ep Endpoint) {
 
 func (x *xpush) RemEndpoint(ep Endpoint) {}
 
-type xpushFactory int
+type pushFactory int
 
-func (xpushFactory) NewProtocol() Protocol {
+func (pushFactory) NewProtocol() Protocol {
 	return &xpush{}
 }
 
-// XPushFactory implements the Protocol Factory for the XPUSH protocol.
-// The XPUSH Protocol is the raw form of the PUSH (Push) protocol.
-var XPushFactory xpushFactory
+var PushFactory pushFactory

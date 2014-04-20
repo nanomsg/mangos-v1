@@ -27,14 +27,21 @@ type xrepEp struct {
 }
 
 type xrep struct {
-	sock ProtocolSocket
-	eps  map[uint32]*xrepEp
+	sock         ProtocolSocket
+	eps          map[uint32]*xrepEp
+	backtracebuf []byte
+	backtrace    []byte
+	backtraceL   sync.Mutex
+	raw          bool
+
 	sync.Mutex
 }
 
 func (x *xrep) Init(sock ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*xrepEp)
+	x.backtracebuf = make([]byte, 64)
+
 	go x.sender()
 }
 
@@ -116,16 +123,8 @@ func (x *xrep) sender() {
 	}
 }
 
-func (*xrep) Name() string {
-	return XRepName
-}
-
 func (*xrep) Number() uint16 {
 	return ProtoRep
-}
-
-func (*xrep) IsRaw() bool {
-	return true
 }
 
 func (*xrep) ValidPeer(peer uint16) bool {
@@ -150,12 +149,61 @@ func (x *xrep) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-type xrepFactory int
+// We save the backtrace from this message.  This means that if the app calls
+// Recv before calling Send, the saved backtrace will be lost.  This is how
+// the application discards / cancels a request to which it declines to reply.
+// This is only done in cooked mode.
+func (x *xrep) RecvHook(m *Message) bool {
+	if x.raw {
+		return true
+	}
+	x.backtraceL.Lock()
+	x.backtrace = append(x.backtracebuf[0:0], m.Header...)
+	x.backtraceL.Unlock()
+	m.Header = nil
+	return true
+}
 
-func (xrepFactory) NewProtocol() Protocol {
+func (x *xrep) SendHook(m *Message) bool {
+	// Store our saved backtrace.  Note that if none was previously stored,
+	// there is no one to reply to, and we drop the message.  We only
+	// do this in cooked mode.
+	if x.raw {
+		return true
+	}
+	x.backtraceL.Lock()
+	m.Header = append(m.Header[0:0], x.backtrace...)
+	x.backtrace = nil
+	x.backtraceL.Unlock()
+	if m.Header == nil {
+		return false
+	}
+	return true
+}
+
+func (x *xrep) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xrep) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
+}
+
+type repFactory int
+
+func (repFactory) NewProtocol() Protocol {
 	return &xrep{}
 }
 
-// XRepFactory implements the Protocol Factory for the XREP protocol.
-// The XREP Protocol is the raw form of the REP (Reply) protocol.
-var XRepFactory xrepFactory
+var RepFactory repFactory
