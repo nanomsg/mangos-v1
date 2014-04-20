@@ -98,7 +98,7 @@ gYiuigwixOW006p90YD+k9NPvro1usEMwEUiqatuYIE=
 `
 
 // Wrap this in a function so we can use it later.
-func SetTLSTest(t *testing.T, sock Socket) bool {
+func SetTLSTest(t testing.TB, sock Socket) bool {
 	cfg := new(tls.Config)
 	cert, err := tls.X509KeyPair([]byte(tlsTestClientCertPEM),
 		[]byte(tlsTestClientKeyPEM))

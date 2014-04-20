@@ -16,11 +16,17 @@ package sp
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
 
 func benchmarkReq(t *testing.B, url string, size int) {
+
+	if strings.HasPrefix(url, "ipc://") && runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
 
 	srvrdy := make(chan struct{})
 	srvsock, err := NewSocket(RepName)
@@ -29,12 +35,14 @@ func benchmarkReq(t *testing.B, url string, size int) {
 		return
 	}
 	defer srvsock.Close()
+	SetTLSTest(t, srvsock)
 	clisock, err := NewSocket(ReqName)
 	if err != nil || clisock == nil {
 		t.Errorf("Failed creating client socket: %v", err)
 		return
 	}
 	defer clisock.Close()
+	SetTLSTest(t, clisock)
 
 	go func() {
 		var err error
@@ -87,6 +95,11 @@ func benchmarkReq(t *testing.B, url string, size int) {
 
 func benchmarkPair(t *testing.B, url string, size int) {
 
+	if strings.HasPrefix(url, "ipc://") && runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
 	finish := make(chan struct{})
 	ready := make(chan struct{})
 	srvsock, err := NewSocket(PairName)
@@ -94,6 +107,8 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		t.Errorf("Failed creating server socket: %v", err)
 		return
 	}
+	SetTLSTest(t, srvsock)
+
 	defer srvsock.Close()
 	clisock, err := NewSocket(PairName)
 	if err != nil || clisock == nil {
@@ -101,6 +116,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		return
 	}
 	defer clisock.Close()
+	SetTLSTest(t, clisock)
 
 	go func() {
 		var err error
@@ -146,47 +162,46 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}
 }
 
+var benchInpAddr = "inproc://benchmark_test"
+var benchTCPAddr = "tcp://127.0.0.1:33833"
+var benchIPCAddr = "ipc:///tmp/benchmark_test"
+var benchTLSAddr = "tls+tcp://127.0.0.1:44844"
+
 func BenchmarkLatencyInp(t *testing.B) {
-	benchmarkReq(t, "inproc://somename", 0)
+	benchmarkReq(t, benchInpAddr, 0)
 }
 func BenchmarkLatencyIPC(t *testing.B) {
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-	benchmarkReq(t, "ipc:///tmp/benchmark_ipc", 0)
+	benchmarkReq(t, benchIPCAddr, 0)
 }
-
 func BenchmarkLatencyTCP(t *testing.B) {
-	benchmarkReq(t, "tcp://127.0.0.1:3333", 0)
+	benchmarkReq(t, benchTCPAddr, 0)
+}
+func BenchmarkLatencyTLS(t *testing.B) {
+	benchmarkReq(t, benchTLSAddr, 0)
 }
 
 func BenchmarkTPut4kInp(t *testing.B) {
-	benchmarkPair(t, "inproc://anothername", 4096)
+	benchmarkPair(t, benchInpAddr, 4096)
 }
 func BenchmarkTPut4kIPC(t *testing.B) {
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-	benchmarkPair(t, "ipc:///tmp/benchmark_ipc", 4096)
+	benchmarkPair(t, benchIPCAddr, 4096)
 }
-
 func BenchmarkTPut4kTCP(t *testing.B) {
-	benchmarkPair(t, "tcp://127.0.0.1:3333", 4096)
+	benchmarkPair(t, benchTCPAddr, 4096)
+}
+func BenchmarkTPut4kTLS(t *testing.B) {
+	benchmarkPair(t, benchTLSAddr, 4096)
 }
 
 func BenchmarkTPut64kInp(t *testing.B) {
-	benchmarkPair(t, "inproc://anothername", 65536)
+	benchmarkPair(t, benchInpAddr, 65536)
 }
 func BenchmarkTPut64kIPC(t *testing.B) {
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-	benchmarkPair(t, "ipc:///tmp/benchmark_ipc", 65536)
+	benchmarkPair(t, benchIPCAddr, 65536)
 }
-
 func BenchmarkTPut64kTCP(t *testing.B) {
-	benchmarkPair(t, "tcp://127.0.0.1:3333", 65536)
+	benchmarkPair(t, benchTCPAddr, 65536)
+}
+func BenchmarkTPut64kTLS(t *testing.B) {
+	benchmarkPair(t, benchTLSAddr, 65536)
 }
