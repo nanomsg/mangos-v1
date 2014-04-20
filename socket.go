@@ -62,6 +62,9 @@ type Socket interface {
 
 	// SetOption is used to set an option for a socket.
 	SetOption(name string, value interface{}) error
+
+	// Protocol is used to get the underlying Protocol.
+	GetProtocol() Protocol
 }
 
 // NewSocket creates a new Socket using the specified protocol.

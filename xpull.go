@@ -16,6 +16,7 @@ package sp
 
 type xpull struct {
 	sock ProtocolSocket
+	raw  bool
 }
 
 func (x *xpull) Init(sock ProtocolSocket) {
@@ -57,6 +58,25 @@ func (x *xpull) RemEndpoint(ep Endpoint) {}
 
 func (*xpull) SendHook(msg *Message) bool {
 	return false
+}
+
+func (x *xpull) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xpull) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
 }
 
 type pullFactory int

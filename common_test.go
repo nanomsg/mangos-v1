@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -485,6 +486,11 @@ func slowStart(t *testing.T, cases []TestCase) bool {
 
 func RunTests(t *testing.T, addr string, cases []TestCase) {
 
+	if strings.HasPrefix(addr, "ipc://") && runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows yet")
+		return
+	}
+
 	// We need to inject a slight bit of sleep to allow any sessions to
 	// drain before we close connections.
 	defer time.Sleep(50 * time.Millisecond)
@@ -517,22 +523,24 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 	}
 }
 
+// We have to expose these, so that device tests can use them.
+var AddrTestTCP = "tcp://127.0.0.1:39093"
+var AddrTestIPC = "ipc:///tmp/MYTEST_IPC"
+var AddrTestInp = "inproc://MYTEST_INPROC"
+var AddrTestTLS = "tls+tcp://127.0.0.1:43934"
+
 func RunTestsTCP(t *testing.T, cases []TestCase) {
-	RunTests(t, "tcp://127.0.0.1:39093", cases)
+	RunTests(t, AddrTestTCP, cases)
 }
 
 func RunTestsIPC(t *testing.T, cases []TestCase) {
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows yet")
-		return
-	}
-	RunTests(t, "ipc:///tmp/MYTEST_IPC", cases)
+	RunTests(t, AddrTestIPC, cases)
 }
 
 func RunTestsInp(t *testing.T, cases []TestCase) {
-	RunTests(t, "inproc://MYTEST_INPROC", cases)
+	RunTests(t, AddrTestInp, cases)
 }
 
 func RunTestsTLS(t *testing.T, cases []TestCase) {
-	RunTests(t, "tls+tcp://127.0.0.1:43934", cases)
+	RunTests(t, AddrTestTLS, cases)
 }

@@ -21,6 +21,7 @@ import (
 type xpair struct {
 	sock ProtocolSocket
 	peer Endpoint
+	raw  bool
 	sync.Mutex
 }
 
@@ -91,6 +92,25 @@ func (*xpair) ValidPeer(peer uint16) bool {
 		return true
 	}
 	return false
+}
+
+func (x *xpair) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xpair) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
 }
 
 type pairFactory int

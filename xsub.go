@@ -23,6 +23,7 @@ import (
 type xsub struct {
 	sock ProtocolSocket
 	subs [][]byte
+	raw  bool
 	sync.Mutex
 }
 
@@ -92,6 +93,9 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 	// Check names first, because type check below is only valid for
 	// subscription options.
 	switch name {
+	case OptionRaw:
+		x.raw = value.(bool)
+		return nil
 	case OptionSubscribe:
 	case OptionUnsubscribe:
 	default:
@@ -128,6 +132,15 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 
 	default:
 		return ErrBadOption
+	}
+}
+
+func (x *xsub) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
 	}
 }
 

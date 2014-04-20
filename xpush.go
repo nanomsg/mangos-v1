@@ -16,6 +16,7 @@ package sp
 
 type xpush struct {
 	sock ProtocolSocket
+	raw  bool
 }
 
 func (x *xpush) Init(sock ProtocolSocket) {
@@ -59,6 +60,25 @@ func (x *xpush) AddEndpoint(ep Endpoint) {
 }
 
 func (x *xpush) RemEndpoint(ep Endpoint) {}
+
+func (x *xpush) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xpush) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
+}
 
 type pushFactory int
 

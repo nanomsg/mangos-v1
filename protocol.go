@@ -66,27 +66,19 @@ type Protocol interface {
 	// valid peer for REQ and XREQ, but not for SUB or PUB.  We only match
 	// based on protocol number.
 	ValidPeer(uint16) bool
-}
 
-// The follow are optional interfaces that a Protocol can choose to implement.
-
-// ProtocolGetOptionHandler is intended to be an additional extension
-// to the Protocol interface.
-type ProtocolGetOptionHandler interface {
 	// GetOption is used to retrieve the current value of an option.
 	// If the protocol doesn't recognize the option, EBadOption should
 	// be returned.
 	GetOption(string) (interface{}, error)
-}
 
-// ProtocolSetOptionHandler is intended to be an additional extension
-// to the Protocol interface.
-type ProtocolSetOptionHandler interface {
 	// SetOption is used to set an option.  EBadOption is returned if
 	// the option name is not recognized, EBadValue if the value is
 	// invalid.
 	SetOption(string, interface{}) error
 }
+
+// The follow are optional interfaces that a Protocol can choose to implement.
 
 // ProtocolRecvHook is intended to be an additional extension
 // to the Protocol interface.

@@ -29,6 +29,7 @@ type xpub struct {
 	sock ProtocolSocket
 	sync.Mutex
 	eps map[uint32]*pubEp
+	raw bool
 }
 
 func (x *xpub) Init(sock ProtocolSocket) {
@@ -101,6 +102,25 @@ func (*xpub) ValidPeer(peer uint16) bool {
 		return true
 	}
 	return false
+}
+
+func (x *xpub) SetOption(name string, v interface{}) error {
+	switch name {
+	case OptionRaw:
+		x.raw = v.(bool)
+		return nil
+	default:
+		return ErrBadOption
+	}
+}
+
+func (x *xpub) GetOption(name string) (interface{}, error) {
+	switch name {
+	case OptionRaw:
+		return x.raw, nil
+	default:
+		return nil, ErrBadOption
+	}
 }
 
 type pubFactory int

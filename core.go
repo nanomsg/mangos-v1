@@ -43,10 +43,8 @@ type socket struct {
 	transports map[string]Transport
 
 	// These are conditional "type aliases" for our self
-	setoption ProtocolSetOptionHandler
-	getoption ProtocolGetOptionHandler
-	sendhook  ProtocolSendHook
-	recvhook  ProtocolRecvHook
+	sendhook ProtocolSendHook
+	recvhook ProtocolRecvHook
 }
 
 func (sock *socket) addPipe(tranpipe Pipe) *pipe {
@@ -84,12 +82,6 @@ func newSocket(proto Protocol) *socket {
 	sock.proto = proto
 
 	// Add some conditionals now -- saves checks later
-	if i, ok := interface{}(proto).(ProtocolGetOptionHandler); ok {
-		sock.getoption = i.(ProtocolGetOptionHandler)
-	}
-	if i, ok := interface{}(proto).(ProtocolSetOptionHandler); ok {
-		sock.setoption = i.(ProtocolSetOptionHandler)
-	}
 	if i, ok := interface{}(proto).(ProtocolRecvHook); ok {
 		sock.recvhook = i.(ProtocolRecvHook)
 	}
@@ -239,7 +231,6 @@ func (sock *socket) loadTransports() {
 	}
 }
 
-// Dial implements the Socket Dial method.
 func (sock *socket) Dial(addr string) error {
 	// This function should fire off a dialer goroutine.  The dialer
 	// will monitor the connection state, and when it becomes closed
@@ -297,7 +288,6 @@ func (sock *socket) serve(a PipeAccepter) {
 	}
 }
 
-// Listen implements the Socket Listen method.
 func (sock *socket) Listen(addr string) error {
 	// This function sets up a goroutine to accept inbound connections.
 	// The accepted connection will be added to a list of accepted
@@ -319,16 +309,13 @@ func (sock *socket) Listen(addr string) error {
 	return nil
 }
 
-// SetOption implements the Socket SetOption method.
 func (sock *socket) SetOption(name string, value interface{}) error {
-	if sock.setoption != nil {
-		err := sock.setoption.SetOption(name, value)
-		if err == nil {
-			return nil
-		}
-		if err != ErrBadOption {
-			return err
-		}
+	err := sock.proto.SetOption(name, value)
+	if err == nil {
+		return nil
+	}
+	if err != ErrBadOption {
+		return err
 	}
 	for _, t := range sock.transports {
 		err := t.SetOption(name, value)
@@ -354,16 +341,13 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 	return ErrBadOption
 }
 
-// GetOption implements the Socket GetOption method.
 func (sock *socket) GetOption(name string) (interface{}, error) {
-	if sock.getoption != nil {
-		val, err := sock.getoption.GetOption(name)
-		if err == nil {
-			return val, nil
-		}
-		if err != ErrBadOption {
-			return nil, err
-		}
+	val, err := sock.proto.GetOption(name)
+	if err == nil {
+		return val, nil
+	}
+	if err != ErrBadOption {
+		return nil, err
 	}
 	for _, t := range sock.transports {
 		val, err := t.GetOption(name)
@@ -386,4 +370,8 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		return sock.wdeadline, nil
 	}
 	return nil, ErrBadOption
+}
+
+func (sock *socket) GetProtocol() Protocol {
+	return sock.proto
 }
