@@ -23,7 +23,6 @@ func (*sub) Name() string {
 	return SubName
 }
 
-// IsRaw implements the Protocol IsRaw method.
 func (*sub) IsRaw() bool {
 	return false
 }

@@ -19,12 +19,10 @@ type pub struct {
 	xpub
 }
 
-// Name implements the Protocol Name method.
 func (*pub) Name() string {
 	return PubName
 }
 
-// IsRaw implements the Protocol IsRaw method.
 func (*pub) IsRaw() bool {
 	return false
 }

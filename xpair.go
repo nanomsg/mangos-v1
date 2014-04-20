@@ -25,7 +25,6 @@ type xpair struct {
 	sync.Mutex
 }
 
-// Init implements the Protocol Init method.
 func (x *xpair) Init(sock ProtocolSocket) {
 	x.sock = sock
 }
@@ -84,22 +83,18 @@ func (x *xpair) RemEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-// Name implements the Protocol Name method.  It returns "XRep".
 func (*xpair) Name() string {
 	return XPairName
 }
 
-// Number implements the Protocol Number method.
 func (*xpair) Number() uint16 {
 	return ProtoPair
 }
 
-// IsRaw implements the Protocol IsRaw method.
 func (*xpair) IsRaw() bool {
 	return true
 }
 
-// ValidPeer implements the Protocol ValidPeer method.
 func (*xpair) ValidPeer(peer uint16) bool {
 	if peer == ProtoPair {
 		return true
