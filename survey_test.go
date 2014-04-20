@@ -15,100 +15,151 @@
 package sp
 
 import (
-	"runtime"
+	"encoding/binary"
 	"testing"
 	"time"
 )
 
-type SurveyTest struct {
-	resp []bool
-	spTestCaseImpl
+type surveyTest struct {
+	nresp  int32
+	nstart int32
+	resp   map[uint32]bool
+	start  map[uint32]bool
+	testCase
 }
 
-type RespTest struct {
-	spTestCaseImpl
+type responderTest struct {
+	testCase
 }
 
-func (t *SurveyTest) SendHook(m *Message) bool {
-	m.Body = append(m.Body, byte(t.GetSend()))
-	return t.spTestCaseImpl.SendHook(m)
+func (st *surveyTest) Init(t *testing.T, addr string) bool {
+	st.proto = SurveryorName
+	st.resp = make(map[uint32]bool)
+	st.start = make(map[uint32]bool)
+	st.nstart = 0
+	return st.testCase.Init(t, addr)
 }
 
-func (t *SurveyTest) RecvHook(m *Message) bool {
-	if len(m.Body) != 1 {
-		t.Errorf("Recv message length %d != 1", len(m.Body))
+func (st *surveyTest) SendHook(m *Message) bool {
+	m.Body = m.Body[0:4]
+	binary.BigEndian.PutUint32(m.Body, uint32(st.GetSend()))
+	return st.testCase.SendHook(m)
+}
+
+func (st *surveyTest) RecvHook(m *Message) bool {
+	if len(m.Body) != 4 {
+		st.Errorf("Recv message length %d != 4", len(m.Body))
 		return false
 	}
-	if int(m.Body[0]) > len(t.resp) {
-		t.Errorf("Response from unknown id %d", m.Body[0])
-		return false
-	}
-
-	if t.resp[m.Body[0]] {
-		t.Logf("Duplicate response from id %d", m.Body[0])
+	v := binary.BigEndian.Uint32(m.Body)
+	if st.resp[v] {
+		st.Logf("Duplicate response from id %d", v)
 	} else {
-		t.Logf("Response from id %d", m.Body[0])
-		t.resp[m.Body[0]] = true
-		t.BumpRecv()
+		st.Logf("Response from id %d", v)
+		st.resp[v] = true
+		st.BumpRecv()
 	}
 	return true
 }
 
-func (t *RespTest) RecvHook(m *Message) bool {
-	if len(m.Body) != 1 {
-		t.Errorf("Recv message length %d != 1", len(m.Body))
+func (st *surveyTest) RecvStart() bool {
+	m, err := st.RecvMsg()
+	if err != nil {
+		st.Errorf("RecvMsg failed: %v", err)
 		return false
 	}
-	t.Logf("Got survey ID %d", m.Body[0])
+	defer m.Free()
+	v, ok := ParseStart(m)
+	if !ok {
+		st.Errorf("Bad START message received: %v", m)
+		return false
+	}
+	if yes, ok := st.start[v]; ok && yes {
+		st.Debugf("Got dup START from %d", v)
+		return false
+	}
+	st.Debugf("Got START from %d", v)
+	st.start[v] = true
+	st.nstart++
+	return st.nstart == st.nresp
+}
+
+func (rt *responderTest) Init(t *testing.T, addr string) bool {
+	rt.proto = RespondentName
+	return rt.testCase.Init(t, addr)
+}
+
+func (rt *responderTest) RecvHook(m *Message) bool {
+	if len(m.Body) < 4 {
+		rt.Errorf("Recv message length %d < 4", len(m.Body))
+		return false
+	}
+	rt.Logf("Got survey ID %d", binary.BigEndian.Uint32(m.Body))
 
 	// reply
-	newm := t.NewMessage()
-	newm.Body = append(newm.Body, byte(t.GetID()))
-	t.SendMsg(newm)
-	t.spTestCaseImpl.RecvHook(m)
+	newm := rt.NewMessage()
+	newm.Body = newm.Body[0:4]
+	binary.BigEndian.PutUint32(newm.Body, uint32(rt.GetID()))
+	rt.SendMsg(newm)
+	rt.testCase.RecvHook(m)
 	return true
 }
 
-func testSurvey(t *testing.T, addr string) {
-	nresp := 3
-
-	clients := make([]TestCase, nresp)
-	for i := 0; i < nresp; i++ {
-		resp := &RespTest{}
-		resp.id = i + 1
-		resp.msgsz = 1
-		resp.wanttx = 0 // reply is done in response to receipt
-		resp.wantrx = 1
-		clients[i] = resp
+func (rt *responderTest) RecvStart() bool {
+	m, err := rt.RecvMsg()
+	if err != nil {
+		rt.Errorf("RecvMsg failed: %v", err)
+		return false
+	}
+	defer m.Free()
+	if _, ok := ParseStart(m); !ok {
+		rt.Errorf("Unexpected survey message: %v", m)
+		return false
 	}
 
-	rcv := &SurveyTest{}
-	rcv.resp = make([]bool, nresp+1)
-	rcv.id = 0
-	rcv.msgsz = 1
-	rcv.wanttx = 1
-	rcv.wantrx = int32(nresp)
-	rcv.txdelay = 20 * time.Millisecond
+	rm := MakeStart(uint32(rt.GetID()))
+	rt.Debugf("Sending START reply")
+	rt.SendMsg(rm)
+	return true
+}
 
-	servers := []TestCase{rcv}
+func surveyCases() []TestCase {
+	var nresp int32 = 3
 
-	RunTests(t, addr, SurveryorName, servers, RespondentName, clients)
+	cases := make([]TestCase, nresp+1)
+	surv := &surveyTest{nresp: nresp}
+	surv.server = true
+	surv.id = 0
+	surv.msgsz = 8
+	surv.wanttx = 1
+	surv.wantrx = int32(nresp)
+	surv.txdelay = 20 * time.Millisecond
+	cases[0] = surv
+
+	for i := 0; i < int(nresp); i++ {
+		resp := &responderTest{}
+		resp.id = i + 1
+		resp.msgsz = 8
+		resp.wanttx = 0 // reply is done in response to receipt
+		resp.wantrx = 1
+		cases[i+1] = resp
+	}
+
+	return cases
 }
 
 func TestSurveyTCP(t *testing.T) {
-	testSurvey(t, "tcp://127.0.0.1:3699")
+	RunTestsTCP(t, surveyCases())
 }
 
-// Disabled for now.  For whatever reason, IPC seems incredibly prone to
-// frequent slow start problems.  (It works sometimes, but often misses
-// packets during startup.)
-func xTestSurveyIPC(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-	}
-	testSurvey(t, "ipc:///tmp/mytest")
+func TestSurveyIPC(t *testing.T) {
+	RunTestsIPC(t, surveyCases())
 }
 
 func TestSurveyInp(t *testing.T) {
-	testSurvey(t, "inproc://myname")
+	RunTestsInp(t, surveyCases())
+}
+
+func TestSurveyTLS(t *testing.T) {
+	RunTestsTLS(t, surveyCases())
 }

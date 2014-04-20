@@ -97,6 +97,15 @@ func (x *xsub) SetOption(name string, value interface{}) error {
 
 	var vb []byte
 
+	// Check names first, because type check below is only valid for
+	// subscription options.
+	switch name {
+	case OptionSubscribe:
+	case OptionUnsubscribe:
+	default:
+		return ErrBadOption
+	}
+
 	switch value.(type) {
 	case []byte:
 		vb = value.([]byte)

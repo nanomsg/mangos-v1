@@ -16,45 +16,63 @@ package sp
 
 import (
 	"testing"
-	//"time"
 )
 
-type PairTest struct {
-	spTestCaseImpl
+type pairTest struct {
+	testCase
 }
 
-func (t *PairTest) SendHook(m *Message) bool {
-	m.Body = append(m.Body, byte(t.GetSend()))
-	return t.spTestCaseImpl.SendHook(m)
+func (pt *pairTest) Init(t *testing.T, addr string) bool {
+	pt.proto = PairName
+	return pt.testCase.Init(t, addr)
 }
 
-func (t *PairTest) RecvHook(m *Message) bool {
+func (pt *pairTest) SendHook(m *Message) bool {
+	m.Body = append(m.Body, byte(pt.GetSend()))
+	return pt.testCase.SendHook(m)
+}
+
+func (pt *pairTest) RecvHook(m *Message) bool {
 	if len(m.Body) != 1 {
-		t.Errorf("Recv message length %d != 1", len(m.Body))
+		pt.Errorf("Recv message length %d != 1", len(m.Body))
 		return false
 	}
-	if m.Body[0] != byte(t.GetRecv()) {
-		t.Errorf("Wrong message: %d != %d", m.Body[0], byte(t.GetRecv()))
+	if m.Body[0] != byte(pt.GetRecv()) {
+		pt.Errorf("Wrong message: %d != %d", m.Body[0], byte(pt.GetRecv()))
 		return false
 	}
-	return t.spTestCaseImpl.RecvHook(m)
+	return pt.testCase.RecvHook(m)
 }
 
-func TestPair(t *testing.T) {
-
-	snd := &PairTest{}
+func pairCases() []TestCase {
+	snd := &pairTest{}
 	snd.id = 0
 	snd.msgsz = 1
 	snd.wanttx = 200
 	snd.wantrx = 300
+	snd.server = true
 
-	rcv := &PairTest{}
+	rcv := &pairTest{}
 	rcv.id = 1
 	rcv.msgsz = 1
 	rcv.wanttx = 300
 	rcv.wantrx = 200
 
-	clients := []TestCase{snd}
-	servers := []TestCase{rcv}
-	RunTestsTransports(t, PairName, servers, PairName, clients)
+	return []TestCase{snd, rcv}
+}
+
+func TestPairInp(t *testing.T) {
+	RunTestsInp(t, pairCases())
+}
+
+func TestPairTCP(t *testing.T) {
+	RunTestsTCP(t, pairCases())
+}
+
+func TestPairIPC(t *testing.T) {
+	RunTestsIPC(t, pairCases())
+}
+
+func TestPairTLS(t *testing.T) {
+	RunTestsTLS(t, pairCases())
 }

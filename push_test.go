@@ -19,41 +19,65 @@ import (
 )
 
 type PushTest struct {
-	spTestCaseImpl
+	testCase
 }
 
-func (t *PushTest) SendHook(m *Message) bool {
-	m.Body = append(m.Body, byte(t.GetSend()))
-	return t.spTestCaseImpl.SendHook(m)
+type PullTest struct {
+	testCase
 }
 
-func (t *PushTest) RecvHook(m *Message) bool {
+func (pt *PushTest) Init(t *testing.T, addr string) bool {
+	pt.proto = PushName
+	return pt.testCase.Init(t, addr)
+}
+
+func (pt *PushTest) SendHook(m *Message) bool {
+	m.Body = append(m.Body, byte(pt.GetSend()))
+	return pt.testCase.SendHook(m)
+}
+
+func (pt *PullTest) Init(t *testing.T, addr string) bool {
+	pt.proto = PullName
+	return pt.testCase.Init(t, addr)
+}
+
+func (pt *PullTest) RecvHook(m *Message) bool {
 	if len(m.Body) != 1 {
-		t.Errorf("Recv message length %d != 1", len(m.Body))
+		pt.Errorf("Recv message length %d != 1", len(m.Body))
 		return false
 	}
-	if m.Body[0] != byte(t.GetRecv()) {
-		t.Errorf("Wrong message: %d != %d", m.Body[0], byte(t.GetRecv()))
+	if m.Body[0] != byte(pt.GetRecv()) {
+		pt.Errorf("Wrong message: %d != %d", m.Body[0], byte(pt.GetRecv()))
 		return false
 	}
-	return t.spTestCaseImpl.RecvHook(m)
+	return pt.testCase.RecvHook(m)
 }
 
-func TestPushPull(t *testing.T) {
-	snd := &PushTest{}
-	snd.id = 0
-	snd.msgsz = 1
-	snd.wanttx = 200
-	snd.wantrx = 0
+func pushCases() []TestCase {
+	push := &PushTest{}
+	push.id = 0
+	push.msgsz = 1
+	push.wanttx = 200
+	push.wantrx = 0
+	push.server = true
 
-	rcv := &PushTest{}
-	rcv.id = 1
-	rcv.msgsz = 1
-	rcv.wanttx = 0
-	rcv.wantrx = 200
+	pull := &PullTest{}
+	pull.id = 1
+	pull.msgsz = 1
+	pull.wanttx = 0
+	pull.wantrx = 200
 
-	clients := []TestCase{rcv}
-	servers := []TestCase{snd}
+	return []TestCase{push, pull}
+}
 
-	RunTestsTransports(t, PushName, servers, PullName, clients)
+func TestPushPullInp(t *testing.T) {
+	RunTestsInp(t, pushCases())
+}
+
+func TestPushPullTCP(t *testing.T) {
+	RunTestsTCP(t, pushCases())
+}
+
+func TestPushPullIPC(t *testing.T) {
+	RunTestsIPC(t, pushCases())
 }

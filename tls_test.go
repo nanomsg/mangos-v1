@@ -97,6 +97,27 @@ gYiuigwixOW006p90YD+k9NPvro1usEMwEUiqatuYIE=
 -----END CERTIFICATE-----
 `
 
+// Wrap this in a function so we can use it later.
+func SetTLSTest(t *testing.T, sock Socket) bool {
+	cfg := new(tls.Config)
+	cert, err := tls.X509KeyPair([]byte(tlsTestClientCertPEM),
+		[]byte(tlsTestClientKeyPEM))
+	if err != nil {
+		t.Errorf("Failed loading TLS certificate: %v", err)
+		return false
+	}
+	cfg.Certificates = make([]tls.Certificate, 1)
+	cfg.Certificates[0] = cert
+	cfg.InsecureSkipVerify = true
+
+	err = sock.SetOption(TLSOptionConfig, cfg)
+	if err != nil {
+		t.Errorf("Failed setting TLS config: %v", err)
+		return false
+	}
+	return true
+}
+
 // Instead of a traditional full transport test using the innards, we will
 // test Req/Rep *over* TLS.  Its a simpler test to make.
 

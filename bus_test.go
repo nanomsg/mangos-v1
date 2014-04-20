@@ -15,179 +15,132 @@
 package sp
 
 import (
-	"math/rand"
+	"encoding/binary"
 	"testing"
-	"time"
 )
 
-type busTester struct {
-	id     int
-	sock   Socket
-	rdoneq chan bool
-	sdoneq chan bool
+type busTest struct {
+	nbus   uint32
+	nstart uint32
+	start  map[uint32]bool
+	resp   map[uint32]uint32
+	send   uint32
+	testCase
 }
 
-func busTestSender(t *testing.T, bt *busTester, cnt int) {
-	defer close(bt.sdoneq)
-	for i := 0; i < cnt; i++ {
-		// Inject a small delay to give receivers a chance to catch up
-		// Maximum is 10 msec.
-		d := time.Duration(rand.Uint32() % 10000)
-		time.Sleep(d * time.Microsecond)
-		t.Logf("Peer %d: Sending %d", bt.id, i)
-		msg := NewMessage(2)
-		msg.Body = append(msg.Body, byte(bt.id), byte(i))
-		if err := bt.sock.SendMsg(msg); err != nil {
-			t.Errorf("Peer %d send %d fail: %v", bt.id, i, err)
-			return
-		}
-	}
+func (bt *busTest) Init(t *testing.T, addr string) bool {
+	bt.resp = make(map[uint32]uint32)
+	bt.start = make(map[uint32]bool)
+	bt.send = 0
+	bt.nstart = 0
+	return bt.testCase.Init(t, addr)
 }
 
-func busTestReceiver(t *testing.T, bt *busTester, cnt int, npeer int) {
-	var rcpt = make([]int, npeer+1)
-	defer close(bt.rdoneq)
-
-	for tot := 0; tot < npeer*cnt; {
-		msg, err := bt.sock.RecvMsg()
-		if err != nil {
-			t.Errorf("Peer %d: Recv fail: %v", bt.id, err)
-			return
-		}
-
-		if len(msg.Body) != 2 {
-			t.Errorf("Peer %d: Received wrong length", bt.id)
-			return
-		}
-		peer := int(msg.Body[0])
-		if peer == bt.id {
-			t.Errorf("Peer %d: Got its own message!", bt.id)
-			return
-		}
-		if peer > npeer {
-			t.Fatalf("Peer %d: Got bad peer %d, %d", bt.id, peer, npeer)
-			return
-		}
-		if int(msg.Body[1]) != rcpt[peer] {
-			t.Errorf("Peer %d: Wrong message from peer %d: %d",
-				bt.id, peer, msg.Body[1])
-			return
-		}
-		if int(msg.Body[1]) >= cnt {
-			t.Errorf("Peer %d: Too many from peer %d", bt.id,
-				peer)
-			return
-		}
-		t.Logf("Peer %d: Good rcv from peer %d (%d)", bt.id, peer,
-			rcpt[peer])
-		rcpt[peer]++
-		tot++
-		msg.Free()
+func (bt *busTest) RecvStart() bool {
+	m, err := bt.RecvMsg()
+	if err != nil {
+		bt.Errorf("RecvMsg failed: %v", err)
+		return false
 	}
-	t.Logf("Peer %d: Finish", bt.id)
+	defer m.Free()
+	v, ok := ParseStart(m)
+	if !ok {
+		bt.Errorf("Bad START message received: %v", m)
+		return false
+	}
+	if v == uint32(bt.GetID()) {
+		bt.Errorf("Got my own START message")
+		return false
+	}
+	if yes, ok := bt.start[v]; ok && yes {
+		bt.Logf("Got dup START from %d", v)
+		return false
+	}
+	bt.Debugf("Got START from %d", v)
+	bt.start[v] = true
+	bt.nstart++
+	if bt.server {
+		return bt.nstart == bt.nbus-1
+	}
+	return true
 }
 
-func busTestNewServer(t *testing.T, addr string, id int) *busTester {
-	var err error
-	bt := &busTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
+func (bt *busTest) SendHook(m *Message) bool {
+	v := uint32(bt.GetID())
+	w := bt.send
+	bt.send++
+	m.Body = m.Body[0:8]
 
-	if bt.sock, err = NewSocket(BusName); err != nil {
-		t.Errorf("Failed getting server %d socket: %v", id, err)
-		return nil
-	}
+	binary.BigEndian.PutUint32(m.Body, v)
+	binary.BigEndian.PutUint32(m.Body[4:], w)
 
-	if err = bt.sock.Listen(addr); err != nil {
-		t.Errorf("Failed server %d listening: %v", id, err)
-		bt.sock.Close()
-		return nil
-	}
-	return bt
+	// Inject a sleep to avoid overwhelming the bus and dropping messages.
+	//d := time.Duration(rand.Uint32() % 10000)
+	//time.Sleep(d * time.Microsecond)
+
+	return bt.testCase.SendHook(m)
 }
 
-func busTestNewClient(t *testing.T, addr string, id int) *busTester {
-	var err error
-	bt := &busTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
+func (bt *busTest) RecvHook(m *Message) bool {
+	if len(m.Body) < 8 {
+		bt.Errorf("Recv message length %d < 8", len(m.Body))
+		return false
+	}
 
-	if bt.sock, err = NewSocket(BusName); err != nil {
-		t.Errorf("Failed getting client %d socket: %v", id, err)
-		return nil
+	v := binary.BigEndian.Uint32(m.Body)
+	w := binary.BigEndian.Uint32(m.Body[4:])
+	if v == uint32(bt.GetID()) {
+		bt.Errorf("Got my own message %v", m.Body)
+		return false
 	}
-	if err = bt.sock.Dial(addr); err != nil {
-		t.Errorf("Failed client %d dialing: %v", id, err)
-		bt.sock.Close()
-		return nil
+	if w != uint32(bt.resp[v]) {
+		bt.Errorf("Got dup message #%d from %d", w, v)
+		return false
 	}
-	return bt
+	bt.resp[v]++
+	bt.Debugf("Response %d from id %d", w, v)
+	bt.BumpRecv()
+	return true
 }
 
-func busTestCleanup(t *testing.T, bts []*busTester) {
-	for id := 0; id < len(bts); id++ {
-		t.Logf("Cleanup %d", id)
-		if bts[id].sock != nil {
-			bts[id].sock.Close()
-		}
-	}
-}
+func busCases() []TestCase {
 
-func TestBus(t *testing.T) {
-	addr := "tcp://127.0.0.1:3538"
+	nbus := 5
+	npkt := 7
 
-	num := 5
-	pkts := 7
-	npeer := 0
-	bts := make([]*busTester, num)
-	defer busTestCleanup(t, bts)
-
-	t.Logf("Creating bus network")
-	for id := 0; id < num; id++ {
-		if id == 0 {
-			bts[id] = busTestNewServer(t, addr, id)
+	cases := make([]TestCase, nbus)
+	for i := 0; i < nbus; i++ {
+		bus := &busTest{}
+		bus.id = i
+		bus.nbus = uint32(nbus)
+		bus.msgsz = 8
+		bus.wanttx = int32(npkt)
+		bus.proto = BusName
+		// Only the server receives from all peers.  The clients
+		// only get packets sent by the server.
+		if i == 0 {
+			bus.server = true
+			bus.wantrx = int32(npkt * (nbus - 1))
 		} else {
-			bts[id] = busTestNewClient(t, addr, id)
+			bus.wantrx = int32(npkt)
 		}
-		if bts[id] == nil {
-			t.Errorf("Failed creating %d", id)
-			return
-		}
+		cases[i] = bus
 	}
+	return cases
+}
 
-	// wait a little bit for connections to establish
-	time.Sleep(time.Microsecond * 500)
+func TestBusInp(t *testing.T) {
+	RunTestsInp(t, busCases())
+}
 
-	t.Logf("Starting send/recv")
-	for id := 0; id < num; id++ {
-		// The accepter has <clients> peers.
-		// The clients have only the server as a peer.
-		if id == 0 {
-			npeer = num - 1
-		} else {
-			npeer = 1
-		}
-		npeer := npeer
-		go busTestReceiver(t, bts[id], pkts, npeer)
-		go busTestSender(t, bts[id], pkts)
-	}
+func TestBusTCP(t *testing.T) {
+	RunTestsTCP(t, busCases())
+}
 
-	tmout := time.After(5 * time.Second)
+func TestBusIPC(t *testing.T) {
+	RunTestsIPC(t, busCases())
+}
 
-	for id := 0; id < num; id++ {
-		select {
-		case <-bts[id].sdoneq:
-			continue
-		case <-tmout:
-			t.Errorf("Timeout waiting for sender id %d", id)
-			return
-		}
-	}
-
-	for id := 0; id < num; id++ {
-		select {
-		case <-bts[id].rdoneq:
-			continue
-		case <-tmout:
-			t.Errorf("Timeout waiting for receiver id %d", id)
-			return
-		}
-	}
-	t.Logf("All pass")
+func TestBusTLS(t *testing.T) {
+	RunTestsTLS(t, busCases())
 }
