@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sp
+package mangos
 
 // Device is used to create a forwarding loop between two sockets.  If the
 // same socket is listed (or either socket is nil), then a loopback device

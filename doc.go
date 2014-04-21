@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package sp provides a pure Go implementation of the Scalability
+// Package mangos provides a pure Go implementation of the Scalability
 // Protocols.  These are more familiarily known as "nanomsg" which is the
 // C-based software package that is also their reference implementation.
 //
@@ -26,4 +26,4 @@
 // This package is very very preliminary, and should probably not be put
 // into any real use at this point.  Use at your own risk!
 //
-package sp
+package mangos

@@ -2,7 +2,7 @@
 
 [![GoDoc](https://godoc.org/bitbucket.org/gdamore/sp?status.png)](https://godoc.org/bitbucket.org/gdamore/sp)
 
-Package sp is an implementation in pure Go of the SP ("Scalable Protocols")
+package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.  It has no external dependencies.
 
@@ -33,9 +33,6 @@ Consider this a work-in-progress, and use at your own risk.
 
 If you find this useful, I would appreciate knowing about it.  I can be reached
 via my email address, garrett -at- damore -dot- org
-
-Apologies for the crummy name.  If anyone has a snappy name for this
-implementation, I'd like to hear about it.
 
 ## Installing
 
