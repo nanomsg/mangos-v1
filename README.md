@@ -1,6 +1,6 @@
-## sp
+## mangos
 
-[![GoDoc](https://godoc.org/bitbucket.org/gdamore/sp?status.png)](https://godoc.org/bitbucket.org/gdamore/sp)
+[![GoDoc](https://godoc.org/bitbucket.org/gdamore/mangos?status.png)](https://godoc.org/bitbucket.org/gdamore/mangos)
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
