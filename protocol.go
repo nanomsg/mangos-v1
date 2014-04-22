@@ -53,9 +53,9 @@ type Protocol interface {
 	// Typically this is as a result of connect or accept completing.
 	AddEndpoint(Endpoint)
 
-	// RemEndpoint is called when an Endpoint is removed from the socket.
+	// RemoveEndpoint is called when an Endpoint is removed from the socket.
 	// Typically this indicates a disconnected or closed connection.
-	RemEndpoint(Endpoint)
+	RemoveEndpoint(Endpoint)
 
 	// ProtocolNumber returns a 16-bit value for the protocol number,
 	// as assigned by the SP governing body. (IANA?)

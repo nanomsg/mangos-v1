@@ -122,7 +122,7 @@ func (x *xbus) AddEndpoint(ep Endpoint) {
 	go pe.receiver()
 }
 
-func (x *xbus) RemEndpoint(ep Endpoint) {
+func (x *xbus) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()

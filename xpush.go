@@ -59,7 +59,7 @@ func (x *xpush) AddEndpoint(ep Endpoint) {
 	go x.sender(ep)
 }
 
-func (x *xpush) RemEndpoint(ep Endpoint) {}
+func (x *xpush) RemoveEndpoint(ep Endpoint) {}
 
 func (x *xpush) SetOption(name string, v interface{}) error {
 	switch name {

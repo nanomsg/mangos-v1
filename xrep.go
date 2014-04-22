@@ -143,7 +143,7 @@ func (x *xrep) AddEndpoint(ep Endpoint) {
 	go pe.sender()
 }
 
-func (x *xrep) RemEndpoint(ep Endpoint) {
+func (x *xrep) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()

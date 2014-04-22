@@ -160,7 +160,7 @@ func (x *xresp) AddEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (x *xresp) RemEndpoint(ep Endpoint) {
+func (x *xresp) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	if x.peer.ep == ep {
 		peer := x.peer

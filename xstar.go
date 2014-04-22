@@ -121,7 +121,7 @@ func (x *xstar) AddEndpoint(ep Endpoint) {
 	go pe.receiver()
 }
 
-func (x *xstar) RemEndpoint(ep Endpoint) {
+func (x *xstar) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()

@@ -75,7 +75,7 @@ func (x *xpair) AddEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (x *xpair) RemEndpoint(ep Endpoint) {
+func (x *xpair) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	if x.peer == ep {
 		x.peer = nil

@@ -120,7 +120,7 @@ func (x *xsurveyor) AddEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (x *xsurveyor) RemEndpoint(ep Endpoint) {
+func (x *xsurveyor) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	defer x.Unlock()
 	peer := x.peers[ep.GetID()]

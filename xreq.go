@@ -153,7 +153,7 @@ func (x *xreq) AddEndpoint(ep Endpoint) {
 	go x.sender(ep)
 }
 
-func (*xreq) RemEndpoint(Endpoint) {}
+func (*xreq) RemoveEndpoint(Endpoint) {}
 
 func (x *xreq) SendHook(msg *Message) bool {
 

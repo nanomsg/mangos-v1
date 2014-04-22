@@ -59,7 +59,7 @@ func (sock *socket) addPipe(tranpipe Pipe) *pipe {
 
 func (sock *socket) remPipe(p *pipe) {
 
-	sock.proto.RemEndpoint(p)
+	sock.proto.RemoveEndpoint(p)
 
 	sock.Lock()
 	if p.index >= 0 {

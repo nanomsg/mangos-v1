@@ -87,7 +87,7 @@ func (x *xpub) AddEndpoint(ep Endpoint) {
 	go pe.sender()
 }
 
-func (x *xpub) RemEndpoint(ep Endpoint) {
+func (x *xpub) RemoveEndpoint(ep Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()

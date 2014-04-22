@@ -54,7 +54,7 @@ func (x *xpull) AddEndpoint(ep Endpoint) {
 	go x.receiver(ep)
 }
 
-func (x *xpull) RemEndpoint(ep Endpoint) {}
+func (x *xpull) RemoveEndpoint(ep Endpoint) {}
 
 func (*xpull) SendHook(msg *Message) bool {
 	return false

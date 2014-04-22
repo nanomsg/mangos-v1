@@ -82,7 +82,7 @@ func (x *xsub) AddEndpoint(ep Endpoint) {
 	go x.receiver(ep)
 }
 
-func (*xsub) RemEndpoint(Endpoint) {}
+func (*xsub) RemoveEndpoint(Endpoint) {}
 
 func (x *xsub) SetOption(name string, value interface{}) error {
 	x.Lock()
