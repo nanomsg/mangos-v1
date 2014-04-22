@@ -33,7 +33,7 @@ type responderTest struct {
 }
 
 func (st *surveyTest) Init(t *testing.T, addr string) bool {
-	st.proto = SurveryorName
+	st.proto = SurveyorName
 	st.resp = make(map[uint32]bool)
 	st.start = make(map[uint32]bool)
 	st.nstart = 0
