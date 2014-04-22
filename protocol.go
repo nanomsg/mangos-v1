@@ -149,7 +149,7 @@ func init() {
 	registerProtocolFactory(PairName, PairFactory)
 	registerProtocolFactory(PullName, PullFactory)
 	registerProtocolFactory(PushName, PushFactory)
-	registerProtocolFactory(SurveryorName, SurveyorFactory)
+	registerProtocolFactory(SurveyorName, SurveyorFactory)
 	registerProtocolFactory(RespondentName, RespondentFactory)
 	registerProtocolFactory(BusName, BusFactory)
 	registerProtocolFactory(StarName, StarFactory)
@@ -213,7 +213,7 @@ const (
 	SubName         = "SUB"         // Subscribe Protocol
 	PushName        = "PUSH"        // Push Protocol
 	PullName        = "PULL"        // Pull Protocol
-	SurveryorName   = "SURVEYOR"    // Surveyor Protocol
+	SurveyorName    = "SURVEYOR"    // Surveyor Protocol
 	RespondentName  = "RESPONDENT"  // Respondent Protocol
 	BusName         = "BUS"         // Bus Protocol
 	StarName        = "STAR"        // Star Protocol (Experimental)
