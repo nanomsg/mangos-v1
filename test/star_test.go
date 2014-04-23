@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/star"
 	"math/rand"
 	"testing"
 	"time"
@@ -22,7 +24,7 @@ import (
 
 type starTester struct {
 	id     int
-	sock   Socket
+	sock   mangos.Socket
 	rdoneq chan bool
 	sdoneq chan bool
 }
@@ -35,7 +37,7 @@ func starTestSender(t *testing.T, bt *starTester, cnt int) {
 		d := time.Duration(rand.Uint32() % 10000)
 		time.Sleep(d * time.Microsecond)
 		t.Logf("Peer %d: Sending %d", bt.id, i)
-		msg := NewMessage(2)
+		msg := mangos.NewMessage(2)
 		msg.Body = append(msg.Body, byte(bt.id), byte(i))
 		if err := bt.sock.SendMsg(msg); err != nil {
 			t.Errorf("Peer %d send %d fail: %v", bt.id, i, err)
@@ -44,11 +46,11 @@ func starTestSender(t *testing.T, bt *starTester, cnt int) {
 	}
 }
 
-func starTestReceiver(t *testing.T, bt *starTester, cnt int, numId int) {
-	var rcpt = make([]int, numId)
+func starTestReceiver(t *testing.T, bt *starTester, cnt int, numID int) {
+	var rcpt = make([]int, numID)
 	defer close(bt.rdoneq)
 
-	for tot := 0; tot < (numId-1)*cnt; {
+	for tot := 0; tot < (numID-1)*cnt; {
 		msg, err := bt.sock.RecvMsg()
 		if err != nil {
 			t.Errorf("Peer %d: Recv fail: %v", bt.id, err)
@@ -87,7 +89,7 @@ func starTestNewServer(t *testing.T, addr string, id int) *starTester {
 	var err error
 	bt := &starTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
 
-	if bt.sock, err = NewSocket(StarName); err != nil {
+	if bt.sock, err = star.NewSocket(); err != nil {
 		t.Errorf("Failed getting server %d socket: %v", id, err)
 		return nil
 	}
@@ -104,7 +106,7 @@ func starTestNewClient(t *testing.T, addr string, id int) *starTester {
 	var err error
 	bt := &starTester{id: id, rdoneq: make(chan bool), sdoneq: make(chan bool)}
 
-	if bt.sock, err = NewSocket(StarName); err != nil {
+	if bt.sock, err = star.NewSocket(); err != nil {
 		t.Errorf("Failed getting client %d socket: %v", id, err)
 		return nil
 	}

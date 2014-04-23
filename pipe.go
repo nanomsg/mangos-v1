@@ -64,6 +64,8 @@ func newPipe(tranpipe Pipe, sock *socket) *pipe {
 }
 
 func (p *pipe) GetID() uint32 {
+	pipes.Lock()
+	defer pipes.Unlock()
 	return p.id
 }
 
@@ -79,8 +81,8 @@ func (p *pipe) Close() error {
 	p.pipe.Close()
 	pipes.Lock()
 	delete(pipes.byid, p.id)
-	pipes.Unlock()
 	p.id = 0 // safety
+	pipes.Unlock()
 	return nil
 }
 

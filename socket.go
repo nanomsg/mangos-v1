@@ -14,10 +14,6 @@
 
 package mangos
 
-import (
-	"strings"
-)
-
 // Socket is the main access handle applications use to access the SP
 // system.  It is an abstraction of an application's "connection" to a
 // messaging topology.  Applications can have more than one Socket open
@@ -65,25 +61,4 @@ type Socket interface {
 
 	// Protocol is used to get the underlying Protocol.
 	GetProtocol() Protocol
-}
-
-// NewSocket creates a new Socket using the specified protocol.
-func NewSocket(protocol string) (Socket, error) {
-	proto := getProtocol(protocol)
-	doRaw := false
-	if proto == nil {
-		if strings.HasPrefix(protocol, "X") {
-			proto = getProtocol(protocol[1:])
-			doRaw = true
-		}
-	}
-	if proto == nil {
-		return nil, ErrBadProto
-	}
-	sock := newSocket(proto)
-	if doRaw {
-		// If the protocol is "X", just treat it as Raw.
-		sock.SetOption(OptionRaw, true)
-	}
-	return sock, nil
 }

@@ -29,6 +29,17 @@ import (
 
 import (
 	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/bus"
+	"bitbucket.org/gdamore/mangos/protocol/pair"
+	"bitbucket.org/gdamore/mangos/protocol/pub"
+	"bitbucket.org/gdamore/mangos/protocol/pull"
+	"bitbucket.org/gdamore/mangos/protocol/push"
+	"bitbucket.org/gdamore/mangos/protocol/rep"
+	"bitbucket.org/gdamore/mangos/protocol/req"
+	"bitbucket.org/gdamore/mangos/protocol/respondent"
+	"bitbucket.org/gdamore/mangos/protocol/star"
+	"bitbucket.org/gdamore/mangos/protocol/sub"
+	"bitbucket.org/gdamore/mangos/protocol/surveyor"
 	"github.com/droundy/goopt"
 )
 
@@ -44,14 +55,15 @@ var sendInterval int
 var sendDelay int
 var sendData []byte
 var printFormat string
+var sock mangos.Socket
 
-func setProto(p string) error {
-	if protoSet {
+func setSocket(f func() (mangos.Socket, error)) error {
+	var err error
+	if sock != nil {
 		return errors.New("protocol already selected")
 	}
-	proto = p
-	protoSet = true
-	return nil
+	sock, err = f()
+	return err
 }
 
 func addDial(addr string) error {
@@ -150,39 +162,39 @@ func init() {
 		})
 
 	goopt.NoArg([]string{"--push"}, "Use PUSH socket type", func() error {
-		return setProto(mangos.PushName)
+		return setSocket(push.NewSocket)
 	})
 	goopt.NoArg([]string{"--pull"}, "Use PULL socket type", func() error {
-		return setProto(mangos.PullName)
+		return setSocket(pull.NewSocket)
 	})
 	goopt.NoArg([]string{"--pub"}, "Use PUB socket type", func() error {
-		return setProto(mangos.PubName)
+		return setSocket(pub.NewSocket)
 	})
 	goopt.NoArg([]string{"--sub"}, "Use SUB socket type", func() error {
-		return setProto(mangos.SubName)
+		return setSocket(sub.NewSocket)
 	})
 	goopt.NoArg([]string{"--req"}, "Use REQ socket type", func() error {
-		return setProto(mangos.ReqName)
+		return setSocket(req.NewSocket)
 	})
 	goopt.NoArg([]string{"--rep"}, "Use REP socket type", func() error {
-		return setProto(mangos.RepName)
+		return setSocket(rep.NewSocket)
 	})
 	goopt.NoArg([]string{"--surveyor"}, "Use SURVEYOR socket type",
 		func() error {
-			return setProto(mangos.SurveyorName)
+			return setSocket(surveyor.NewSocket)
 		})
 	goopt.NoArg([]string{"--respondent"}, "Use RESPONDENT socket type",
 		func() error {
-			return setProto(mangos.RespondentName)
+			return setSocket(respondent.NewSocket)
 		})
 	goopt.NoArg([]string{"--bus"}, "Use BUS socket type", func() error {
-		return setProto(mangos.BusName)
+		return setSocket(bus.NewSocket)
 	})
 	goopt.NoArg([]string{"--pair"}, "Use PAIR socket type", func() error {
-		return setProto(mangos.PairName)
+		return setSocket(pair.NewSocket)
 	})
 	goopt.NoArg([]string{"--star"}, "Use STAR socket type", func() error {
-		return setProto(mangos.StarName)
+		return setSocket(star.NewSocket)
 	})
 	goopt.ReqArg([]string{"--bind"}, "ADDR", "Bind socket to ADDR",
 		addListen)
@@ -397,25 +409,25 @@ func replyLoop(sock mangos.Socket, done chan struct{}) {
 	}
 }
 
+func cleanup() {
+	if sock != nil {
+		sock.Close()
+	}
+}
+
 func main() {
-	//flag.Parse()
+	defer cleanup()
 
 	goopt.Parse(nil)
 
-	if len(proto) == 0 {
+	if sock == nil {
 		fatalf("Protocol not specified.")
 	}
-	sock, err := mangos.NewSocket(proto)
-	if err != nil {
-		fatalf("Failed creating socket: %v", err)
-	}
-	defer sock.Close()
-
 	if len(listenAddrs) == 0 && len(dialAddrs) == 0 {
 		fatalf("No address specified.")
 	}
 
-	if proto != mangos.SubName {
+	if sock.GetProtocol().Number() != mangos.ProtoSub {
 		if len(subscriptions) > 0 {
 			fatalf("Subscriptions only valid with SUB type sockets.")
 		}
@@ -450,55 +462,42 @@ func main() {
 		}
 	}
 
-	fmt.Printf("GOT IT! verbose = %d, proto %s\n", verbose, proto)
-
 	time.Sleep(time.Second * time.Duration(sendDelay))
 
 	rxdone := make(chan struct{})
 	txdone := make(chan struct{})
 
 	// Start main processing
-	switch proto {
-	case mangos.PushName:
-		go sendLoop(sock, txdone)
-		close(rxdone)
-	case mangos.PullName:
+	switch sock.GetProtocol().Number() {
+	case mangos.ProtoPull:
+		fallthrough
+	case mangos.ProtoSub:
 		go recvLoop(sock, rxdone)
 		close(txdone)
-	case mangos.SubName:
-		go recvLoop(sock, rxdone)
-		close(txdone)
-	case mangos.PubName:
+	case mangos.ProtoPush:
+		fallthrough
+	case mangos.ProtoPub:
 		go sendLoop(sock, txdone)
 		close(rxdone)
-	case mangos.PairName:
+	case mangos.ProtoPair:
+		fallthrough
+	case mangos.ProtoStar:
+		fallthrough
+	case mangos.ProtoBus:
 		if sendData != nil {
 			go sendLoop(sock, txdone)
 		} else {
 			close(txdone)
 		}
 		go recvLoop(sock, rxdone)
-	case mangos.BusName:
-		if sendData != nil {
-			go sendLoop(sock, txdone)
-		} else {
-			close(txdone)
-		}
-		go recvLoop(sock, rxdone)
-	case mangos.SurveyorName:
+	case mangos.ProtoSurveyor:
+		fallthrough
+	case mangos.ProtoReq:
 		go sendLoop(sock, txdone)
 		go recvLoop(sock, rxdone)
-	case mangos.ReqName:
-		go sendLoop(sock, txdone)
-		go recvLoop(sock, rxdone)
-	case mangos.RepName:
-		if sendData != nil {
-			go replyLoop(sock, rxdone)
-		} else {
-			go recvLoop(sock, rxdone)
-			close(rxdone)
-		}
-	case mangos.RespondentName:
+	case mangos.ProtoRep:
+		fallthrough
+	case mangos.ProtoRespondent:
 		if sendData != nil {
 			go replyLoop(sock, rxdone)
 		} else {

@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/pair"
+	"bitbucket.org/gdamore/mangos/protocol/rep"
+	"bitbucket.org/gdamore/mangos/protocol/req"
 	"runtime"
 	"strings"
 	"testing"
@@ -29,14 +33,14 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	}
 
 	srvrdy := make(chan struct{})
-	srvsock, err := NewSocket(RepName)
+	srvsock, err := rep.NewSocket()
 	if err != nil || srvsock == nil {
 		t.Errorf("Failed creating server socket: %v", err)
 		return
 	}
 	defer srvsock.Close()
 	SetTLSTest(t, srvsock)
-	clisock, err := NewSocket(ReqName)
+	clisock, err := req.NewSocket()
 	if err != nil || clisock == nil {
 		t.Errorf("Failed creating client socket: %v", err)
 		return
@@ -46,7 +50,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 
 	go func() {
 		var err error
-		var msg *Message
+		var msg *mangos.Message
 
 		if err = srvsock.Listen(url); err != nil {
 			t.Errorf("Server listen failed: %v", err)
@@ -102,7 +106,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 
 	finish := make(chan struct{})
 	ready := make(chan struct{})
-	srvsock, err := NewSocket(PairName)
+	srvsock, err := pair.NewSocket()
 	if err != nil || srvsock == nil {
 		t.Errorf("Failed creating server socket: %v", err)
 		return
@@ -110,7 +114,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	SetTLSTest(t, srvsock)
 
 	defer srvsock.Close()
-	clisock, err := NewSocket(PairName)
+	clisock, err := pair.NewSocket()
 	if err != nil || clisock == nil {
 		t.Errorf("Failed creating client socket: %v", err)
 		return
@@ -120,7 +124,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 
 	go func() {
 		var err error
-		var m *Message
+		var m *mangos.Message
 
 		if err = srvsock.Listen(url); err != nil {
 			t.Errorf("Server listen failed: %v", err)
@@ -146,10 +150,9 @@ func benchmarkPair(t *testing.B, url string, size int) {
 
 	time.Sleep(700 * time.Millisecond)
 	t.ResetTimer()
-	//msg := make([]byte, size)
 
 	for i := 0; i < t.N; i++ {
-		msg := NewMessage(size)
+		msg := mangos.NewMessage(size)
 		if err = clisock.SendMsg(msg); err != nil {
 			t.Errorf("Client send failed: %v", err)
 			return

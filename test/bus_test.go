@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/bus"
 	"encoding/binary"
 	"testing"
 )
@@ -25,15 +27,20 @@ type busTest struct {
 	start  map[uint32]bool
 	resp   map[uint32]uint32
 	send   uint32
-	testCase
+	T
 }
 
 func (bt *busTest) Init(t *testing.T, addr string) bool {
+	var err error
 	bt.resp = make(map[uint32]uint32)
 	bt.start = make(map[uint32]bool)
 	bt.send = 0
 	bt.nstart = 0
-	return bt.testCase.Init(t, addr)
+	if bt.Sock, err = bus.NewSocket(); err != nil {
+		bt.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	return bt.T.Init(t, addr)
 }
 
 func (bt *busTest) RecvStart() bool {
@@ -59,13 +66,13 @@ func (bt *busTest) RecvStart() bool {
 	bt.Debugf("Got START from %d", v)
 	bt.start[v] = true
 	bt.nstart++
-	if bt.server {
+	if bt.Server {
 		return bt.nstart == bt.nbus-1
 	}
 	return true
 }
 
-func (bt *busTest) SendHook(m *Message) bool {
+func (bt *busTest) SendHook(m *mangos.Message) bool {
 	v := uint32(bt.GetID())
 	w := bt.send
 	bt.send++
@@ -78,10 +85,10 @@ func (bt *busTest) SendHook(m *Message) bool {
 	//d := time.Duration(rand.Uint32() % 10000)
 	//time.Sleep(d * time.Microsecond)
 
-	return bt.testCase.SendHook(m)
+	return bt.T.SendHook(m)
 }
 
-func (bt *busTest) RecvHook(m *Message) bool {
+func (bt *busTest) RecvHook(m *mangos.Message) bool {
 	if len(m.Body) < 8 {
 		bt.Errorf("Recv message length %d < 8", len(m.Body))
 		return false
@@ -111,18 +118,17 @@ func busCases() []TestCase {
 	cases := make([]TestCase, nbus)
 	for i := 0; i < nbus; i++ {
 		bus := &busTest{}
-		bus.id = i
+		bus.ID = i
 		bus.nbus = uint32(nbus)
-		bus.msgsz = 8
-		bus.wanttx = int32(npkt)
-		bus.proto = BusName
+		bus.MsgSize = 8
+		bus.WantTx = int32(npkt)
 		// Only the server receives from all peers.  The clients
 		// only get packets sent by the server.
 		if i == 0 {
-			bus.server = true
-			bus.wantrx = int32(npkt * (nbus - 1))
+			bus.Server = true
+			bus.WantRx = int32(npkt * (nbus - 1))
 		} else {
-			bus.wantrx = int32(npkt)
+			bus.WantRx = int32(npkt)
 		}
 		cases[i] = bus
 	}

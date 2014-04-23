@@ -12,36 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/pull"
+	"bitbucket.org/gdamore/mangos/protocol/push"
 	"testing"
 )
 
 type PushTest struct {
-	testCase
+	T
 }
 
 type PullTest struct {
-	testCase
+	T
 }
 
 func (pt *PushTest) Init(t *testing.T, addr string) bool {
-	pt.proto = PushName
-	return pt.testCase.Init(t, addr)
+	var err error
+	if pt.Sock, err = push.NewSocket(); err != nil {
+		pt.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	return pt.T.Init(t, addr)
 }
 
-func (pt *PushTest) SendHook(m *Message) bool {
+func (pt *PushTest) SendHook(m *mangos.Message) bool {
 	m.Body = append(m.Body, byte(pt.GetSend()))
-	return pt.testCase.SendHook(m)
+	return pt.T.SendHook(m)
 }
 
 func (pt *PullTest) Init(t *testing.T, addr string) bool {
-	pt.proto = PullName
-	return pt.testCase.Init(t, addr)
+	var err error
+	if pt.Sock, err = pull.NewSocket(); err != nil {
+		pt.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	return pt.T.Init(t, addr)
 }
 
-func (pt *PullTest) RecvHook(m *Message) bool {
+func (pt *PullTest) RecvHook(m *mangos.Message) bool {
 	if len(m.Body) != 1 {
 		pt.Errorf("Recv message length %d != 1", len(m.Body))
 		return false
@@ -50,22 +61,22 @@ func (pt *PullTest) RecvHook(m *Message) bool {
 		pt.Errorf("Wrong message: %d != %d", m.Body[0], byte(pt.GetRecv()))
 		return false
 	}
-	return pt.testCase.RecvHook(m)
+	return pt.T.RecvHook(m)
 }
 
 func pushCases() []TestCase {
 	push := &PushTest{}
-	push.id = 0
-	push.msgsz = 1
-	push.wanttx = 200
-	push.wantrx = 0
-	push.server = true
+	push.ID = 0
+	push.MsgSize = 1
+	push.WantTx = 200
+	push.WantRx = 0
+	push.Server = true
 
 	pull := &PullTest{}
-	pull.id = 1
-	pull.msgsz = 1
-	pull.wanttx = 0
-	pull.wantrx = 200
+	pull.ID = 1
+	pull.MsgSize = 1
+	pull.WantTx = 0
+	pull.WantRx = 200
 
 	return []TestCase{push, pull}
 }
@@ -80,4 +91,8 @@ func TestPushPullTCP(t *testing.T) {
 
 func TestPushPullIPC(t *testing.T) {
 	RunTestsIPC(t, pushCases())
+}
+
+func TestPushPullTLS(t *testing.T) {
+	RunTestsTLS(t, pushCases())
 }

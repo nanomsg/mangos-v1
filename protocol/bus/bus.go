@@ -12,27 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package bus implements the BUS protocol.  In this protocol, participants
+// send a message to each of their peers.
+package bus
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"encoding/binary"
 	"sync"
 )
 
 type busEp struct {
-	ep Endpoint
-	q  chan *Message
-	x  *xbus
+	ep mangos.Endpoint
+	q  chan *mangos.Message
+	x  *bus
 }
 
-type xbus struct {
-	sock ProtocolSocket
+type bus struct {
+	sock mangos.ProtocolSocket
 	sync.Mutex
 	eps map[uint32]*busEp
 	raw bool
 }
 
 // Init implements the Protocol Init method.
-func (x *xbus) Init(sock ProtocolSocket) {
+func (x *bus) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*busEp)
 	go x.sender()
@@ -41,70 +45,72 @@ func (x *xbus) Init(sock ProtocolSocket) {
 // Bottom sender.
 func (pe *busEp) sender() {
 	for {
-		var msg *Message
+		var m *mangos.Message
 
 		select {
-		case msg = <-pe.q:
+		case m = <-pe.q:
 		case <-pe.x.sock.CloseChannel():
 			return
 		}
 
-		if err := pe.ep.SendMsg(msg); err != nil {
-			msg.Free()
+		if err := pe.ep.SendMsg(m); err != nil {
+			m.Free()
 			return
 		}
 	}
 }
 
-func (x *xbus) broadcast(msg *Message, sender uint32) {
+func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 
 	x.Lock()
 	for id, pe := range x.eps {
 		if sender == id {
 			continue
 		}
-		msg := msg.Dup()
+		msg := m.Dup()
 		select {
 		case pe.q <- msg:
 		default:
 			// No room on outbound queue, drop it.
-			msg.Free()
+			m.Free()
 		}
 	}
 	x.Unlock()
 }
 
-func (x *xbus) sender() {
+func (x *bus) sender() {
 	for {
-		var msg *Message
+		var m *mangos.Message
 		var id uint32
 		select {
-		case msg = <-x.sock.SendChannel():
+		case m = <-x.sock.SendChannel():
 		case <-x.sock.CloseChannel():
 			return
 		}
 
 		// If a header was present, it means this message is being
 		// rebroadcast.  It should be a pipe ID.
-		if len(msg.Header) >= 4 {
-			id, _ = msg.getUint32()
-			msg.Header = msg.Header[4:]
+		if len(m.Header) >= 4 {
+			id = binary.BigEndian.Uint32(m.Header)
+			m.Header = m.Header[4:]
 		}
-		x.broadcast(msg, id)
-		msg.Free()
+		x.broadcast(m, id)
+		m.Free()
 	}
 }
 
 func (pe *busEp) receiver() {
 	for {
-		msg := pe.ep.RecvMsg()
-		if msg == nil {
+		m := pe.ep.RecvMsg()
+		if m == nil {
 			return
 		}
-		msg.putUint32(pe.ep.GetID())
+		v := pe.ep.GetID()
+		m.Header = append(m.Header,
+			byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 
 		select {
-		case pe.x.sock.RecvChannel() <- msg:
+		case pe.x.sock.RecvChannel() <- m:
 		case <-pe.x.sock.CloseChannel():
 			return
 		default:
@@ -113,8 +119,8 @@ func (pe *busEp) receiver() {
 	}
 }
 
-func (x *xbus) AddEndpoint(ep Endpoint) {
-	pe := &busEp{ep: ep, x: x, q: make(chan *Message, 5)}
+func (x *bus) AddEndpoint(ep mangos.Endpoint) {
+	pe := &busEp{ep: ep, x: x, q: make(chan *mangos.Message, 5)}
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()
@@ -122,53 +128,50 @@ func (x *xbus) AddEndpoint(ep Endpoint) {
 	go pe.receiver()
 }
 
-func (x *xbus) RemoveEndpoint(ep Endpoint) {
+func (x *bus) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()
 }
 
-func (*xbus) Number() uint16 {
-	return ProtoBus
+func (*bus) Number() uint16 {
+	return mangos.ProtoBus
 }
 
-func (*xbus) ValidPeer(peer uint16) bool {
-	if peer == ProtoBus {
+func (*bus) ValidPeer(peer uint16) bool {
+	if peer == mangos.ProtoBus {
 		return true
 	}
 	return false
 }
 
-func (x *xbus) RecvHook(msg *Message) bool {
-	if !x.raw && len(msg.Header) >= 4 {
-		msg.Header = msg.Header[4:]
+func (x *bus) RecvHook(m *mangos.Message) bool {
+	if !x.raw && len(m.Header) >= 4 {
+		m.Header = m.Header[4:]
 	}
 	return true
 }
 
-func (x *xbus) SetOption(name string, v interface{}) error {
+func (x *bus) SetOption(name string, v interface{}) error {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		x.raw = v.(bool)
 		return nil
 	default:
-		return ErrBadOption
+		return mangos.ErrBadOption
 	}
 }
 
-func (x *xbus) GetOption(name string) (interface{}, error) {
+func (x *bus) GetOption(name string) (interface{}, error) {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		return x.raw, nil
 	default:
-		return nil, ErrBadOption
+		return nil, mangos.ErrBadOption
 	}
 }
 
-type busFactory int
-
-func (busFactory) NewProtocol() Protocol {
-	return &xbus{}
+// NewSocket allocates a new Socket using the BUS protocol.
+func NewSocket() (mangos.Socket, error) {
+	return mangos.MakeSocket(&bus{}), nil
 }
-
-var BusFactory busFactory

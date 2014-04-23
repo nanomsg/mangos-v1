@@ -94,6 +94,12 @@ func newSocket(proto Protocol) *socket {
 	return sock
 }
 
+// MakeSocket is intended for use by Protocol implementations.  The intention
+// is that they can wrap this to provide a "proto.NewSocket()" implementation.
+func MakeSocket(proto Protocol) *socket {
+	return newSocket(proto)
+}
+
 // Implementation of ProtocolHandle bits on coreHandle.  This is the middle
 // API presented to Protocol implementations.
 

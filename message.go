@@ -53,9 +53,9 @@ func (m *Message) putUint32(v uint32) {
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 }
 
-// trimUint32 moves a 32-bit value from the front of the body to the end of
+// TrimUint32 moves a 32-bit value from the front of the body to the end of
 // the header.  No check of the value is done.
-func (m *Message) trimUint32() error {
+func (m *Message) TrimUint32() error {
 	if len(m.Body) < 4 {
 		return ErrGarbled
 	}
@@ -70,7 +70,7 @@ func (m *Message) trimUint32() error {
 // the high-order bit set (the request id usually).
 func (m *Message) trimBackTrace() error {
 	for {
-		if err := m.trimUint32(); err != nil {
+		if err := m.TrimUint32(); err != nil {
 			return err
 		}
 		// Check for high order bit set (0x80000000, big endian)

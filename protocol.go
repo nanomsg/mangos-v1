@@ -14,11 +14,6 @@
 
 package mangos
 
-import (
-	"strings"
-	"sync"
-)
-
 // Endpoint represents the handle that a Protocol implementation has
 // to the underlying stream transport.  It can be thought of as one side
 // of a TCP, IPC, or other type of connection.
@@ -130,61 +125,6 @@ type ProtocolSocket interface {
 	SetOption(string, interface{}) error
 }
 
-var protocolsL sync.Mutex
-var protocols map[string]ProtocolFactory
-
-func registerProtocolFactory(name string, f ProtocolFactory) {
-	// This version assumes the lock is already held
-	protocols[strings.ToLower(name)] = f
-}
-
-func init() {
-	protocols = make(map[string]ProtocolFactory)
-
-	// Lets go ahead and pre-register the stock transports.
-	registerProtocolFactory(ReqName, ReqFactory)
-	registerProtocolFactory(RepName, RepFactory)
-	registerProtocolFactory(PubName, PubFactory)
-	registerProtocolFactory(SubName, SubFactory)
-	registerProtocolFactory(PairName, PairFactory)
-	registerProtocolFactory(PullName, PullFactory)
-	registerProtocolFactory(PushName, PushFactory)
-	registerProtocolFactory(SurveyorName, SurveyorFactory)
-	registerProtocolFactory(RespondentName, RespondentFactory)
-	registerProtocolFactory(BusName, BusFactory)
-	registerProtocolFactory(StarName, StarFactory)
-}
-
-// ProtocolFactory implements the factory pattern for Protocol instances.
-type ProtocolFactory interface {
-	// NewProtocol creates a new instance of the Protocol.
-	NewProtocol() Protocol
-}
-
-// RegisterProtocolFactory registers a new ProtocolFactory.
-// Note that the ProtocolFactory might already be registered.
-// We don't warn about this as an error.  You can override a built-in
-// protocol this way.  Use this at your own risk!
-// (The name is used as the lookup key for
-// protocols, but is converted to lower case first.)
-func RegisterProtocolFactory(name string, f ProtocolFactory) {
-	protocolsL.Lock()
-	registerProtocolFactory(name, f)
-	protocolsL.Unlock()
-}
-
-// getProtocol instantiates a Protocol by name.  The lookup is case-insensitive.
-func getProtocol(name string) Protocol {
-	protocolsL.Lock()
-	f := protocols[strings.ToLower(name)]
-	protocolsL.Unlock()
-
-	if f == nil {
-		return nil
-	}
-	return f.NewProtocol()
-}
-
 // Useful constants for protocol numbers.  Note that the major protocol number
 // is stored in the upper 12 bits, and the minor (subprotocol) is located in
 // the bottom 4 bits.
@@ -201,31 +141,6 @@ const (
 	ProtoBus        = (7 * 16)
 
 	// Experimental Protocols - Use at Risk
-	ProtoStar = (100 * 16)
-)
 
-// Protocol names.  These correlate to specific Protocol implementations.
-const (
-	PairName        = "PAIR"        // Pair Protocol
-	ReqName         = "REQ"         // Request Protocol
-	RepName         = "REP"         // Reply Protocol
-	PubName         = "PUB"         // Publish Protocol
-	SubName         = "SUB"         // Subscribe Protocol
-	PushName        = "PUSH"        // Push Protocol
-	PullName        = "PULL"        // Pull Protocol
-	SurveyorName    = "SURVEYOR"    // Surveyor Protocol
-	RespondentName  = "RESPONDENT"  // Respondent Protocol
-	BusName         = "BUS"         // Bus Protocol
-	StarName        = "STAR"        // Star Protocol (Experimental)
-	XPairName       = "XPAIR"       // Raw Pair Protocol
-	XReqName        = "XREQ"        // Raw Request Protocol
-	XRepName        = "XREP"        // Raw Reply Protocol
-	XPubName        = "XPUB"        // Raw Publish Protocol
-	XSubName        = "XSUB"        // Raw Subscribe Protocol
-	XPushName       = "XPUSH"       // Raw Push Protocol
-	XPullName       = "XPULL"       // Raw Pull Protocol
-	XBusName        = "XBUS"        // Raw Bus Protocol
-	XSurveyorName   = "XSURVEYOR"   // Raw Surveyor Protocol
-	XRespondentName = "XRESPONDENT" // Raw Respondent Protocol
-	XStarName       = "XSTAR"       // Raw Star Protocol (Experimental)
+	ProtoStar = (100 * 16)
 )

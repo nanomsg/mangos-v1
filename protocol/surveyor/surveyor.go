@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package surveyor implements the SURVEYOR protocol. This sends messages
+// out to RESPONDENT partners, and receives their responses.
+package surveyor
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"encoding/binary"
 	"sync"
 	"time"
 )
 
-type xsurveyor struct {
-	sock     ProtocolSocket
-	peers    map[uint32]*xsurveyorP
+type surveyor struct {
+	sock     mangos.ProtocolSocket
+	peers    map[uint32]*surveyorP
 	raw      bool
 	nextID   uint32
 	surveyID uint32
@@ -31,22 +35,22 @@ type xsurveyor struct {
 	sync.Mutex
 }
 
-type xsurveyorP struct {
-	q      chan *Message
+type surveyorP struct {
+	q      chan *mangos.Message
 	closeq chan struct{}
-	ep     Endpoint
-	x      *xsurveyor
+	ep     mangos.Endpoint
+	x      *surveyor
 }
 
-func (x *xsurveyor) Init(sock ProtocolSocket) {
+func (x *surveyor) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
-	x.peers = make(map[uint32]*xsurveyorP)
+	x.peers = make(map[uint32]*surveyorP)
 	go x.sender()
 }
 
-func (x *xsurveyor) sender() {
+func (x *surveyor) sender() {
 	for {
-		var msg *Message
+		var msg *mangos.Message
 		select {
 		case msg = <-x.sock.SendChannel():
 		case <-x.sock.CloseChannel():
@@ -67,9 +71,9 @@ func (x *xsurveyor) sender() {
 }
 
 // When sending, we should have the survey ID in the header.
-func (peer *xsurveyorP) sender() {
+func (peer *surveyorP) sender() {
 	for {
-		var msg *Message
+		var msg *mangos.Message
 		select {
 		case msg = <-peer.q:
 		case <-peer.x.sock.CloseChannel():
@@ -85,7 +89,7 @@ func (peer *xsurveyorP) sender() {
 	}
 }
 
-func (peer *xsurveyorP) receiver() {
+func (peer *surveyorP) receiver() {
 	for {
 		msg := peer.ep.RecvMsg()
 		if msg == nil {
@@ -94,7 +98,7 @@ func (peer *xsurveyorP) receiver() {
 
 		// Get survery ID -- this will be passed in the header up
 		// to the application.  It should include that in the response.
-		err := msg.trimUint32()
+		err := msg.TrimUint32()
 		if err != nil {
 			msg.Free()
 			return
@@ -110,8 +114,8 @@ func (peer *xsurveyorP) receiver() {
 	}
 }
 
-func (x *xsurveyor) AddEndpoint(ep Endpoint) {
-	peer := &xsurveyorP{ep: ep, x: x, q: make(chan *Message, 1)}
+func (x *surveyor) AddEndpoint(ep mangos.Endpoint) {
+	peer := &surveyorP{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
 	x.Lock()
 	x.peers[ep.GetID()] = peer
 	peer.closeq = make(chan struct{})
@@ -120,7 +124,7 @@ func (x *xsurveyor) AddEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (x *xsurveyor) RemoveEndpoint(ep Endpoint) {
+func (x *surveyor) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	defer x.Unlock()
 	peer := x.peers[ep.GetID()]
@@ -131,18 +135,18 @@ func (x *xsurveyor) RemoveEndpoint(ep Endpoint) {
 	close(peer.closeq)
 }
 
-func (*xsurveyor) Number() uint16 {
-	return ProtoSurveyor
+func (*surveyor) Number() uint16 {
+	return mangos.ProtoSurveyor
 }
 
-func (*xsurveyor) ValidPeer(peer uint16) bool {
-	if peer == ProtoRespondent {
+func (*surveyor) ValidPeer(peer uint16) bool {
+	if peer == mangos.ProtoRespondent {
 		return true
 	}
 	return false
 }
 
-func (x *xsurveyor) SendHook(msg *Message) bool {
+func (x *surveyor) SendHook(m *mangos.Message) bool {
 
 	var timeout time.Time
 	if x.raw {
@@ -152,18 +156,21 @@ func (x *xsurveyor) SendHook(msg *Message) bool {
 	x.Lock()
 	x.surveyID = x.nextID
 	x.nextID++
-	msg.putUint32(x.surveyID)
+	v := x.surveyID
+	m.Header = append(m.Header,
+		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+
 	if x.duration > 0 {
 		timeout = time.Now().Add(x.duration)
 	}
 	x.Unlock()
 
 	// We cheat and grab the recv deadline.
-	x.sock.SetOption(OptionRecvDeadline, timeout)
+	x.sock.SetOption(mangos.OptionRecvDeadline, timeout)
 	return true
 }
 
-func (x *xsurveyor) RecvHook(msg *Message) bool {
+func (x *surveyor) RecvHook(m *mangos.Message) bool {
 	if x.raw {
 		return true
 	}
@@ -171,9 +178,13 @@ func (x *xsurveyor) RecvHook(msg *Message) bool {
 	x.Lock()
 	defer x.Unlock()
 
-	if id, err := msg.getUint32(); err != nil || id != x.surveyID {
+	if len(m.Header) < 4 {
 		return false
 	}
+	if binary.BigEndian.Uint32(m.Header) != x.surveyID {
+		return false
+	}
+	m.Header = m.Header[4:]
 	if x.timeout.IsZero() {
 		return true
 	}
@@ -183,39 +194,36 @@ func (x *xsurveyor) RecvHook(msg *Message) bool {
 	return true
 }
 
-func (x *xsurveyor) SetOption(name string, val interface{}) error {
+func (x *surveyor) SetOption(name string, val interface{}) error {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		x.raw = val.(bool)
 		return nil
-	case OptionSurveyTime:
+	case mangos.OptionSurveyTime:
 		x.Lock()
 		x.duration = val.(time.Duration)
 		x.Unlock()
 		return nil
 	default:
-		return ErrBadOption
+		return mangos.ErrBadOption
 	}
 }
 
-func (x *xsurveyor) GetOption(name string) (interface{}, error) {
+func (x *surveyor) GetOption(name string) (interface{}, error) {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		return x.raw, nil
-	case OptionSurveyTime:
+	case mangos.OptionSurveyTime:
 		x.Lock()
 		d := x.duration
 		x.Unlock()
 		return d, nil
 	default:
-		return nil, ErrBadOption
+		return nil, mangos.ErrBadOption
 	}
 }
 
-type surveyorFactory int
-
-func (surveyorFactory) NewProtocol() Protocol {
-	return &xsurveyor{}
+// NewSocket allocates a new Socket using the SURVEYOR protocol.
+func NewSocket() (mangos.Socket, error) {
+	return mangos.MakeSocket(&surveyor{}), nil
 }
-
-var SurveyorFactory surveyorFactory

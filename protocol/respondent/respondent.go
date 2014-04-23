@@ -12,38 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package respondent implements the RESPONDENT protocol.  This protocol
+// receives SURVEYOR requests, and responds with an answer.
+package respondent
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"encoding/binary"
 	"sync"
 )
 
-type xresp struct {
-	sock     ProtocolSocket
-	peer     *xrespPeer
+type resp struct {
+	sock     mangos.ProtocolSocket
+	peer     *respPeer
 	raw      bool
 	surveyID uint32
 	surveyOk bool
 	sync.Mutex
 }
 
-type xrespPeer struct {
-	q      chan *Message
+type respPeer struct {
+	q      chan *mangos.Message
 	closeq chan struct{}
-	ep     Endpoint
-	x      *xresp
+	ep     mangos.Endpoint
+	x      *resp
 }
 
-func (x *xresp) Init(sock ProtocolSocket) {
+func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	go x.sender()
 }
 
-func (x *xresp) sender() {
+func (x *resp) sender() {
 	// This is pretty easy because we have only one peer at a time.
 	// If the peer goes away, we'll just drop the message on the floor.
 	for {
-		var msg *Message
+		var msg *mangos.Message
 		select {
 		case msg = <-x.sock.SendChannel():
 		case <-x.sock.CloseChannel():
@@ -73,9 +77,9 @@ func (x *xresp) sender() {
 }
 
 // When sending, we should have the survey ID in the header.
-func (peer *xrespPeer) sender() {
+func (peer *respPeer) sender() {
 	for {
-		var msg *Message
+		var msg *mangos.Message
 		select {
 		case msg = <-peer.q:
 		case <-peer.x.sock.CloseChannel():
@@ -91,7 +95,7 @@ func (peer *xrespPeer) sender() {
 	}
 }
 
-func (peer *xrespPeer) receiver() {
+func (peer *respPeer) receiver() {
 	for {
 		msg := peer.ep.RecvMsg()
 		if msg == nil {
@@ -100,7 +104,7 @@ func (peer *xrespPeer) receiver() {
 
 		// Get survery ID -- this will be passed in the header up
 		// to the application.  It should include that in the response.
-		err := msg.trimUint32()
+		err := msg.TrimUint32()
 		if err != nil {
 			msg.Free()
 			return
@@ -114,8 +118,7 @@ func (peer *xrespPeer) receiver() {
 	}
 }
 
-func (x *xresp) RecvHook(msg *Message) bool {
-	var err error
+func (x *resp) RecvHook(m *mangos.Message) bool {
 	if x.raw {
 		// Raw mode receivers get the message unadulterated.
 		return true
@@ -123,14 +126,15 @@ func (x *xresp) RecvHook(msg *Message) bool {
 	x.Lock()
 	defer x.Unlock()
 
-	if x.surveyID, err = msg.getUint32(); err != nil {
+	if len(m.Header) < 4 {
 		return false
 	}
+	x.surveyID = binary.BigEndian.Uint32(m.Header)
 	x.surveyOk = true
 	return true
 }
 
-func (x *xresp) SendHook(msg *Message) bool {
+func (x *resp) SendHook(m *mangos.Message) bool {
 	if x.raw {
 		// Raw mode senders expected to have prepared header already.
 		return true
@@ -140,19 +144,21 @@ func (x *xresp) SendHook(msg *Message) bool {
 	if !x.surveyOk {
 		return false
 	}
-	msg.putUint32(x.surveyID)
+	v := x.surveyID
+	m.Header = append(m.Header,
+		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 	x.surveyOk = false
 	return true
 }
 
-func (x *xresp) AddEndpoint(ep Endpoint) {
+func (x *resp) AddEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	if x.peer != nil {
 		x.Unlock()
 		ep.Close()
 		return
 	}
-	peer := &xrespPeer{ep: ep, x: x, q: make(chan *Message, 1)}
+	peer := &respPeer{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
 	x.peer = peer
 	peer.closeq = make(chan struct{})
 	go peer.receiver()
@@ -160,7 +166,7 @@ func (x *xresp) AddEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (x *xresp) RemoveEndpoint(ep Endpoint) {
+func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	if x.peer.ep == ep {
 		peer := x.peer
@@ -170,40 +176,37 @@ func (x *xresp) RemoveEndpoint(ep Endpoint) {
 	x.Unlock()
 }
 
-func (*xresp) Number() uint16 {
-	return ProtoRespondent
+func (*resp) Number() uint16 {
+	return mangos.ProtoRespondent
 }
 
-func (*xresp) ValidPeer(peer uint16) bool {
-	if peer == ProtoSurveyor {
+func (*resp) ValidPeer(peer uint16) bool {
+	if peer == mangos.ProtoSurveyor {
 		return true
 	}
 	return false
 }
 
-func (x *xresp) SetOption(name string, v interface{}) error {
+func (x *resp) SetOption(name string, v interface{}) error {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		x.raw = v.(bool)
 		return nil
 	default:
-		return ErrBadOption
+		return mangos.ErrBadOption
 	}
 }
 
-func (x *xresp) GetOption(name string) (interface{}, error) {
+func (x *resp) GetOption(name string) (interface{}, error) {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		return x.raw, nil
 	default:
-		return nil, ErrBadOption
+		return nil, mangos.ErrBadOption
 	}
 }
 
-type respFactory int
-
-func (respFactory) NewProtocol() Protocol {
-	return &xresp{}
+// NewSocket allocates a new Socket using the RESPONDENT protocol.
+func NewSocket() (mangos.Socket, error) {
+	return mangos.MakeSocket(&resp{}), nil
 }
-
-var RespondentFactory respFactory

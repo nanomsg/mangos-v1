@@ -12,28 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/pair"
+	"bitbucket.org/gdamore/mangos/protocol/rep"
+	"bitbucket.org/gdamore/mangos/protocol/req"
 	"testing"
 )
 
 func TestDeviceBadPair(t *testing.T) {
-	s1, err := NewSocket(ReqName)
+	s1, err := req.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
-	s2, err := NewSocket(PushName)
+	s2, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
 	}
 	defer s2.Close()
 
-	switch err := Device(s1, s2); err {
-	case ErrBadProto:
+	switch err := mangos.Device(s1, s2); err {
+	case mangos.ErrBadProto:
 		t.Logf("Got expected err: %v", err)
 		return
 	case nil:
@@ -46,15 +50,15 @@ func TestDeviceBadPair(t *testing.T) {
 }
 
 func TestDeviceBadSingle(t *testing.T) {
-	s1, err := NewSocket(ReqName)
+	s1, err := req.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
 
-	switch err := Device(s1, s1); err {
-	case ErrBadProto:
+	switch err := mangos.Device(s1, s1); err {
+	case mangos.ErrBadProto:
 		t.Logf("Got expected err: %v", err)
 		return
 	case nil:
@@ -67,14 +71,14 @@ func TestDeviceBadSingle(t *testing.T) {
 }
 
 func TestDeviceFirstNil(t *testing.T) {
-	s1, err := NewSocket(PairName)
+	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
 
-	switch err := Device(nil, s1); err {
+	switch err := mangos.Device(nil, s1); err {
 	case nil:
 		t.Logf("Ok!")
 		return
@@ -85,14 +89,14 @@ func TestDeviceFirstNil(t *testing.T) {
 }
 
 func TestDeviceSecondNil(t *testing.T) {
-	s1, err := NewSocket(PairName)
+	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
 
-	switch err := Device(s1, nil); err {
+	switch err := mangos.Device(s1, nil); err {
 	case nil:
 		t.Logf("Ok!")
 		return
@@ -103,8 +107,8 @@ func TestDeviceSecondNil(t *testing.T) {
 }
 
 func TestDeviceBothNil(t *testing.T) {
-	switch err := Device(nil, nil); err {
-	case ErrClosed:
+	switch err := mangos.Device(nil, nil); err {
+	case mangos.ErrClosed:
 		t.Logf("Got expected err: %v", err)
 		return
 	case nil:
@@ -117,20 +121,20 @@ func TestDeviceBothNil(t *testing.T) {
 }
 
 func TestDeviceReqRep(t *testing.T) {
-	s1, err := NewSocket(ReqName)
+	s1, err := req.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
-	s2, err := NewSocket(RepName)
+	s2, err := rep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
 	}
 	defer s2.Close()
 
-	switch err := Device(s1, s2); err {
+	switch err := mangos.Device(s1, s2); err {
 	case nil:
 		t.Logf("Matching req/rep ok!")
 		return
@@ -141,33 +145,60 @@ func TestDeviceReqRep(t *testing.T) {
 }
 
 // TODO: Add fanout and concurrency testing.
+type devTest struct {
+	T
+}
+
+func (dt *devTest) Init(t *testing.T, addr string) bool {
+	var err error
+	if dt.Sock, err = pair.NewSocket(); err != nil {
+		t.Fatalf("pair.NewSocket(): %v", err)
+	}
+	return dt.T.Init(t, addr)
+}
+
+func (dt *devTest) SendHook(m *mangos.Message) bool {
+	m.Body = append(m.Body, byte(dt.GetSend()))
+	return dt.T.SendHook(m)
+}
+
+func (dt *devTest) RecvHook(m *mangos.Message) bool {
+	if len(m.Body) != 1 {
+		dt.Errorf("Recv message length %d != 1", len(m.Body))
+		return false
+	}
+	if m.Body[0] != byte(dt.GetRecv()) {
+		dt.Errorf("Wrong message: %d != %d", m.Body[0], byte(dt.GetRecv()))
+		return false
+	}
+	return dt.T.RecvHook(m)
+}
 
 func deviceCaseClient() []TestCase {
-	// We cheat and reuse from pairTest.
-	pair := &pairTest{}
-	pair.id = 0
-	pair.msgsz = 4
-	pair.wanttx = 50
-	pair.wantrx = 50
-	cases := []TestCase{pair}
+	dev := &devTest{}
+	dev.ID = 0
+	dev.MsgSize = 4
+	dev.WantTx = 50
+	dev.WantRx = 50
+	cases := []TestCase{dev}
 	return cases
 }
 
 func testDevLoop(t *testing.T, addr string) {
-	s1, err := NewSocket(PairName)
+	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
 
-	SetTLSTest(t, s1)
+	//SetTLSTest(t, s1)
 	if err := s1.Listen(addr); err != nil {
 		t.Errorf("Failed listening to AddrTestTCP: %v", err)
 		return
 	}
 
-	if err := Device(s1, s1); err != nil {
+	if err := mangos.Device(s1, s1); err != nil {
 		t.Errorf("Device failed: %v", err)
 		return
 	}
@@ -179,14 +210,14 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 	// This tests using multiple devices across a few transports.
 	// It looks like this:  addr1->addr2->addr3 <==> addr3->addr2->addr1
 	var err error
-	s := make([]Socket, 5)
+	s := make([]mangos.Socket, 5)
 	for i := 0; i < 5; i++ {
-		if s[i], err = NewSocket(PairName); err != nil {
+		if s[i], err = pair.NewSocket(); err != nil {
 			t.Errorf("Failed to open S1_1: %v", err)
 			return
 		}
 		defer s[i].Close()
-		SetTLSTest(t, s[i])
+		//SetTLSTest(t, s[i])
 	}
 
 	if err = s[0].Listen(addr1); err != nil {
@@ -209,15 +240,15 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 		t.Errorf("s[4] Listen: %v", err)
 		return
 	}
-	if err = Device(s[0], s[1]); err != nil {
+	if err = mangos.Device(s[0], s[1]); err != nil {
 		t.Errorf("s[0],s[1] Device: %v", err)
 		return
 	}
-	if err = Device(s[2], s[3]); err != nil {
+	if err = mangos.Device(s[2], s[3]); err != nil {
 		t.Errorf("s[2],s[3] Device: %v", err)
 		return
 	}
-	if err = Device(s[4], nil); err != nil {
+	if err = mangos.Device(s[4], nil); err != nil {
 		t.Errorf("s[4] Device: %v", err)
 		return
 	}
@@ -225,7 +256,7 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 }
 
 func TestDeviceChain(t *testing.T) {
-	testDevChain(t, AddrTestTCP, AddrTestTLS, AddrTestInp)
+	testDevChain(t, AddrTestTCP, AddrTestIPC, AddrTestInp)
 }
 
 func TestDeviceLoopTCP(t *testing.T) {
@@ -240,6 +271,6 @@ func TestDeviceLoopIPC(t *testing.T) {
 	testDevLoop(t, AddrTestIPC)
 }
 
-func TestDeviceLoopTLS(t *testing.T) {
-	testDevLoop(t, AddrTestTLS)
-}
+//func TestDeviceLoopTLS(t *testing.T) {
+//	testDevLoop(t, AddrTestTLS)
+//}

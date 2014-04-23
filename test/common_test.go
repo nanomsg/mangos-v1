@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package test contains a framework for testing.
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -26,34 +28,35 @@ import (
 	"time"
 )
 
-type testCase struct {
+// T is a structure that subtests can inherit from.
+type T struct {
 	t       *testing.T
 	debug   bool
-	id      int
+	ID      int
 	addr    string
-	proto   string
-	msgsz   int // size of messages
+	MsgSize int // size of messages
 	txdelay time.Duration
-	wanttx  int32
-	wantrx  int32
+	WantTx  int32
+	WantRx  int32
 	numtx   int32
 	numrx   int32
 	timeout time.Duration
-	sock    Socket
+	Sock    mangos.Socket
 	rdoneq  chan struct{}
 	sdoneq  chan struct{}
 	readyq  chan struct{}
-	server  bool
+	Server  bool
 	sync.Mutex
 }
 
+// TestCase represents a single test case.
 type TestCase interface {
 	Init(t *testing.T, addr string) bool
-	NewMessage() *Message
-	SendMsg(*Message) error
-	RecvMsg() (*Message, error)
-	SendHook(*Message) bool // Hook to build send message
-	RecvHook(*Message) bool // Hook to check recv message
+	NewMessage() *mangos.Message
+	SendMsg(*mangos.Message) error
+	RecvMsg() (*mangos.Message, error)
+	SendHook(*mangos.Message) bool
+	RecvHook(*mangos.Message) bool
 	IsServer() bool
 	Logf(string, ...interface{})
 	Errorf(string, ...interface{})
@@ -82,16 +85,11 @@ type TestCase interface {
 	SetReady()
 }
 
-func (c *testCase) Init(t *testing.T, addr string) bool {
+func (c *T) Init(t *testing.T, addr string) bool {
 	// Initial defaults
 	c.Lock()
 	defer c.Unlock()
-	var err error
 	c.t = t
-	if len(c.proto) == 0 {
-		c.Errorf("Missing protocol")
-		return false
-	}
 	c.addr = addr
 	c.numrx = 0 // Reset
 	c.numtx = 0 // Reset
@@ -100,102 +98,98 @@ func (c *testCase) Init(t *testing.T, addr string) bool {
 	c.readyq = make(chan struct{})
 	c.timeout = time.Second * 3
 	c.txdelay = time.Duration(time.Now().UnixNano()) % time.Millisecond
-	if c.sock, err = NewSocket(c.proto); err != nil {
-		c.Errorf("Failed creating socket: %v", err)
-		return false
-	}
-	if !SetTLSTest(t, c.sock) {
+	if !SetTLSTest(t, c.Sock) {
 		return false
 	}
 	return true
 }
 
-func (c *testCase) NewMessage() *Message {
-	return NewMessage(c.msgsz)
+func (c *T) NewMessage() *mangos.Message {
+	return mangos.NewMessage(c.MsgSize)
 }
 
-func (c *testCase) SendHook(m *Message) bool {
+func (c *T) SendHook(m *mangos.Message) bool {
 	c.BumpSend()
 	return true
 }
 
-func (c *testCase) RecvHook(m *Message) bool {
+func (c *T) RecvHook(m *mangos.Message) bool {
 	c.BumpRecv()
 	return true
 }
 
-func (c *testCase) SendMsg(m *Message) error {
+func (c *T) SendMsg(m *mangos.Message) error {
 	// We sleep a tiny bit, to avoid cramming too many messages on
 	// busses, etc. all at once.  (The test requires no dropped messages.)
 	time.Sleep(c.SendDelay())
-	c.sock.SetOption(OptionSendDeadline, time.Now().Add(time.Second*5))
-	return c.sock.SendMsg(m)
+	c.Sock.SetOption(mangos.OptionSendDeadline, time.Now().Add(time.Second*5))
+	return c.Sock.SendMsg(m)
 }
 
-func (c *testCase) RecvMsg() (*Message, error) {
-	c.sock.SetOption(OptionRecvDeadline, time.Now().Add(time.Second*5))
-	return c.sock.RecvMsg()
+func (c *T) RecvMsg() (*mangos.Message, error) {
+	c.Sock.SetOption(mangos.OptionRecvDeadline, time.Now().Add(time.Second*5))
+	return c.Sock.RecvMsg()
 }
 
-func (c *testCase) Debugf(f string, v ...interface{}) {
+func (c *T) Debugf(f string, v ...interface{}) {
 	if !c.debug {
 		return
 	}
 	now := time.Now().Format(time.StampMilli)
-	c.t.Logf("%s: Id %d: %s", now, c.id, fmt.Sprintf(f, v...))
+	c.t.Logf("%s: Id %d: %s", now, c.ID, fmt.Sprintf(f, v...))
 }
 
-func (c *testCase) Logf(f string, v ...interface{}) {
+func (c *T) Logf(f string, v ...interface{}) {
 	now := time.Now().Format(time.StampMilli)
-	c.t.Logf("%s: Id %d: %s", now, c.id, fmt.Sprintf(f, v...))
+	c.t.Logf("%s: Id %d: %s", now, c.ID, fmt.Sprintf(f, v...))
 }
 
-func (c *testCase) Errorf(f string, v ...interface{}) {
+func (c *T) Errorf(f string, v ...interface{}) {
 	now := time.Now().Format(time.StampMilli)
-	c.t.Errorf("%s: Id %d: %s", now, c.id, fmt.Sprintf(f, v...))
+	c.t.Errorf("%s: Id %d: %s", now, c.ID, fmt.Sprintf(f, v...))
 }
 
-func (c *testCase) WantSend() int32 {
-	return c.wanttx
+func (c *T) WantSend() int32 {
+	return c.WantTx
 }
 
-func (c *testCase) BumpSend() {
+func (c *T) BumpSend() {
 	atomic.AddInt32(&c.numtx, 1)
 }
 
-func (c *testCase) GetSend() int32 {
+func (c *T) GetSend() int32 {
 	return atomic.AddInt32(&c.numtx, 0)
 }
 
-func (c *testCase) WantRecv() int32 {
-	return c.wantrx
+func (c *T) WantRecv() int32 {
+	return c.WantRx
 }
 
-func (c *testCase) BumpRecv() {
+func (c *T) BumpRecv() {
 	atomic.AddInt32(&c.numrx, 1)
 }
 
-func (c *testCase) GetRecv() int32 {
+func (c *T) GetRecv() int32 {
 	return atomic.AddInt32(&c.numrx, 0)
 }
 
-func (c *testCase) GetID() int {
-	return c.id
+func (c *T) GetID() int {
+	return c.ID
 }
 
-func (c *testCase) SendDone() {
+func (c *T) SendDone() {
 	c.Lock()
 	close(c.sdoneq)
 	c.Unlock()
 }
 
-func (c *testCase) RecvDone() {
+func (c *T) RecvDone() {
 	c.Lock()
 	close(c.rdoneq)
 	c.Unlock()
 }
 
-func (c *testCase) WaitSend() bool {
+func (c *T) WaitSend() bool {
 	select {
 	case <-c.sdoneq:
 		return true
@@ -204,7 +198,7 @@ func (c *testCase) WaitSend() bool {
 	}
 }
 
-func (c *testCase) WaitRecv() bool {
+func (c *T) WaitRecv() bool {
 	select {
 	case <-c.rdoneq:
 		return true
@@ -213,8 +207,8 @@ func (c *testCase) WaitRecv() bool {
 	}
 }
 
-func (c *testCase) Dial() bool {
-	err := c.sock.Dial(c.addr)
+func (c *T) Dial() bool {
+	err := c.Sock.Dial(c.addr)
 	if err != nil {
 		c.Errorf("Dial (%s) failed: %v", c.addr, err)
 		return false
@@ -224,8 +218,8 @@ func (c *testCase) Dial() bool {
 	return true
 }
 
-func (c *testCase) Listen() bool {
-	err := c.sock.Listen(c.addr)
+func (c *T) Listen() bool {
+	err := c.Sock.Listen(c.addr)
 	if err != nil {
 		c.Errorf("Listen (%s) failed: %v", c.addr, err)
 		return false
@@ -235,22 +229,22 @@ func (c *testCase) Listen() bool {
 	return true
 }
 
-func (c *testCase) Close() {
-	if c.sock != nil {
-		c.sock.Close()
-		c.sock = nil
+func (c *T) Close() {
+	if c.Sock != nil {
+		c.Sock.Close()
+		c.Sock = nil
 	}
 }
 
-func (c *testCase) SendDelay() time.Duration {
+func (c *T) SendDelay() time.Duration {
 	return c.txdelay
 }
 
-func (c *testCase) IsServer() bool {
-	return c.server
+func (c *T) IsServer() bool {
+	return c.Server
 }
 
-func (c *testCase) Ready() bool {
+func (c *T) Ready() bool {
 	select {
 	case <-c.readyq:
 		return true
@@ -259,11 +253,11 @@ func (c *testCase) Ready() bool {
 	}
 }
 
-func (c *testCase) SetReady() {
+func (c *T) SetReady() {
 	close(c.readyq)
 }
 
-func (c *testCase) WaitReady() bool {
+func (c *T) WaitReady() bool {
 	select {
 	case <-c.readyq:
 		return true
@@ -272,7 +266,7 @@ func (c *testCase) WaitReady() bool {
 	}
 }
 
-func (c *testCase) SendStart() bool {
+func (c *T) SendStart() bool {
 
 	c.Debugf("Sending START")
 	m := MakeStart(uint32(c.GetID()))
@@ -283,7 +277,7 @@ func (c *testCase) SendStart() bool {
 	return true
 }
 
-func (c *testCase) RecvStart() bool {
+func (c *T) RecvStart() bool {
 	m, err := c.RecvMsg()
 	if err != nil {
 		c.Errorf("RecvMsg failed: %v", err)
@@ -299,22 +293,24 @@ func (c *testCase) RecvStart() bool {
 	return false
 }
 
-func (c *testCase) WantSendStart() bool {
-	return c.wanttx > 0
+func (c *T) WantSendStart() bool {
+	return c.WantTx > 0
 }
 
-func (c *testCase) WantRecvStart() bool {
-	return c.wantrx > 0
+func (c *T) WantRecvStart() bool {
+	return c.WantRx > 0
 }
 
-func MakeStart(v uint32) *Message {
-	m := NewMessage(10)
+// MakeStart makes a start message, storing a 32-bit ID in the body.
+func MakeStart(v uint32) *mangos.Message {
+	m := mangos.NewMessage(10)
 	m.Body = append(m.Body, []byte("START")...)
 	m.Body = append(m.Body, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 	return m
 }
 
-func ParseStart(m *Message) (uint32, bool) {
+// ParseStart parses a start message, returning the ID stored therein.
+func ParseStart(m *mangos.Message) (uint32, bool) {
 	if bytes.HasPrefix(m.Body, []byte("START")) && len(m.Body) >= 9 {
 		v := binary.BigEndian.Uint32(m.Body[5:])
 		return v, true
@@ -484,6 +480,7 @@ func slowStart(t *testing.T, cases []TestCase) bool {
 	return numrdy == needrdy
 }
 
+// RunTests runs tests.
 func RunTests(t *testing.T, addr string, cases []TestCase) {
 
 	if strings.HasPrefix(addr, "ipc://") && runtime.GOOS == "windows" {
@@ -524,23 +521,36 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 }
 
 // We have to expose these, so that device tests can use them.
+
+// AddrTestTCP is a suitable TCP address for testing.
 var AddrTestTCP = "tcp://127.0.0.1:39093"
+
+// AddrTestIPC is a suitable IPC address for testing.
 var AddrTestIPC = "ipc:///tmp/MYTEST_IPC"
+
+// AddrTestInp is a suitable Inproc address for testing.
 var AddrTestInp = "inproc://MYTEST_INPROC"
+
+// AddrTestTLS is a suitable TLS address for testing.
 var AddrTestTLS = "tls+tcp://127.0.0.1:43934"
 
+// RunTestsTCP runs the TCP tests.
 func RunTestsTCP(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestTCP, cases)
 }
 
+// RunTestsIPC runs the IPC tests.
 func RunTestsIPC(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestIPC, cases)
 }
 
+// RunTestsInp runs the inproc tests.
 func RunTestsInp(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestInp, cases)
 }
 
+// RunTestsTLS runs the TLS tests.
 func RunTestsTLS(t *testing.T, cases []TestCase) {
+	//	t.Skip("TLS testing not ready.")
 	RunTests(t, AddrTestTLS, cases)
 }

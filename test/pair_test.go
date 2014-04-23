@@ -12,27 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/pair"
 	"testing"
 )
 
 type pairTest struct {
-	testCase
+	T
 }
 
 func (pt *pairTest) Init(t *testing.T, addr string) bool {
-	pt.proto = PairName
-	return pt.testCase.Init(t, addr)
+	var err error
+	if pt.Sock, err = pair.NewSocket(); err != nil {
+		pt.Errorf("NewSocket failed: %v", err)
+		return false
+	}
+	return pt.T.Init(t, addr)
 }
 
-func (pt *pairTest) SendHook(m *Message) bool {
+func (pt *pairTest) SendHook(m *mangos.Message) bool {
 	m.Body = append(m.Body, byte(pt.GetSend()))
-	return pt.testCase.SendHook(m)
+	return pt.T.SendHook(m)
 }
 
-func (pt *pairTest) RecvHook(m *Message) bool {
+func (pt *pairTest) RecvHook(m *mangos.Message) bool {
 	if len(m.Body) != 1 {
 		pt.Errorf("Recv message length %d != 1", len(m.Body))
 		return false
@@ -41,22 +47,22 @@ func (pt *pairTest) RecvHook(m *Message) bool {
 		pt.Errorf("Wrong message: %d != %d", m.Body[0], byte(pt.GetRecv()))
 		return false
 	}
-	return pt.testCase.RecvHook(m)
+	return pt.T.RecvHook(m)
 }
 
 func pairCases() []TestCase {
 	snd := &pairTest{}
-	snd.id = 0
-	snd.msgsz = 1
-	snd.wanttx = 200
-	snd.wantrx = 300
-	snd.server = true
+	snd.ID = 0
+	snd.MsgSize = 1
+	snd.WantTx = 200
+	snd.WantRx = 300
+	snd.Server = true
 
 	rcv := &pairTest{}
-	rcv.id = 1
-	rcv.msgsz = 1
-	rcv.wanttx = 300
-	rcv.wantrx = 200
+	rcv.ID = 1
+	rcv.MsgSize = 1
+	rcv.WantTx = 300
+	rcv.WantRx = 200
 
 	return []TestCase{snd, rcv}
 }

@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/rep"
+	"bitbucket.org/gdamore/mangos/protocol/req"
 	"bytes"
 	"crypto/tls"
 	"testing"
@@ -98,7 +101,7 @@ gYiuigwixOW006p90YD+k9NPvro1usEMwEUiqatuYIE=
 `
 
 // Wrap this in a function so we can use it later.
-func SetTLSTest(t testing.TB, sock Socket) bool {
+func SetTLSTest(t testing.TB, sock mangos.Socket) bool {
 	cfg := new(tls.Config)
 	cert, err := tls.X509KeyPair([]byte(tlsTestClientCertPEM),
 		[]byte(tlsTestClientKeyPEM))
@@ -110,7 +113,7 @@ func SetTLSTest(t testing.TB, sock Socket) bool {
 	cfg.Certificates[0] = cert
 	cfg.InsecureSkipVerify = true
 
-	err = sock.SetOption(TLSOptionConfig, cfg)
+	err = sock.SetOption(mangos.TLSOptionConfig, cfg)
 	if err != nil {
 		t.Errorf("Failed setting TLS config: %v", err)
 		return false
@@ -129,19 +132,19 @@ func TestTLSReqRep(t *testing.T) {
 	clich := make(chan bool, 1)
 	srvch := make(chan bool, 1)
 
-	var srvsock Socket
+	var srvsock mangos.Socket
 
 	var pass, ok bool
 
 	t.Log("Starting server")
 	go func() {
 		var err error
-		var req, rep *Message
+		var reqm, repm *mangos.Message
 		var cfg *tls.Config
 		var cert tls.Certificate
 
 		defer close(srvch)
-		srvsock, err = NewSocket(RepName)
+		srvsock, err = rep.NewSocket()
 		if err != nil || srvsock == nil {
 			t.Errorf("Failed creating server socket: %v", err)
 			return
@@ -163,7 +166,7 @@ func TestTLSReqRep(t *testing.T) {
 		cfg.Certificates[0] = cert
 		cfg.InsecureSkipVerify = true
 
-		err = srvsock.SetOption(TLSOptionConfig, cfg)
+		err = srvsock.SetOption(mangos.TLSOptionConfig, cfg)
 		if err != nil {
 			t.Errorf("Failed setting TLS server config: %v", err)
 			return
@@ -175,22 +178,22 @@ func TestTLSReqRep(t *testing.T) {
 		}
 		t.Logf("Server listening")
 
-		if req, err = srvsock.RecvMsg(); err != nil {
+		if reqm, err = srvsock.RecvMsg(); err != nil {
 			t.Errorf("Server receive failed: %v", err)
 			return
 		}
 		t.Logf("Server got message")
-		defer req.Free()
+		defer reqm.Free()
 
-		if !bytes.Equal(req.Body, ping) {
-			t.Errorf("Server recd bad message: %v", req)
+		if !bytes.Equal(reqm.Body, ping) {
+			t.Errorf("Server recd bad message: %v", reqm)
 			return
 		}
 
 		t.Logf("Server sending reply")
-		rep = NewMessage(len(ack))
-		rep.Body = append(rep.Body, ack...)
-		if err = srvsock.SendMsg(rep); err != nil {
+		repm = mangos.NewMessage(len(ack))
+		repm.Body = append(repm.Body, ack...)
+		if err = srvsock.SendMsg(repm); err != nil {
 			t.Errorf("Server send failed: %v", err)
 			return
 		}
@@ -206,14 +209,14 @@ func TestTLSReqRep(t *testing.T) {
 
 	t.Log("Starting client")
 	go func() {
-		var clisock Socket
+		var clisock mangos.Socket
 		var err error
-		var req, rep *Message
+		var reqm, repm *mangos.Message
 		var cfg *tls.Config
 		var cert tls.Certificate
 
 		defer close(clich)
-		clisock, err = NewSocket(ReqName)
+		clisock, err = req.NewSocket()
 		if err != nil || clisock == nil {
 			t.Errorf("Failed creating client socket: %v", err)
 			return
@@ -238,7 +241,7 @@ func TestTLSReqRep(t *testing.T) {
 		// close in the outer handler.
 		//defer srvsock.Close()
 
-		err = clisock.SetOption(TLSOptionConfig, cfg)
+		err = clisock.SetOption(mangos.TLSOptionConfig, cfg)
 		if err != nil {
 			t.Errorf("Failed setting TLS server config: %v", err)
 			return
@@ -251,22 +254,22 @@ func TestTLSReqRep(t *testing.T) {
 
 		t.Logf("Client dial complete")
 
-		req = NewMessage(len(ping))
-		req.Body = append(req.Body, ping...)
-		if err = clisock.SendMsg(req); err != nil {
+		reqm = mangos.NewMessage(len(ping))
+		reqm.Body = append(reqm.Body, ping...)
+		if err = clisock.SendMsg(reqm); err != nil {
 			t.Errorf("Client send failed: %v", err)
 			return
 		}
 		t.Logf("Sent client request")
 
-		if rep, err = clisock.RecvMsg(); err != nil {
+		if repm, err = clisock.RecvMsg(); err != nil {
 			t.Errorf("Client receive failed: %v", err)
 			return
 		}
 		t.Logf("Client received reply")
 
-		if !bytes.Equal(rep.Body, ack) {
-			t.Errorf("Client recd bad message: %v", req)
+		if !bytes.Equal(repm.Body, ack) {
+			t.Errorf("Client recd bad message: %v", reqm)
 			return
 		}
 

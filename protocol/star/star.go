@@ -12,26 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package star implements a new, experimental protocol called "STAR".
+// This is like the BUS protocol, except that each member of the network
+// automatically forwards any message it receives to any other peers.
+// In a star network, this means that all members should receive all messages,
+// assuming that there is a central server.  Its important to ensure that
+// the topology is free from cycles, as there is no protection against
+// that, and cycles can lead to infinite message storms.  (TODO: Add a TTL,
+// and basic message ID / anti-replay protection.)
+package star
 
 import (
+	"bitbucket.org/gdamore/mangos"
 	"sync"
 )
 
 type starEp struct {
-	ep Endpoint
-	q  chan *Message
-	x  *xstar
+	ep mangos.Endpoint
+	q  chan *mangos.Message
+	x  *star
 }
 
-type xstar struct {
-	sock ProtocolSocket
+type star struct {
+	sock mangos.ProtocolSocket
 	sync.Mutex
 	eps map[uint32]*starEp
 	raw bool
 }
 
-func (x *xstar) Init(sock ProtocolSocket) {
+func (x *star) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*starEp)
 	go x.sender()
@@ -40,7 +49,7 @@ func (x *xstar) Init(sock ProtocolSocket) {
 // Bottom sender.
 func (pe *starEp) sender() {
 	for {
-		var msg *Message
+		var msg *mangos.Message
 
 		select {
 		case msg = <-pe.q:
@@ -55,7 +64,7 @@ func (pe *starEp) sender() {
 	}
 }
 
-func (x *xstar) broadcast(msg *Message, sender *starEp) {
+func (x *star) broadcast(msg *mangos.Message, sender *starEp) {
 
 	x.Lock()
 	for _, pe := range x.eps {
@@ -87,9 +96,9 @@ func (x *xstar) broadcast(msg *Message, sender *starEp) {
 	}
 }
 
-func (x *xstar) sender() {
+func (x *star) sender() {
 	for {
-		var msg *Message
+		var msg *mangos.Message
 		select {
 		case msg = <-x.sock.SendChannel():
 		case <-x.sock.CloseChannel():
@@ -112,8 +121,8 @@ func (pe *starEp) receiver() {
 	}
 }
 
-func (x *xstar) AddEndpoint(ep Endpoint) {
-	pe := &starEp{ep: ep, x: x, q: make(chan *Message, 5)}
+func (x *star) AddEndpoint(ep mangos.Endpoint) {
+	pe := &starEp{ep: ep, x: x, q: make(chan *mangos.Message, 5)}
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()
@@ -121,48 +130,43 @@ func (x *xstar) AddEndpoint(ep Endpoint) {
 	go pe.receiver()
 }
 
-func (x *xstar) RemoveEndpoint(ep Endpoint) {
+func (x *star) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	delete(x.eps, ep.GetID())
 	x.Unlock()
 }
 
-func (*xstar) Number() uint16 {
-	return ProtoStar
+func (*star) Number() uint16 {
+	return mangos.ProtoStar
 }
 
-func (*xstar) ValidPeer(peer uint16) bool {
-	if peer == ProtoStar {
+func (*star) ValidPeer(peer uint16) bool {
+	if peer == mangos.ProtoStar {
 		return true
 	}
 	return false
 }
 
-func (x *xstar) SetOption(name string, v interface{}) error {
+func (x *star) SetOption(name string, v interface{}) error {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		x.raw = v.(bool)
 		return nil
 	default:
-		return ErrBadOption
+		return mangos.ErrBadOption
 	}
 }
 
-func (x *xstar) GetOption(name string) (interface{}, error) {
+func (x *star) GetOption(name string) (interface{}, error) {
 	switch name {
-	case OptionRaw:
+	case mangos.OptionRaw:
 		return x.raw, nil
 	default:
-		return nil, ErrBadOption
+		return nil, mangos.ErrBadOption
 	}
 }
 
-type starFactory int
-
-func (starFactory) NewProtocol() Protocol {
-	return &xstar{}
+// NewSocket allocates a new Socket using the STAR protocol.
+func NewSocket() (mangos.Socket, error) {
+	return mangos.MakeSocket(&star{}), nil
 }
-
-// XStarFactory implements the Protocol Factory for the XSTAR protocol.
-// The XSTAR Protocol is the raw form of the STAR protocol.
-var StarFactory starFactory

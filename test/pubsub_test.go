@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/pub"
+	"bitbucket.org/gdamore/mangos/protocol/sub"
 	"bytes"
 	"testing"
 )
@@ -29,34 +32,38 @@ var publish = []string{
 	"END"}
 
 type subTest struct {
-	testCase
+	T
 }
 
 type pubTest struct {
 	pubidx int
-	testCase
+	T
 }
 
 func (st *subTest) Init(t *testing.T, addr string) bool {
 	var err error
-	rv := st.testCase.Init(t, addr)
+	if st.Sock, err = sub.NewSocket(); err != nil {
+		st.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	rv := st.T.Init(t, addr)
 	// We have to subscribe to the START message!
 	if !rv {
 		return false
 	}
-	err = st.sock.SetOption(OptionSubscribe, []byte("START"))
+	err = st.Sock.SetOption(mangos.OptionSubscribe, []byte("START"))
 	if err != nil {
 		st.Errorf("Failed subscription to START: %v", err)
 		return false
 	}
 
-	err = st.sock.SetOption(OptionSubscribe, []byte("END"))
+	err = st.Sock.SetOption(mangos.OptionSubscribe, []byte("END"))
 	if err != nil {
 		st.Errorf("Failed to subscribe to END: %v", err)
 		return false
 	}
 
-	err = st.sock.SetOption(OptionSubscribe, []byte("/rain"))
+	err = st.Sock.SetOption(mangos.OptionSubscribe, []byte("/rain"))
 	if err != nil {
 		st.Errorf("Failed subscribing to the rain: %v", err)
 		return false
@@ -67,10 +74,15 @@ func (st *subTest) Init(t *testing.T, addr string) bool {
 
 func (pt *pubTest) Init(t *testing.T, addr string) bool {
 	pt.pubidx = 0
-	return pt.testCase.Init(t, addr)
+	var err error
+	if pt.Sock, err = pub.NewSocket(); err != nil {
+		pt.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	return pt.T.Init(t, addr)
 }
 
-func (st *subTest) RecvHook(m *Message) bool {
+func (st *subTest) RecvHook(m *mangos.Message) bool {
 	switch {
 	case bytes.HasPrefix(m.Body, []byte("END")):
 		st.BumpRecv()
@@ -84,15 +96,15 @@ func (st *subTest) RecvHook(m *Message) bool {
 	}
 }
 
-func (pt *pubTest) SendHook(m *Message) bool {
+func (pt *pubTest) SendHook(m *mangos.Message) bool {
 	if pt.pubidx >= len(publish) {
 		pt.Errorf("Nothing left to send! (%d/%d)", pt.pubidx, len(publish))
 		return false
 	}
 	m.Body = append(m.Body, []byte(publish[pt.pubidx])...)
-	pt.Logf("Sending %d, %s", pt.pubidx, string(m.Body))
+	pt.Debugf("Sending %d, %s", pt.pubidx, string(m.Body))
 	pt.pubidx++
-	return pt.testCase.SendHook(m)
+	return pt.T.SendHook(m)
 }
 
 func pubCases() []TestCase {
@@ -101,17 +113,15 @@ func pubCases() []TestCase {
 	cases := make([]TestCase, nsub+1)
 
 	pub := &pubTest{}
-	pub.wanttx = int32(len(publish))
-	pub.wantrx = 0
-	pub.server = true
-	pub.proto = PubName
+	pub.WantTx = int32(len(publish))
+	pub.WantRx = 0
+	pub.Server = true
 	cases[0] = pub
 
 	for i := 0; i < nsub; i++ {
 		sub := &subTest{}
-		sub.wantrx = 2
-		sub.id = i + 1
-		sub.proto = SubName
+		sub.WantRx = 2
+		sub.ID = i + 1
 		cases[i+1] = sub
 	}
 

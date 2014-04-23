@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/protocol/respondent"
+	"bitbucket.org/gdamore/mangos/protocol/surveyor"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -25,28 +28,32 @@ type surveyTest struct {
 	nstart int32
 	resp   map[uint32]bool
 	start  map[uint32]bool
-	testCase
+	T
 }
 
 type responderTest struct {
-	testCase
+	T
 }
 
 func (st *surveyTest) Init(t *testing.T, addr string) bool {
-	st.proto = SurveyorName
+	var err error
 	st.resp = make(map[uint32]bool)
 	st.start = make(map[uint32]bool)
 	st.nstart = 0
-	return st.testCase.Init(t, addr)
+	if st.Sock, err = surveyor.NewSocket(); err != nil {
+		st.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	return st.T.Init(t, addr)
 }
 
-func (st *surveyTest) SendHook(m *Message) bool {
+func (st *surveyTest) SendHook(m *mangos.Message) bool {
 	m.Body = m.Body[0:4]
 	binary.BigEndian.PutUint32(m.Body, uint32(st.GetSend()))
-	return st.testCase.SendHook(m)
+	return st.T.SendHook(m)
 }
 
-func (st *surveyTest) RecvHook(m *Message) bool {
+func (st *surveyTest) RecvHook(m *mangos.Message) bool {
 	if len(m.Body) != 4 {
 		st.Errorf("Recv message length %d != 4", len(m.Body))
 		return false
@@ -85,11 +92,15 @@ func (st *surveyTest) RecvStart() bool {
 }
 
 func (rt *responderTest) Init(t *testing.T, addr string) bool {
-	rt.proto = RespondentName
-	return rt.testCase.Init(t, addr)
+	var err error
+	if rt.Sock, err = respondent.NewSocket(); err != nil {
+		rt.Errorf("NewSocket(): %v", err)
+		return false
+	}
+	return rt.T.Init(t, addr)
 }
 
-func (rt *responderTest) RecvHook(m *Message) bool {
+func (rt *responderTest) RecvHook(m *mangos.Message) bool {
 	if len(m.Body) < 4 {
 		rt.Errorf("Recv message length %d < 4", len(m.Body))
 		return false
@@ -101,8 +112,7 @@ func (rt *responderTest) RecvHook(m *Message) bool {
 	newm.Body = newm.Body[0:4]
 	binary.BigEndian.PutUint32(newm.Body, uint32(rt.GetID()))
 	rt.SendMsg(newm)
-	rt.testCase.RecvHook(m)
-	return true
+	return rt.T.RecvHook(m)
 }
 
 func (rt *responderTest) RecvStart() bool {
@@ -128,20 +138,20 @@ func surveyCases() []TestCase {
 
 	cases := make([]TestCase, nresp+1)
 	surv := &surveyTest{nresp: nresp}
-	surv.server = true
-	surv.id = 0
-	surv.msgsz = 8
-	surv.wanttx = 1
-	surv.wantrx = int32(nresp)
+	surv.Server = true
+	surv.ID = 0
+	surv.MsgSize = 8
+	surv.WantTx = 1
+	surv.WantRx = int32(nresp)
 	surv.txdelay = 20 * time.Millisecond
 	cases[0] = surv
 
 	for i := 0; i < int(nresp); i++ {
 		resp := &responderTest{}
-		resp.id = i + 1
-		resp.msgsz = 8
-		resp.wanttx = 0 // reply is done in response to receipt
-		resp.wantrx = 1
+		resp.ID = i + 1
+		resp.MsgSize = 8
+		resp.WantTx = 0 // reply is done in response to receipt
+		resp.WantRx = 1
 		cases[i+1] = resp
 	}
 
