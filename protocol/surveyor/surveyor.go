@@ -91,21 +91,22 @@ func (peer *surveyorP) sender() {
 
 func (peer *surveyorP) receiver() {
 	for {
-		msg := peer.ep.RecvMsg()
-		if msg == nil {
+		m := peer.ep.RecvMsg()
+		if m == nil {
 			return
+		}
+		if len(m.Body) < 4 {
+			m.Free()
+			continue
 		}
 
 		// Get survery ID -- this will be passed in the header up
 		// to the application.  It should include that in the response.
-		err := msg.TrimUint32()
-		if err != nil {
-			msg.Free()
-			return
-		}
+		m.Header = append(m.Header, m.Body[:4]...)
+		m.Body = m.Body[4:]
 
 		select {
-		case peer.x.sock.RecvChannel() <- msg:
+		case peer.x.sock.RecvChannel() <- m:
 		case <-peer.x.sock.CloseChannel():
 			return
 		case <-peer.closeq:

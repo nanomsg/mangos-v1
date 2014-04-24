@@ -100,10 +100,12 @@ func (r *req) receiver(ep mangos.Endpoint) {
 			return
 		}
 
-		if m.TrimUint32() != nil {
+		if len(m.Body) < 4 {
 			m.Free()
 			continue
 		}
+		m.Header = append(m.Header, m.Body[:4]...)
+		m.Body = m.Body[4:]
 
 		select {
 		case r.sock.RecvChannel() <- m:
