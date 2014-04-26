@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package ipc implements the IPC transport on top of UNIX domain sockets.
+package ipc
 
 import (
+	"bitbucket.org/gdamore/mangos"
 	"net"
 )
 
@@ -24,13 +26,13 @@ type ipcDialer struct {
 }
 
 // Dial implements the PipeDialer Dial method
-func (d *ipcDialer) Dial() (Pipe, error) {
+func (d *ipcDialer) Dial() (mangos.Pipe, error) {
 
 	conn, err := net.DialUnix("unix", nil, d.addr)
 	if err != nil {
 		return nil, err
 	}
-	return NewConnPipeIPC(conn, d.proto)
+	return mangos.NewConnPipeIPC(conn, d.proto)
 }
 
 type ipcAccepter struct {
@@ -40,13 +42,13 @@ type ipcAccepter struct {
 }
 
 // Accept implements the the PipeAccepter Accept method.
-func (a *ipcAccepter) Accept() (Pipe, error) {
+func (a *ipcAccepter) Accept() (mangos.Pipe, error) {
 
 	conn, err := a.listener.AcceptUnix()
 	if err != nil {
 		return nil, err
 	}
-	return NewConnPipeIPC(conn, a.proto)
+	return mangos.NewConnPipeIPC(conn, a.proto)
 }
 
 // Close implements the PipeAccepter Close method.
@@ -63,9 +65,9 @@ func (t *ipcTran) Scheme() string {
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *ipcTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
+func (t *ipcTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
 	var err error
-	d := new(ipcDialer)
+	d := &ipcDialer{}
 	d.proto = proto
 	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
@@ -74,9 +76,9 @@ func (t *ipcTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *ipcTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
+func (t *ipcTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
 	var err error
-	a := new(ipcAccepter)
+	a := &ipcAccepter{}
 	a.proto = proto
 
 	if a.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
@@ -92,19 +94,15 @@ func (t *ipcTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
 
 // SetOption implements a stub Transport SetOption method.
 func (t *ipcTran) SetOption(string, interface{}) error {
-	return ErrBadOption
+	return mangos.ErrBadOption
 }
 
 // GetOption implements a stub Transport GetOption method.
 func (t *ipcTran) GetOption(string) (interface{}, error) {
-	return nil, ErrBadOption
+	return nil, mangos.ErrBadOption
 }
 
-type ipcFactory int
-
-func (ipcFactory) NewTransport() Transport {
-	return new(ipcTran)
+// NewTransport allocates a new IPC transport.
+func NewTransport() mangos.Transport {
+	return &ipcTran{}
 }
-
-// IPCFactory is used by the core to create new IPC Transport instances.
-var IPCFactory ipcFactory

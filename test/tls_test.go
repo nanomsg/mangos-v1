@@ -18,6 +18,7 @@ import (
 	"bitbucket.org/gdamore/mangos"
 	"bitbucket.org/gdamore/mangos/protocol/rep"
 	"bitbucket.org/gdamore/mangos/protocol/req"
+	"bitbucket.org/gdamore/mangos/transport/tlstcp"
 	"bytes"
 	"crypto/tls"
 	"testing"
@@ -113,7 +114,7 @@ func SetTLSTest(t testing.TB, sock mangos.Socket) bool {
 	cfg.Certificates[0] = cert
 	cfg.InsecureSkipVerify = true
 
-	err = sock.SetOption(mangos.TLSOptionConfig, cfg)
+	err = sock.SetOption(tlstcp.TLSOptionConfig, cfg)
 	if err != nil {
 		t.Errorf("Failed setting TLS config: %v", err)
 		return false
@@ -149,6 +150,7 @@ func TestTLSReqRep(t *testing.T) {
 			t.Errorf("Failed creating server socket: %v", err)
 			return
 		}
+		srvsock.AddTransport(tlstcp.NewTransport())
 		// XXX: Closing the server socket too soon causes the
 		// underlying connecctions to be closed, which breaks the
 		// client.  We really need a shutdown().  For now we just
@@ -166,7 +168,7 @@ func TestTLSReqRep(t *testing.T) {
 		cfg.Certificates[0] = cert
 		cfg.InsecureSkipVerify = true
 
-		err = srvsock.SetOption(mangos.TLSOptionConfig, cfg)
+		err = srvsock.SetOption(tlstcp.TLSOptionConfig, cfg)
 		if err != nil {
 			t.Errorf("Failed setting TLS server config: %v", err)
 			return
@@ -222,6 +224,7 @@ func TestTLSReqRep(t *testing.T) {
 			return
 		}
 		defer clisock.Close()
+		clisock.AddTransport(tlstcp.NewTransport())
 
 		// Load up ROOT CA
 		cfg = new(tls.Config)
@@ -241,7 +244,7 @@ func TestTLSReqRep(t *testing.T) {
 		// close in the outer handler.
 		//defer srvsock.Close()
 
-		err = clisock.SetOption(mangos.TLSOptionConfig, cfg)
+		err = clisock.SetOption(tlstcp.TLSOptionConfig, cfg)
 		if err != nil {
 			t.Errorf("Failed setting TLS server config: %v", err)
 			return

@@ -61,4 +61,8 @@ type Socket interface {
 
 	// Protocol is used to get the underlying Protocol.
 	GetProtocol() Protocol
+
+	// AddTransport adds a new Transport to the socket.  Transport specific
+	// options may have been configured on the Transport prior to this.
+	AddTransport(Transport)
 }

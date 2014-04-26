@@ -17,6 +17,10 @@ package test
 
 import (
 	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/transport/inproc"
+	"bitbucket.org/gdamore/mangos/transport/ipc"
+	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"bitbucket.org/gdamore/mangos/transport/tlstcp"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -98,6 +102,10 @@ func (c *T) Init(t *testing.T, addr string) bool {
 	c.readyq = make(chan struct{})
 	c.timeout = time.Second * 3
 	c.txdelay = time.Duration(time.Now().UnixNano()) % time.Millisecond
+	c.Sock.AddTransport(tcp.NewTransport())
+	c.Sock.AddTransport(ipc.NewTransport())
+	c.Sock.AddTransport(tlstcp.NewTransport())
+	c.Sock.AddTransport(inproc.NewTransport())
 	if !SetTLSTest(t, c.Sock) {
 		return false
 	}
@@ -551,6 +559,5 @@ func RunTestsInp(t *testing.T, cases []TestCase) {
 
 // RunTestsTLS runs the TLS tests.
 func RunTestsTLS(t *testing.T, cases []TestCase) {
-	//	t.Skip("TLS testing not ready.")
 	RunTests(t, AddrTestTLS, cases)
 }

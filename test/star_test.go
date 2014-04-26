@@ -17,6 +17,7 @@ package test
 import (
 	"bitbucket.org/gdamore/mangos"
 	"bitbucket.org/gdamore/mangos/protocol/star"
+	"bitbucket.org/gdamore/mangos/transport/tcp"
 	"math/rand"
 	"testing"
 	"time"
@@ -93,6 +94,7 @@ func starTestNewServer(t *testing.T, addr string, id int) *starTester {
 		t.Errorf("Failed getting server %d socket: %v", id, err)
 		return nil
 	}
+	bt.sock.AddTransport(tcp.NewTransport())
 
 	if err = bt.sock.Listen(addr); err != nil {
 		t.Errorf("Failed server %d listening: %v", id, err)
@@ -110,6 +112,7 @@ func starTestNewClient(t *testing.T, addr string, id int) *starTester {
 		t.Errorf("Failed getting client %d socket: %v", id, err)
 		return nil
 	}
+	bt.sock.AddTransport(tcp.NewTransport())
 	if err = bt.sock.Dial(addr); err != nil {
 		t.Errorf("Failed client %d dialing: %v", id, err)
 		bt.sock.Close()

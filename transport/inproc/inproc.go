@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package inproc implements an simple inproc transport for mangos.
+package inproc
 
 import (
+	"bitbucket.org/gdamore/mangos"
 	"sync"
 )
 
 // inproc implements the Pipe interface on top of channels.
 type inproc struct {
-	rq     chan *Message
-	wq     chan *Message
+	rq     chan *mangos.Message
+	wq     chan *mangos.Message
 	closeq chan struct{}
 	readyq chan struct{}
 	proto  uint16
@@ -41,44 +43,44 @@ func init() {
 	inprocServers.rendezvous = make(map[string]*inprocRendezvous)
 }
 
-func (p *inproc) Recv() (*Message, error) {
+func (p *inproc) Recv() (*mangos.Message, error) {
 
 	if p.peer == nil {
-		return nil, ErrClosed
+		return nil, mangos.ErrClosed
 	}
 	select {
-	case msg, ok := <-p.rq:
-		if msg == nil || !ok {
-			return nil, ErrClosed
+	case m, ok := <-p.rq:
+		if m == nil || !ok {
+			return nil, mangos.ErrClosed
 		}
 		// Upper protocols expect to have to pick header and
 		// body part.  So mush them back together.
 		//msg.Body = append(msg.Header, msg.Body...)
 		//msg.Header = make([]byte, 0, 32)
-		return msg, nil
+		return m, nil
 	case <-p.closeq:
-		return nil, ErrClosed
+		return nil, mangos.ErrClosed
 	}
 }
 
-func (p *inproc) Send(msg *Message) error {
+func (p *inproc) Send(m *mangos.Message) error {
 
 	if p.peer == nil {
-		return ErrClosed
+		return mangos.ErrClosed
 	}
 
 	// Upper protocols expect to have to pick header and body part.
 	// Also we need to have a fresh copy of the message for receiver, to
 	// break ownership.
-	nmsg := NewMessage(len(msg.Header) + len(msg.Body))
-	nmsg.Body = append(nmsg.Body, msg.Header...)
-	nmsg.Body = append(nmsg.Body, msg.Body...)
+	nmsg := mangos.NewMessage(len(m.Header) + len(m.Body))
+	nmsg.Body = append(nmsg.Body, m.Header...)
+	nmsg.Body = append(nmsg.Body, m.Body...)
 	select {
 	case p.wq <- nmsg:
 		return nil
 	case <-p.closeq:
 		nmsg.Free()
-		return ErrClosed
+		return mangos.ErrClosed
 	}
 }
 
@@ -150,15 +152,15 @@ func inprocGetRendezvous(addr string, proto uint16, server bool) *inprocRendezvo
 	return r
 }
 
-func (d *inprocDialer) Dial() (Pipe, error) {
+func (d *inprocDialer) Dial() (mangos.Pipe, error) {
 	var r *inprocRendezvous
 	if r = inprocGetRendezvous(d.addr, d.proto, false); r == nil {
-		return nil, ErrConnRefused
+		return nil, mangos.ErrConnRefused
 	}
 
 	client := &inproc{proto: r.proto, addr: r.addr}
-	client.rq = make(chan *Message)
-	client.wq = make(chan *Message)
+	client.rq = make(chan *mangos.Message)
+	client.wq = make(chan *mangos.Message)
 	client.readyq = make(chan struct{})
 	client.closeq = make(chan struct{})
 
@@ -174,7 +176,7 @@ func (d *inprocDialer) Dial() (Pipe, error) {
 	return client, nil
 }
 
-func (r *inprocRendezvous) Accept() (Pipe, error) {
+func (r *inprocRendezvous) Accept() (mangos.Pipe, error) {
 	server := &inproc{proto: r.proto, addr: r.addr}
 	server.readyq = make(chan struct{})
 	server.closeq = make(chan struct{})
@@ -241,36 +243,27 @@ func (t *inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
+func (t *inprocTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
 	return &inprocDialer{addr: addr, proto: proto}, nil
 }
 
-func (t *inprocTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
+func (t *inprocTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
 	var r *inprocRendezvous
 	if r = inprocGetRendezvous(addr, proto, true); r == nil {
-		return nil, ErrAddrInUse
+		return nil, mangos.ErrAddrInUse
 	}
 	return r, nil
 }
 
-// SetOption implements the Transport SetOption method.  No options are
-// supported at this time.
 func (*inprocTran) SetOption(string, interface{}) error {
-	// Likely we should support some options here...
-	return ErrBadOption
+	return mangos.ErrBadOption
 }
 
-// GetOption implements the Transport GetOption method.  No options are
-// supported at this time.
 func (*inprocTran) GetOption(string) (interface{}, error) {
-	return nil, ErrBadOption
+	return nil, mangos.ErrBadOption
 }
 
-type inprocFactory int
-
-func (inprocFactory) NewTransport() Transport {
-	return new(inprocTran)
+// NewTransport allocates a new inproc:// transport.
+func NewTransport() mangos.Transport {
+	return &inprocTran{}
 }
-
-// InprocFactory is used by the core to create inproc Transport instances.
-var InprocFactory inprocFactory

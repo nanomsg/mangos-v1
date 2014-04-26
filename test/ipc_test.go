@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/transport/ipc"
 	"bytes"
+	"runtime"
 	"testing"
 	"time"
 )
 
-var inp = InprocFactory.NewTransport()
+var ipctran = ipc.NewTransport()
 
-func TestInpListenAndAccept(t *testing.T) {
+func TestIPCListenAndAccept(t *testing.T) {
 
-	addr := "inp_test1"
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	addr := "/tmp/ipc_test1"
 	t.Logf("Establishing accepter")
-	accepter, err := inp.NewAccepter(addr, ProtoRep)
+	accepter, err := ipctran.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -34,7 +42,7 @@ func TestInpListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := inp.NewDialer(addr, ProtoReq)
+		d, err := ipctran.NewDialer(addr, mangos.ProtoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -66,18 +74,23 @@ func TestInpListenAndAccept(t *testing.T) {
 	}
 }
 
-func TestInpDuplicateListen(t *testing.T) {
+func TestIPCDuplicateListen(t *testing.T) {
 
-	addr := "inp_test2"
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	addr := "/tmp/ipc_test2"
 	var err error
-	listener, err := inp.NewAccepter(addr, ProtoRep)
+	listener, err := ipctran.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = inp.NewAccepter(addr, ProtoReq)
+	_, err = ipctran.NewAccepter(addr, mangos.ProtoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -85,10 +98,16 @@ func TestInpDuplicateListen(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestInpConnRefused(t *testing.T) {
-	addr := "/tmp/inp_test3"
+func TestIPCConnRefused(t *testing.T) {
+
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	addr := "/tmp/ipc_test3"
 	var err error
-	d, err := inp.NewDialer(addr, ProtoReq)
+	d, err := ipctran.NewDialer(addr, mangos.ProtoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -100,16 +119,21 @@ func TestInpConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestInpSendRecv(t *testing.T) {
+func TestIPCSendRecv(t *testing.T) {
 
-	addr := "/tmp/inp_test4"
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+		return
+	}
+
+	addr := "/tmp/ipc_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
-	ch := make(chan *Message)
+	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := inp.NewAccepter(addr, ProtoRep)
+	listener, err := ipctran.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -121,7 +145,7 @@ func TestInpSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := inp.NewDialer(addr, ProtoReq)
+		d, err := ipctran.NewDialer(addr, mangos.ProtoReq)
 
 		client, err := d.Dial()
 		if err != nil {
@@ -131,7 +155,9 @@ func TestInpSendRecv(t *testing.T) {
 		t.Logf("Connected client: %t", client.IsOpen())
 		defer client.Close()
 
-		req := NewMessage(len(ping))
+		req := mangos.NewMessage(len(ping))
+		//req.Body = make([]byte, 0, 20)
+		//req.Header = make([]byte, 0)
 		req.Body = append(req.Body, ping...)
 
 		// Now try to send data
@@ -193,7 +219,7 @@ func TestInpSendRecv(t *testing.T) {
 	}
 
 	// Now reply
-	rep := NewMessage(len(ack))
+	rep := mangos.NewMessage(len(ack))
 	rep.Body = append(rep.Body, ack...)
 
 	t.Logf("Server sending %d bytes", len(rep.Body))

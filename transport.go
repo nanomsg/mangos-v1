@@ -14,11 +14,6 @@
 
 package mangos
 
-import (
-	"runtime"
-	"sync"
-)
-
 // Pipe behaves like a full-duplex message-oriented connection between two
 // peers.  Callers may call operations on a Pipe simultaneously from
 // different goroutines.  (These are different from net.Conn because they
@@ -117,53 +112,4 @@ type Transport interface {
 	// If the protocol doesn't recognize the option, EBadOption should
 	// be returned.
 	GetOption(string) (interface{}, error)
-}
-
-var transportsL sync.Mutex
-var transports map[string]TransportFactory
-
-func registerTransportFactory(scheme string, f TransportFactory) {
-	// This version assumes the lock is already held
-	transports[scheme] = f
-}
-
-func init() {
-	transports = make(map[string]TransportFactory)
-
-	// Lets go ahead and pre-register the stock transports.
-	registerTransportFactory("inproc", InprocFactory)
-	registerTransportFactory("tcp", TCPFactory)
-	// IPC not supported on Windows (yet), sorry
-	if runtime.GOOS != "windows" {
-		registerTransportFactory("ipc", IPCFactory)
-	}
-	registerTransportFactory("tls+tcp", TLSFactory)
-}
-
-// TransportFactory creates a new Transport instance.
-type TransportFactory interface {
-	// NewTransport allocates a transport instance.
-	NewTransport() Transport
-}
-
-// RegisterTransportFactory registers a new TransportFactory.
-// Note that the Transport might already be registered.  We don't warn about
-// this as an error.  You can override a built-in transport this way.
-// Use this at your own risk!  The "scheme" is the name of the scheme, with
-// any trailing :// stripped, e.g. "tcp", "ipc", etc.
-func RegisterTransportFactory(scheme string, f TransportFactory) {
-	transportsL.Lock()
-	registerTransportFactory(scheme, f)
-	transportsL.Unlock()
-}
-
-// getTransportFactory looks up a TransportFactory for a given address scheme.
-// This makes use of the fact that addresses start with a "scheme" such as
-// "tcp://" or "ipc://".
-func getTransportFactory(scheme string) TransportFactory {
-	transportsL.Lock()
-	f := transports[scheme]
-	transportsL.Unlock()
-
-	return f
 }

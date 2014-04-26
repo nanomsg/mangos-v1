@@ -19,6 +19,10 @@ import (
 	"bitbucket.org/gdamore/mangos/protocol/pair"
 	"bitbucket.org/gdamore/mangos/protocol/rep"
 	"bitbucket.org/gdamore/mangos/protocol/req"
+	"bitbucket.org/gdamore/mangos/transport/inproc"
+	"bitbucket.org/gdamore/mangos/transport/ipc"
+	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"bitbucket.org/gdamore/mangos/transport/tlstcp"
 	"testing"
 )
 
@@ -191,10 +195,14 @@ func testDevLoop(t *testing.T, addr string) {
 		return
 	}
 	defer s1.Close()
+	s1.AddTransport(tcp.NewTransport())
+	s1.AddTransport(ipc.NewTransport())
+	s1.AddTransport(inproc.NewTransport())
+	s1.AddTransport(tlstcp.NewTransport())
+	SetTLSTest(t, s1)
 
-	//SetTLSTest(t, s1)
 	if err := s1.Listen(addr); err != nil {
-		t.Errorf("Failed listening to AddrTestTCP: %v", err)
+		t.Errorf("Failed listening to %s: %v", addr, err)
 		return
 	}
 
@@ -217,7 +225,11 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 			return
 		}
 		defer s[i].Close()
-		//SetTLSTest(t, s[i])
+		s[i].AddTransport(tcp.NewTransport())
+		s[i].AddTransport(ipc.NewTransport())
+		s[i].AddTransport(inproc.NewTransport())
+		s[i].AddTransport(tlstcp.NewTransport())
+		SetTLSTest(t, s[i])
 	}
 
 	if err = s[0].Listen(addr1); err != nil {
@@ -271,6 +283,6 @@ func TestDeviceLoopIPC(t *testing.T) {
 	testDevLoop(t, AddrTestIPC)
 }
 
-//func TestDeviceLoopTLS(t *testing.T) {
-//	testDevLoop(t, AddrTestTLS)
-//}
+func TestDeviceLoopTLS(t *testing.T) {
+	testDevLoop(t, AddrTestTLS)
+}

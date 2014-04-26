@@ -12,27 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/transport/tcp"
 	"bytes"
-	"runtime"
 	"testing"
 	"time"
 )
 
-var ipc = IPCFactory.NewTransport()
+var tran = tcp.NewTransport()
 
-func TestIPCListenAndAccept(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "/tmp/ipc_test1"
+func TestTCPListenAndAccept(t *testing.T) {
+	addr := "127.0.0.1:3333"
 	t.Logf("Establishing accepter")
-	accepter, err := ipc.NewAccepter(addr, ProtoRep)
+	accepter, err := tran.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -40,7 +35,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := ipc.NewDialer(addr, ProtoReq)
+		d, err := tran.NewDialer(addr, mangos.ProtoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -72,23 +67,17 @@ func TestIPCListenAndAccept(t *testing.T) {
 	}
 }
 
-func TestIPCDuplicateListen(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "/tmp/ipc_test2"
+func TestTCPDuplicateListen(t *testing.T) {
+	addr := "127.0.0.1:3333"
 	var err error
-	listener, err := ipc.NewAccepter(addr, ProtoRep)
+	listener, err := tran.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = ipc.NewAccepter(addr, ProtoReq)
+	_, err = tran.NewAccepter(addr, mangos.ProtoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -96,16 +85,10 @@ func TestIPCDuplicateListen(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestIPCConnRefused(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "/tmp/ipc_test3"
+func TestTCPConnRefused(t *testing.T) {
+	addr := "127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := ipc.NewDialer(addr, ProtoReq)
+	d, err := tran.NewDialer(addr, mangos.ProtoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -117,21 +100,15 @@ func TestIPCConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestIPCSendRecv(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "/tmp/ipc_test4"
+func TestTCPSendRecv(t *testing.T) {
+	addr := "127.0.0.1:3333"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
-	ch := make(chan *Message)
+	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := ipc.NewAccepter(addr, ProtoRep)
+	listener, err := tran.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -143,7 +120,7 @@ func TestIPCSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := ipc.NewDialer(addr, ProtoReq)
+		d, err := tran.NewDialer(addr, mangos.ProtoReq)
 
 		client, err := d.Dial()
 		if err != nil {
@@ -153,9 +130,7 @@ func TestIPCSendRecv(t *testing.T) {
 		t.Logf("Connected client: %t", client.IsOpen())
 		defer client.Close()
 
-		req := NewMessage(len(ping))
-		//req.Body = make([]byte, 0, 20)
-		//req.Header = make([]byte, 0)
+		req := mangos.NewMessage(len(ping))
 		req.Body = append(req.Body, ping...)
 
 		// Now try to send data
@@ -217,7 +192,7 @@ func TestIPCSendRecv(t *testing.T) {
 	}
 
 	// Now reply
-	rep := NewMessage(len(ack))
+	rep := mangos.NewMessage(len(ack))
 	rep.Body = append(rep.Body, ack...)
 
 	t.Logf("Server sending %d bytes", len(rep.Body))
@@ -233,7 +208,7 @@ func TestIPCSendRecv(t *testing.T) {
 	select {
 	case nrep := <-ch:
 		if !bytes.Equal(nrep.Body, ack) {
-			t.Errorf("Client forward mismatch: %v, %v", nrep, ack)
+			t.Errorf("Client forward mismatch: %v, %v", ack, rep)
 			return
 		}
 	case <-time.After(5 * time.Second):

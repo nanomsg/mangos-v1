@@ -12,68 +12,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package tcp implements the TCP transport for mangos.
+package tcp
 
 import (
+	"bitbucket.org/gdamore/mangos"
 	"net"
 )
 
-// TCPDialer implements the PipeDialer interface.
 type tcpDialer struct {
 	addr  *net.TCPAddr
 	proto uint16
 }
 
-// Dial implements the the Dialer Dial method.
-func (d *tcpDialer) Dial() (Pipe, error) {
+func (d *tcpDialer) Dial() (mangos.Pipe, error) {
 
 	conn, err := net.DialTCP("tcp", nil, d.addr)
 	if err != nil {
 		return nil, err
 	}
-	conn.SetLinger(-1) // Close returns immediately, but OS send data
-	return NewConnPipe(conn, d.proto)
+	conn.SetLinger(-1) // Close returns immediately, but OS sends data
+	return mangos.NewConnPipe(conn, d.proto)
 }
 
-// tcpAccepter implements the PipeAccepter interface.
-// In addition to handling Accept(), it also arranges to set up a TCP
-// listener.
 type tcpAccepter struct {
 	addr     *net.TCPAddr
 	proto    uint16
 	listener *net.TCPListener
 }
 
-// Accept implements the the PipeAccepter Accept method.
-func (a *tcpAccepter) Accept() (Pipe, error) {
+func (a *tcpAccepter) Accept() (mangos.Pipe, error) {
 
 	conn, err := a.listener.AcceptTCP()
 	if err != nil {
 		return nil, err
 	}
 	conn.SetLinger(-1) // Close returns immediately, but OS sends data
-	return NewConnPipe(conn, a.proto)
+	return mangos.NewConnPipe(conn, a.proto)
 }
 
-// Close implements the PipeAccepter Close method.
 func (a *tcpAccepter) Close() error {
 	a.listener.Close()
 	return nil
 }
 
-// tcpTran implements the Transport interface.
 type tcpTran struct {
 }
 
-// Scheme implements the Transport Scheme method.
 func (t *tcpTran) Scheme() string {
 	return "tcp"
 }
 
-// NewDialer implements the Transport NewDialer method.
-func (t *tcpTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
+func (t *tcpTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
 	var err error
-	d := new(tcpDialer)
+	d := &tcpDialer{}
 	d.proto = proto
 	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
@@ -81,10 +73,9 @@ func (t *tcpTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
 	return d, nil
 }
 
-// NewAccepter implements the Transport NewAccepter method.
-func (t *tcpTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
+func (t *tcpTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
 	var err error
-	a := new(tcpAccepter)
+	a := &tcpAccepter{}
 	a.proto = proto
 
 	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
@@ -98,24 +89,16 @@ func (t *tcpTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
 	return a, nil
 }
 
-// SetOption implements the Transport SetOption method.  No options are
-// supported at this time.
 func (*tcpTran) SetOption(string, interface{}) error {
 	// Likely we should support some options here...
-	return ErrBadOption
+	return mangos.ErrBadOption
 }
 
-// GetOption implements the Transport GetOption method.  No options are
-// supported at this time.
 func (*tcpTran) GetOption(string) (interface{}, error) {
-	return nil, ErrBadOption
+	return nil, mangos.ErrBadOption
 }
 
-type tcpFactory int
-
-func (tcpFactory) NewTransport() Transport {
-	return new(tcpTran)
+// NewTransport allocates a new TCP transport.
+func NewTransport() mangos.Transport {
+	return &tcpTran{}
 }
-
-// TCPFactory is used by the core to create TCP Transport instances.
-var TCPFactory tcpFactory

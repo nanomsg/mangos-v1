@@ -73,13 +73,12 @@ func (sock *socket) remPipe(p *pipe) {
 
 func newSocket(proto Protocol) *socket {
 	sock := new(socket)
-	// Load all Transports so that SetOption & GetOption work right away.
-	sock.loadTransports()
 	sock.uwq = make(chan *Message, 10)
 	sock.urq = make(chan *Message, 10)
 	sock.closeq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
+	sock.transports = make(map[string]Transport)
 
 	// Add some conditionals now -- saves checks later
 	if i, ok := interface{}(proto).(ProtocolRecvHook); ok {
@@ -219,22 +218,10 @@ func (sock *socket) getTransport(addr string) Transport {
 	return nil
 }
 
-// loadTransports is required to handle the case where an option is
-// accessed for a specific Transport, before that Transport has been bound
-// to the Socket.  Basically, if someone calls SetOption, we're going to
-// instantiate *all* transports we know about.  It turns out that this is
-// a pretty cheap operation since Transports generally have very very little
-// state associated with them.
-func (sock *socket) loadTransports() {
-	sock.transports = make(map[string]Transport)
-
-	for scheme, factory := range transports {
-		if _, ok := sock.transports[scheme]; ok == true {
-			continue
-		}
-
-		sock.transports[scheme] = factory.NewTransport()
-	}
+func (sock *socket) AddTransport(t Transport) {
+	sock.Lock()
+	sock.transports[t.Scheme()] = t
+	sock.Unlock()
 }
 
 func (sock *socket) Dial(addr string) error {

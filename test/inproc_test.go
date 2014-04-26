@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package test
 
 import (
+	"bitbucket.org/gdamore/mangos"
+	"bitbucket.org/gdamore/mangos/transport/inproc"
 	"bytes"
 	"testing"
 	"time"
 )
 
-var tcp = TCPFactory.NewTransport()
+var inp = inproc.NewTransport()
 
-func TestTCPListenAndAccept(t *testing.T) {
-	addr := "127.0.0.1:3333"
+func TestInpListenAndAccept(t *testing.T) {
+
+	addr := "inp_test1"
 	t.Logf("Establishing accepter")
-	accepter, err := tcp.NewAccepter(addr, ProtoRep)
+	accepter, err := inp.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -33,7 +36,7 @@ func TestTCPListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := tcp.NewDialer(addr, ProtoReq)
+		d, err := inp.NewDialer(addr, mangos.ProtoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -65,17 +68,18 @@ func TestTCPListenAndAccept(t *testing.T) {
 	}
 }
 
-func TestTCPDuplicateListen(t *testing.T) {
-	addr := "127.0.0.1:3333"
+func TestInpDuplicateListen(t *testing.T) {
+
+	addr := "inp_test2"
 	var err error
-	listener, err := tcp.NewAccepter(addr, ProtoRep)
+	listener, err := inp.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = tcp.NewAccepter(addr, ProtoReq)
+	_, err = inp.NewAccepter(addr, mangos.ProtoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -83,10 +87,10 @@ func TestTCPDuplicateListen(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestTCPConnRefused(t *testing.T) {
-	addr := "127.0.0.1:19" // Port 19 is chargen, rarely in use
+func TestInpConnRefused(t *testing.T) {
+	addr := "/tmp/inp_test3"
 	var err error
-	d, err := tcp.NewDialer(addr, ProtoReq)
+	d, err := inp.NewDialer(addr, mangos.ProtoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -98,15 +102,16 @@ func TestTCPConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestTCPSendRecv(t *testing.T) {
-	addr := "127.0.0.1:3333"
+func TestInpSendRecv(t *testing.T) {
+
+	addr := "/tmp/inp_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
-	ch := make(chan *Message)
+	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := tcp.NewAccepter(addr, ProtoRep)
+	listener, err := inp.NewAccepter(addr, mangos.ProtoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -118,7 +123,7 @@ func TestTCPSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := tcp.NewDialer(addr, ProtoReq)
+		d, err := inp.NewDialer(addr, mangos.ProtoReq)
 
 		client, err := d.Dial()
 		if err != nil {
@@ -128,7 +133,7 @@ func TestTCPSendRecv(t *testing.T) {
 		t.Logf("Connected client: %t", client.IsOpen())
 		defer client.Close()
 
-		req := NewMessage(len(ping))
+		req := mangos.NewMessage(len(ping))
 		req.Body = append(req.Body, ping...)
 
 		// Now try to send data
@@ -190,7 +195,7 @@ func TestTCPSendRecv(t *testing.T) {
 	}
 
 	// Now reply
-	rep := NewMessage(len(ack))
+	rep := mangos.NewMessage(len(ack))
 	rep.Body = append(rep.Body, ack...)
 
 	t.Logf("Server sending %d bytes", len(rep.Body))
@@ -206,7 +211,7 @@ func TestTCPSendRecv(t *testing.T) {
 	select {
 	case nrep := <-ch:
 		if !bytes.Equal(nrep.Body, ack) {
-			t.Errorf("Client forward mismatch: %v, %v", ack, rep)
+			t.Errorf("Client forward mismatch: %v, %v", nrep, ack)
 			return
 		}
 	case <-time.After(5 * time.Second):

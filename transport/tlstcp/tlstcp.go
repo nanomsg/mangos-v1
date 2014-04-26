@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+// Package tlstcp implements the TLS / SSL over TCP transport for mangos.
+package tlstcp
 
 import (
+	"bitbucket.org/gdamore/mangos"
 	"crypto/tls"
 	"net"
 )
@@ -30,15 +32,14 @@ type tlsDialer struct {
 	proto  uint16
 }
 
-// Dial implements the the Dialer Dial method.
-func (d *tlsDialer) Dial() (Pipe, error) {
+func (d *tlsDialer) Dial() (mangos.Pipe, error) {
 
 	tconn, err := net.DialTCP("tcp", nil, d.addr)
 	if err != nil {
 		return nil, err
 	}
 	conn := tls.Client(tconn, d.config)
-	return NewConnPipe(conn, d.proto)
+	return mangos.NewConnPipe(conn, d.proto)
 }
 
 type tlsAccepter struct {
@@ -47,37 +48,32 @@ type tlsAccepter struct {
 	listener net.Listener
 }
 
-// Accept implements the the PipeAccepter Accept method.
-func (a *tlsAccepter) Accept() (Pipe, error) {
+func (a *tlsAccepter) Accept() (mangos.Pipe, error) {
 
 	conn, err := a.listener.Accept()
 	if err != nil {
 		return nil, err
 	}
 
-	return NewConnPipe(conn, a.proto)
+	return mangos.NewConnPipe(conn, a.proto)
 }
 
-// Close implements the PipeAccepter Close method.
 func (a *tlsAccepter) Close() error {
 	a.listener.Close()
 	return nil
 }
 
-// tlsTran implements the Transport interface.
 type tlsTran struct {
 	config *tls.Config
 }
 
-// Scheme implements the Transport Scheme method.
 func (t *tlsTran) Scheme() string {
 	return "tls+tcp"
 }
 
-// NewDialer implements the Transport NewDialer method.
-func (t *tlsTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
+func (t *tlsTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
 	var err error
-	d := new(tlsDialer)
+	d := &tlsDialer{}
 	d.proto = proto
 	d.config = t.config
 	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
@@ -87,9 +83,9 @@ func (t *tlsTran) NewDialer(addr string, proto uint16) (PipeDialer, error) {
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *tlsTran) NewAccepter(addr string, proto uint16) (PipeAccepter, error) {
+func (t *tlsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
 	var err error
-	a := new(tlsAccepter)
+	a := &tlsAccepter{}
 	a.proto = proto
 
 	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
@@ -115,10 +111,10 @@ func (t *tlsTran) SetOption(name string, val interface{}) error {
 			t.config = v
 			return nil
 		default:
-			return ErrBadValue
+			return mangos.ErrBadValue
 		}
 	default:
-		return ErrBadOption
+		return mangos.ErrBadOption
 	}
 }
 
@@ -129,17 +125,11 @@ func (t *tlsTran) GetOption(name string) (interface{}, error) {
 	case name == TLSOptionConfig:
 		return t.config, nil
 	default:
-		return nil, ErrBadOption
+		return nil, mangos.ErrBadOption
 	}
 }
 
-type tlsFactory int
-
-func (tlsFactory) NewTransport() Transport {
-	t := new(tlsTran)
-	return t
+// NewTransport allocates a new inproc transport.
+func NewTransport() mangos.Transport {
+	return &tlsTran{}
 }
-
-// TLSFactory is used by the core to create new TLS Transport instances.
-// These instances are used with the "tls+tcp://" scheme.
-var TLSFactory tlsFactory
