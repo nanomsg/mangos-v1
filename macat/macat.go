@@ -40,6 +40,10 @@ import (
 	"bitbucket.org/gdamore/mangos/protocol/star"
 	"bitbucket.org/gdamore/mangos/protocol/sub"
 	"bitbucket.org/gdamore/mangos/protocol/surveyor"
+	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"bitbucket.org/gdamore/mangos/transport/inproc"
+	"bitbucket.org/gdamore/mangos/transport/ipc"
+	"bitbucket.org/gdamore/mangos/transport/tlstcp"
 	"github.com/droundy/goopt"
 )
 
@@ -63,6 +67,11 @@ func setSocket(f func() (mangos.Socket, error)) error {
 		return errors.New("protocol already selected")
 	}
 	sock, err = f()
+
+	sock.AddTransport(inproc.NewTransport())
+	sock.AddTransport(ipc.NewTransport())
+	sock.AddTransport(tcp.NewTransport())
+	sock.AddTransport(tlstcp.NewTransport())
 	return err
 }
 
