@@ -1,0 +1,140 @@
+macat(1)                            mangos                            macat(1)
+
+
+
+NNAAMMEE
+       macat − command line interface to the mangos messaging
+
+SSYYNNOOPPSSIISS
+       macat   [−v|−−verbose]  [−q|−−silent] [−−push] [−−pull] [−−pub] [−−sub]
+       [−−req] [−−rep] [−−surveyor] [−−respondent] [−−bus]  [−−pair]  [−−star]
+       [−−bind  ADDR]  [−−connect ADDR] [−X|−−bind‐ipc PATH] [−x|−−connect‐ipc
+       PATH] [−L|−−bind‐local  PORT]  [−l|−−connect‐local  PORT]  [−−subscribe
+       PREFIX] [−−recv‐timeout SEC] [−−send‐timeout SEC] [−d|−−send‐delay SEC]
+       [−−raw]  [−A|−−ascii]  [−Q|−−quoted]  [−−msgpack]  [−i|−−interval  SEC]
+       [−D|−−data  DATA]  [−F|−−file  FILE]  [−−sslv3]  [−−tlsv1]  [−−tlsv1.1]
+       [−−tlsv1.1] [−−tlsv1.2] [−E|−−cert FILE] [−−key FILE]  [−−cacert  FILE]
+       [−k|−−insecure] [−−help]
+
+DDEESSCCRRIIPPTTIIOONN
+       macat is a command‐line interface to send and receive data via the man‐
+       gos implementation of the SP (nanomsg) protocols.  It is designed to be
+       suitable for use as a drop‐in replacement for nanocat(1).
+
+
+OOPPTTIIOONNSS
+       −v,−−verbose
+              Increase verbosity
+
+       −q,−−silent
+              Decrease verbosity
+
+       −−push Use PUSH socket type
+
+       −−pull Use PULL socket type
+
+       −−pub  Use PUB socket type
+
+       −−sub  Use SUB socket type
+
+       −−req  Use REQ socket type
+
+       −−rep  Use REP socket type
+
+       −−surveyor
+              Use SURVEYOR socket type
+
+       −−respondent
+              Use RESPONDENT socket type
+
+       −−bus  Use BUS socket type
+
+       −−pair Use PAIR socket type
+
+       −−star Use STAR socket type
+
+       −−bind ADDR
+              Bind socket to ADDR
+
+       −−connect ADDR
+              Connect socket to ADDR
+
+       −X,−−bind‐ipc PATH
+              Bind socket to IPC PATH
+
+       −x,−−connect‐ipc PATH
+              Connect socket to IPC PATH
+
+       −L,−−bind‐local PORT
+              Bind socket to TCP localhost PORT
+
+       −l,−−connect‐local PORT
+              Connect socket to TCP localhost PORT
+
+       −−subscribe PREFIX
+              Subcribe to PREFIX (default is wildcard)
+
+       −−recv‐timeout SEC
+              Set receive timeout
+
+       −−send‐timeout SEC
+              Set send timeout
+
+       −d,−−send‐delay SEC
+              Set initial send delay
+
+       −−raw  Raw output, no delimiters
+
+       −A,−−ascii
+              ASCII output, one per line
+
+       −Q,−−quoted
+              Quoted output, one per line
+
+       −−msgpack
+              Msgpacked binay output (see msgpack.org)
+
+       −i,−−interval SEC
+              Send DATA every SEC seconds
+
+       −D,−−data DATA
+              Data to send
+
+       −F,−−file FILE
+              Send contents of FILE
+
+       −−sslv3
+              Force SSLv3 when using SSL/TLS
+
+       −−tlsv1
+              Force TLSv1.x when using SSL/TLS
+
+       −−tlsv1.1
+              Force TLSv1.0 when using SSL/TLS
+
+       −−tlsv1.1
+              Force TLSv1.1 when using SSL/TLS
+
+       −−tlsv1.2
+              Force TLSv1.2 when using SSL/TLS
+
+       −E,−−cert FILE
+              Use certificate in FILE for SSL/TLS
+
+       −−key FILE
+              Use private key in FILE for SSL/TLS
+
+       −−cacert FILE
+              Use CA certicate(s) in FILE for SSL/TLS
+
+       −k,−−insecure
+              Do not validate TLS/SSL peer certificate
+
+       −−help show usage message
+
+AAUUTTHHOORR
+       Garrett D’Amore
+
+
+
+mangos                          April 26, 2014                        macat(1)
