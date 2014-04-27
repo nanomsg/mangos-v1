@@ -1,0 +1,72 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 3 (0x3)
+        Signature Algorithm: sha1WithRSAEncryption
+        Issuer: C=US, ST=California, L=San Marcos, O=Mangos, CN=mangos.example.com
+        Validity
+            Not Before: Apr 27 01:42:39 2014 GMT
+            Not After : Apr 26 01:42:39 2019 GMT
+        Subject: C=US, ST=California, O=Mangos, CN=server.mangos.example.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (2048 bit)
+                Modulus (2048 bit):
+                    00:be:71:f3:df:43:fe:00:21:1c:e9:9f:54:83:fc:
+                    f4:f1:1a:04:13:65:88:46:55:a5:ef:ed:88:98:f7:
+                    4c:e7:39:db:45:5f:93:16:db:8a:93:26:0a:90:a2:
+                    9d:24:f6:db:ba:2b:2a:c2:0f:d9:27:b7:32:25:ad:
+                    d7:c7:f2:31:95:5e:7b:da:bc:46:06:7c:c3:7d:1b:
+                    4c:31:45:b0:78:9d:4a:c2:2f:d1:3e:ee:34:fe:34:
+                    bf:b6:5d:86:13:27:9d:ed:79:bc:5f:94:b8:4b:1d:
+                    de:06:29:af:76:65:ce:9d:0c:23:97:84:b3:64:1e:
+                    02:e6:26:ca:6f:bf:2c:51:62:13:11:2b:c2:1d:d4:
+                    46:de:4a:fe:3f:0f:f5:1b:bb:67:0a:47:03:d3:e8:
+                    cf:3d:59:95:79:1d:b1:d0:01:a5:37:aa:b2:ab:4b:
+                    95:6a:dc:80:27:db:65:2a:52:36:c0:0d:c2:0a:6d:
+                    c2:cd:fd:09:9c:31:33:bd:7d:6b:fe:aa:6d:76:92:
+                    70:fd:b0:29:d8:e0:5e:7a:cd:2a:af:32:d0:e1:94:
+                    bd:04:ce:b5:49:0b:27:cc:2d:91:e7:dd:3b:a7:f4:
+                    76:71:d9:e1:10:de:d7:e9:e7:e9:b5:94:33:21:26:
+                    a8:4b:2b:ed:3b:3e:7d:f5:b1:7e:15:2f:49:62:eb:
+                    ee:f5
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            Netscape Comment: 
+                OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier: 
+                84:AA:D9:44:E2:9B:F3:18:D7:C0:A0:3B:3B:35:41:77:44:5A:CD:D2
+            X509v3 Authority Key Identifier: 
+                keyid:B7:FB:54:15:BC:61:95:EF:58:F5:9F:C3:26:EC:EC:23:D7:CB:BE:C0
+
+    Signature Algorithm: sha1WithRSAEncryption
+        06:f0:ff:77:c9:4d:ef:c2:2d:ab:3d:06:4a:f1:92:5e:0a:79:
+        45:72:36:5c:71:e3:0b:66:77:2a:9a:a6:5e:2b:b5:a8:1a:1c:
+        10:53:00:05:d0:e4:f2:e9:6e:8d:28:a3:8c:6e:65:e0:f4:10:
+        95:7c:12:56:3f:c2:11:f1:5f:de:87:ef:92:3c:27:20:5d:d2:
+        d8:c9:ba:f8:4c:50:66:f4:5b:b5:87:1f:94:17:93:c6:92:32:
+        71:d0:a4:17:e9:a8:f5:bd:47:70:49:9f:6e:e6:f9:d3:73:d5:
+        25:45:22:d4:88:73:c4:84:71:57:23:da:34:6a:54:42:5f:05:
+        36:b4
+-----BEGIN CERTIFICATE-----
+MIIDMTCCApqgAwIBAgIBAzANBgkqhkiG9w0BAQUFADBlMQswCQYDVQQGEwJVUzET
+MBEGA1UECBMKQ2FsaWZvcm5pYTETMBEGA1UEBxMKU2FuIE1hcmNvczEPMA0GA1UE
+ChMGTWFuZ29zMRswGQYDVQQDExJtYW5nb3MuZXhhbXBsZS5jb20wHhcNMTQwNDI3
+MDE0MjM5WhcNMTkwNDI2MDE0MjM5WjBXMQswCQYDVQQGEwJVUzETMBEGA1UECBMK
+Q2FsaWZvcm5pYTEPMA0GA1UEChMGTWFuZ29zMSIwIAYDVQQDExlzZXJ2ZXIubWFu
+Z29zLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA
+vnHz30P+ACEc6Z9Ug/z08RoEE2WIRlWl7+2ImPdM5znbRV+TFtuKkyYKkKKdJPbb
+uisqwg/ZJ7cyJa3Xx/IxlV572rxGBnzDfRtMMUWweJ1Kwi/RPu40/jS/tl2GEyed
+7Xm8X5S4Sx3eBimvdmXOnQwjl4SzZB4C5ibKb78sUWITESvCHdRG3kr+Pw/1G7tn
+CkcD0+jPPVmVeR2x0AGlN6qyq0uVatyAJ9tlKlI2wA3CCm3Czf0JnDEzvX1r/qpt
+dpJw/bAp2OBees0qrzLQ4ZS9BM61SQsnzC2R5907p/R2cdnhEN7X6efptZQzISao
+SyvtOz599bF+FS9JYuvu9QIDAQABo3sweTAJBgNVHRMEAjAAMCwGCWCGSAGG+EIB
+DQQfFh1PcGVuU1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUhKrZ
+ROKb8xjXwKA7OzVBd0RazdIwHwYDVR0jBBgwFoAUt/tUFbxhle9Y9Z/DJuzsI9fL
+vsAwDQYJKoZIhvcNAQEFBQADgYEABvD/d8lN78Itqz0GSvGSXgp5RXI2XHHjC2Z3
+KpqmXiu1qBocEFMABdDk8ulujSijjG5l4PQQlXwSVj/CEfFf3ofvkjwnIF3S2Mm6
++ExQZvRbtYcflBeTxpIycdCkF+mo9b1HcEmfbub503PVJUUi1IhzxIRxVyPaNGpU
+Ql8FNrQ=
+-----END CERTIFICATE-----

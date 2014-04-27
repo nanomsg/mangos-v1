@@ -21,11 +21,6 @@ import (
 	"net"
 )
 
-// TLSOptionConfig is the name of the configuration option.  The value
-// associated with it is a *tls.Config which provides all the information
-// to configure the TLS security parameters.
-const TLSOptionConfig = "TLS.CONFIG"
-
 type tlsDialer struct {
 	addr   *net.TCPAddr
 	config *tls.Config
@@ -104,8 +99,8 @@ func (t *tlsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, e
 // SetOption implements the Transport SetOption method. We support a single
 // option, TLSOptionConfig, which takes a single value, a *tls.Config.
 func (t *tlsTran) SetOption(name string, val interface{}) error {
-	switch {
-	case name == TLSOptionConfig:
+	switch name {
+	case mangos.OptionTLSConfig:
 		switch v := val.(type) {
 		case *tls.Config:
 			t.config = v
@@ -121,8 +116,8 @@ func (t *tlsTran) SetOption(name string, val interface{}) error {
 // SetOption implements the Transport SetOption method. We support a single
 // option, TLSOptionConfig, which takes a single value, a *tls.Config.
 func (t *tlsTran) GetOption(name string) (interface{}, error) {
-	switch {
-	case name == TLSOptionConfig:
+	switch name {
+	case mangos.OptionTLSConfig:
 		return t.config, nil
 	default:
 		return nil, mangos.ErrBadOption

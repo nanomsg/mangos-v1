@@ -73,4 +73,8 @@ const (
 	// concluded.  The value is a time.Duration.  Zero can be passed to
 	// indicate an infinite time.  Default is 1 second.
 	OptionSurveyTime = "SURVEY-TIME"
+
+	// OptionTLSConfig is used to supply TLS configuration details.
+	// The parameter is a tls.Config pointer.
+	OptionTLSConfig = "TLS-CONFIG"
 )

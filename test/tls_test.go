@@ -8,7 +8,7 @@
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// WITHOUT WARRANTIES O R CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
@@ -114,7 +114,7 @@ func SetTLSTest(t testing.TB, sock mangos.Socket) bool {
 	cfg.Certificates[0] = cert
 	cfg.InsecureSkipVerify = true
 
-	err = sock.SetOption(tlstcp.TLSOptionConfig, cfg)
+	err = sock.SetOption(mangos.OptionTLSConfig, cfg)
 	if err != nil {
 		t.Errorf("Failed setting TLS config: %v", err)
 		return false
@@ -168,7 +168,7 @@ func TestTLSReqRep(t *testing.T) {
 		cfg.Certificates[0] = cert
 		cfg.InsecureSkipVerify = true
 
-		err = srvsock.SetOption(tlstcp.TLSOptionConfig, cfg)
+		err = srvsock.SetOption(mangos.OptionTLSConfig, cfg)
 		if err != nil {
 			t.Errorf("Failed setting TLS server config: %v", err)
 			return
@@ -244,7 +244,7 @@ func TestTLSReqRep(t *testing.T) {
 		// close in the outer handler.
 		//defer srvsock.Close()
 
-		err = clisock.SetOption(tlstcp.TLSOptionConfig, cfg)
+		err = clisock.SetOption(mangos.OptionTLSConfig, cfg)
 		if err != nil {
 			t.Errorf("Failed setting TLS server config: %v", err)
 			return

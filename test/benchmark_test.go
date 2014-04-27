@@ -19,10 +19,7 @@ import (
 	"bitbucket.org/gdamore/mangos/protocol/pair"
 	"bitbucket.org/gdamore/mangos/protocol/rep"
 	"bitbucket.org/gdamore/mangos/protocol/req"
-	"bitbucket.org/gdamore/mangos/transport/inproc"
-	"bitbucket.org/gdamore/mangos/transport/ipc"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
-	"bitbucket.org/gdamore/mangos/transport/tlstcp"
+	"bitbucket.org/gdamore/mangos/transport/all"
 	"runtime"
 	"strings"
 	"testing"
@@ -43,10 +40,8 @@ func benchmarkReq(t *testing.B, url string, size int) {
 		return
 	}
 	defer srvsock.Close()
-	srvsock.AddTransport(tcp.NewTransport())
-	srvsock.AddTransport(ipc.NewTransport())
-	srvsock.AddTransport(tlstcp.NewTransport())
-	srvsock.AddTransport(inproc.NewTransport())
+
+	all.AddTransports(srvsock)
 	SetTLSTest(t, srvsock)
 
 	clisock, err := req.NewSocket()
@@ -55,10 +50,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 		return
 	}
 	defer clisock.Close()
-	clisock.AddTransport(tcp.NewTransport())
-	clisock.AddTransport(ipc.NewTransport())
-	clisock.AddTransport(tlstcp.NewTransport())
-	clisock.AddTransport(inproc.NewTransport())
+	all.AddTransports(clisock)
 	SetTLSTest(t, clisock)
 
 	go func() {
@@ -124,10 +116,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		t.Errorf("Failed creating server socket: %v", err)
 		return
 	}
-	srvsock.AddTransport(tcp.NewTransport())
-	srvsock.AddTransport(ipc.NewTransport())
-	srvsock.AddTransport(tlstcp.NewTransport())
-	srvsock.AddTransport(inproc.NewTransport())
+	all.AddTransports(srvsock)
 	defer srvsock.Close()
 	SetTLSTest(t, srvsock)
 
@@ -136,10 +125,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		t.Errorf("Failed creating client socket: %v", err)
 		return
 	}
-	clisock.AddTransport(tcp.NewTransport())
-	clisock.AddTransport(ipc.NewTransport())
-	clisock.AddTransport(tlstcp.NewTransport())
-	clisock.AddTransport(inproc.NewTransport())
+	all.AddTransports(clisock)
 	defer clisock.Close()
 	SetTLSTest(t, clisock)
 

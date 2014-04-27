@@ -17,6 +17,8 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -40,10 +42,7 @@ import (
 	"bitbucket.org/gdamore/mangos/protocol/star"
 	"bitbucket.org/gdamore/mangos/protocol/sub"
 	"bitbucket.org/gdamore/mangos/protocol/surveyor"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
-	"bitbucket.org/gdamore/mangos/transport/inproc"
-	"bitbucket.org/gdamore/mangos/transport/ipc"
-	"bitbucket.org/gdamore/mangos/transport/tlstcp"
+	"bitbucket.org/gdamore/mangos/transport/all"
 	"github.com/droundy/goopt"
 )
 
@@ -60,6 +59,11 @@ var sendDelay int
 var sendData []byte
 var printFormat string
 var sock mangos.Socket
+var tlscfg tls.Config
+var certFile string
+var keyFile string
+var caFile string
+var noVerifyTLS bool
 
 func setSocket(f func() (mangos.Socket, error)) error {
 	var err error
@@ -68,10 +72,7 @@ func setSocket(f func() (mangos.Socket, error)) error {
 	}
 	sock, err = f()
 
-	sock.AddTransport(inproc.NewTransport())
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
-	sock.AddTransport(tlstcp.NewTransport())
+	all.AddTransports(sock)
 	return err
 }
 
@@ -152,13 +153,59 @@ func setFormat(f string) error {
 	return nil
 }
 
+func setTLSVer(vmin uint16, vmax uint16) error {
+	if tlscfg.MinVersion != 0 || tlscfg.MaxVersion != 0 {
+		return errors.New("TLS/SSL version already set")
+	}
+	tlscfg.MinVersion = vmin
+	tlscfg.MaxVersion = vmax
+	return nil
+}
+
+func setCert(path string) error {
+	if len(certFile) != 0 {
+		return errors.New("certificate file already set")
+	}
+	certFile = path
+	return nil
+}
+
+func setKey(path string) error {
+	if len(keyFile) != 0 {
+		return errors.New("key file already set")
+	}
+	keyFile = path
+	return nil
+}
+
+func setCaCert(path string) error {
+	if tlscfg.RootCAs != nil {
+		return errors.New("cacert already set")
+	}
+	caFile = path
+
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	pem, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	tlscfg.RootCAs = x509.NewCertPool()
+	if !tlscfg.RootCAs.AppendCertsFromPEM(pem) {
+		return errors.New("unable to load CA certs")
+	}
+	tlscfg.ClientCAs = tlscfg.RootCAs
+	return nil
+}
+
 func fatalf(format string, v ...interface{}) {
 	fmt.Fprintln(os.Stderr, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 func init() {
-
 	goopt.NoArg([]string{"--verbose", "-v"}, "Increase verbosity",
 		func() error {
 			verbose++
@@ -278,6 +325,38 @@ func init() {
 	goopt.ReqArg([]string{"--file", "-F"}, "FILE", "Send contents of FILE",
 		setSendFile)
 
+	goopt.NoArg([]string{"--sslv3"}, "Force SSLv3 when using SSL/TLS",
+		func() error {
+			return setTLSVer(tls.VersionSSL30, tls.VersionSSL30)
+		})
+	goopt.NoArg([]string{"--tlsv1"}, "Force TLSv1.x when using SSL/TLS",
+		func() error {
+			return setTLSVer(tls.VersionTLS10, tls.VersionTLS12)
+		})
+	goopt.NoArg([]string{"--tlsv1.1"}, "Force TLSv1.0 when using SSL/TLS",
+		func() error {
+			return setTLSVer(tls.VersionTLS10, tls.VersionTLS10)
+		})
+	goopt.NoArg([]string{"--tlsv1.1"}, "Force TLSv1.1 when using SSL/TLS",
+		func() error {
+			return setTLSVer(tls.VersionTLS11, tls.VersionTLS11)
+		})
+	goopt.NoArg([]string{"--tlsv1.2"}, "Force TLSv1.2 when using SSL/TLS",
+		func() error {
+			return setTLSVer(tls.VersionTLS12, tls.VersionTLS12)
+		})
+	goopt.ReqArg([]string{"--cert", "-E"}, "FILE",
+		"Use certificate in FILE for SSL/TLS", setCert)
+	goopt.ReqArg([]string{"--key"}, "FILE",
+		"Use private key in FILE for SSL/TLS", setKey)
+	goopt.ReqArg([]string{"--cacert"}, "FILE",
+		"Use CA certicate(s) in FILE for SSL/TLS", setCaCert)
+	goopt.NoArg([]string{"--insecure", "-k"},
+		"Do not validate TLS/SSL peer certificate",
+		func() error {
+			noVerifyTLS = true
+			return nil
+		})
 	goopt.Description = func() string {
 		return `macat is a command-line interface to send and receive
 data via the mangos implementation of the SP (nanomsg) protocols.  It is
@@ -429,6 +508,27 @@ func main() {
 
 	goopt.Parse(nil)
 
+	if len(certFile) != 0 {
+		if len(keyFile) == 0 {
+			keyFile = certFile
+		}
+		c, e := tls.LoadX509KeyPair(certFile, keyFile)
+		if e != nil {
+			fatalf("Failed loading cert/key: %v", e)
+		}
+		tlscfg.Certificates = make([]tls.Certificate, 0, 1)
+		tlscfg.Certificates = append(tlscfg.Certificates, c)
+	}
+	if tlscfg.RootCAs != nil {
+		tlscfg.ClientAuth = tls.RequireAndVerifyClientCert
+		tlscfg.InsecureSkipVerify = false
+	} else {
+		tlscfg.ClientAuth = tls.NoClientCert
+		tlscfg.InsecureSkipVerify = true
+	}
+
+	sock.SetOption(mangos.OptionTLSConfig, &tlscfg)
+
 	if sock == nil {
 		fatalf("Protocol not specified.")
 	}
@@ -438,7 +538,7 @@ func main() {
 
 	if sock.GetProtocol().Number() != mangos.ProtoSub {
 		if len(subscriptions) > 0 {
-			fatalf("Subscriptions only valid with SUB type sockets.")
+			fatalf("Subscription only valid with SUB protocol.")
 		}
 	} else {
 		if len(subscriptions) > 0 {
@@ -458,6 +558,15 @@ func main() {
 	}
 
 	for i := range listenAddrs {
+		// TLS addresses require a certificate to be supplied.
+		if strings.HasPrefix(listenAddrs[i], "tls") {
+			if len(tlscfg.Certificates) == 0 {
+				fatalf("No server certificate specified.")
+			}
+			if tlscfg.InsecureSkipVerify && !noVerifyTLS {
+				fatalf("No CA certificate specified.")
+			}
+		}
 		err := sock.Listen(listenAddrs[i])
 		if err != nil {
 			fatalf("Bind(%s): %v", listenAddrs[i], err)
@@ -465,6 +574,11 @@ func main() {
 	}
 
 	for i := range dialAddrs {
+		if strings.HasPrefix(dialAddrs[i], "tls") {
+			if tlscfg.InsecureSkipVerify && !noVerifyTLS {
+				fatalf("No CA certificate specified.")
+			}
+		}
 		err := sock.Dial(dialAddrs[i])
 		if err != nil {
 			fatalf("Dial(%s): %v", dialAddrs[i], err)
