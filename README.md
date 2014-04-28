@@ -38,29 +38,29 @@ via my email address, garrett -at- damore -dot- org
 
 ### Using *go get*
 
-    $ go get bitbucket.org/gdamore/sp
+    $ go get bitbucket.org/gdamore/mangos
 
-After this command *sp* is ready to use. Its source will be in:
+After this command *mangos* is ready to use. Its source will be in:
 
-    $GOPATH/src/pkg/bitbucket.org/gdamore/sp
+    $GOPATH/src/pkg/bitbucket.org/gdamore/mangos
 
 You can use `go get -u -a` to update all installed packages.
 
 ## Documentation
 
-For docs, see http://godoc.org/bitbucket.org/gdamore/sp or run:
+For docs, see http://godoc.org/bitbucket.org/gdamore/mangos or run:
 
-    $ godoc bitbucket.org/gdamore/sp
+    $ godoc bitbucket.org/gdamore/mangos
 
 ## Testing
 
 This package supports internal self tests, which can be run in
-the idiomatic Go way:
+the idiomatic Go way, although it uses a separate test sub-package:
 
-    $ go test bitbucket.org/gdamore/sp
+    $ go test bitbucket.org/gdamore/mangos/test
 
 There are also internal benchmarks available:
 
-	$ go test -v -bench=. bitbucket.org/gdamore/sp
+	$ go test -bench=. bitbucket.org/gdamore/mangos/test
 
 Enjoy!
