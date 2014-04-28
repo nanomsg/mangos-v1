@@ -358,16 +358,17 @@ func init() {
 			return nil
 		})
 	goopt.Description = func() string {
-		return `macat is a command-line interface to send and receive
+		return `The macat command is a command-line interface to
+send and receive
 data via the mangos implementation of the SP (nanomsg) protocols.  It is
-designed to be suitable for use as a drop-in replacement for nanocat(1). `
+designed to be suitable for use as a drop-in replacement for nanocat(1).`
 	}
 
 	goopt.Author = "Garrett D'Amore"
 
 	goopt.Suite = "mangos"
 
-	goopt.Summary = "command line interface to the mangos messaging"
+	goopt.Summary = "command line interface to the mangos messaging library"
 
 }
 

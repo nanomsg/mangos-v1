@@ -1,12 +1,13 @@
-.TH "macat" 1 "April 26, 2014" "mangos " "mangos"
+.TH "macat" 1 "April 28, 2014" "mangos " "mangos"
 .SH NAME
-macat \- command line interface to the mangos messaging
+macat \- command line interface to the mangos messaging library
 .SH SYNOPSIS
 macat  [\-v|\-\-verbose] [\-q|\-\-silent] [\-\-push] [\-\-pull] [\-\-pub] [\-\-sub] [\-\-req] [\-\-rep] [\-\-surveyor] [\-\-respondent] [\-\-bus] [\-\-pair] [\-\-star] [\-\-bind ADDR] [\-\-connect ADDR] [\-X|\-\-bind-ipc PATH] [\-x|\-\-connect-ipc PATH] [\-L|\-\-bind-local PORT] [\-l|\-\-connect-local PORT] [\-\-subscribe PREFIX] [\-\-recv-timeout SEC] [\-\-send-timeout SEC] [\-d|\-\-send-delay SEC] [\-\-raw] [\-A|\-\-ascii] [\-Q|\-\-quoted] [\-\-msgpack] [\-i|\-\-interval SEC] [\-D|\-\-data DATA] [\-F|\-\-file FILE] [\-\-sslv3] [\-\-tlsv1] [\-\-tlsv1.1] [\-\-tlsv1.1] [\-\-tlsv1.2] [\-E|\-\-cert FILE] [\-\-key FILE] [\-\-cacert FILE] [\-k|\-\-insecure] [\-\-help]
 .SH DESCRIPTION
-macat is a command-line interface to send and receive
+The macat command is a command-line interface to
+send and receive
 data via the mangos implementation of the SP (nanomsg) protocols.  It is
-designed to be suitable for use as a drop-in replacement for nanocat(1). 
+designed to be suitable for use as a drop-in replacement for nanocat(1).
 
 .SH OPTIONS
 .TP
