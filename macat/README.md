@@ -1,4 +1,4 @@
-## macat
+## DESCRIPTION
 
 The **macat** command is a command‐line interface to send and receive data
 via the
@@ -10,38 +10,10 @@ Additionally it has a some extra features, to support mangos' additional
 capabilities.  In particular, it supports SSL/TLS, and has a few flags
 related to that.
 
-### SSL/TLS details
+## SYNOPSIS
+macat <*OPTIONS*>
 
-The security model for macat is that authentication should be mutual by
-default.  Therefore, the user should normally supply both a certificate/key
-(either in a single file, or in separate files with *--key*), and a CA 
-certificate file (perhaps consisting of many certificates) which should have
-been used to sign the peer's certificate.  This is true for **BOTH** client
-and server.  (This is a but unlike traditional HTTPS, where it mutual
-authentication is the exception rather than the rule.)
-
-A client can choose to skip verification of the server by supplying
-the *--insecure* (*-k*) flag instead of the *--cacert* argument.  This is not
-recommended.  It can also choose not to authenticate itself to the server
-by simply not supplying a *--cert* and *--key*.
-
-The server (the party doing the bind) **MUST** always supply its own
-certificate.  It will normally attempt to authenticate clients, but this
-can be disabled by supplying *--insecure* or *-k* instead of
-the *--cacert* argument.
- 
-### OPTIONS
-
-SYNOPSIS
-       macat   [−v|−−verbose]  [−q|−−silent] [−−push] [−−pull] [−−pub] [−−sub]
-       [−−req] [−−rep] [−−surveyor] [−−respondent] [−−bus]  [−−pair]  [−−star]
-       [−−bind	ADDR]  [−−connect ADDR] [−X|−−bind‐ipc PATH] [−x|−−connect‐ipc
-       PATH] [−L|−−bind‐local  PORT]  [−l|−−connect‐local  PORT]  [−−subscribe
-       PREFIX] [−−recv‐timeout SEC] [−−send‐timeout SEC] [−d|−−send‐delay SEC]
-       [−−raw]	[−A|−−ascii]  [−Q|−−quoted]  [−−msgpack]  [−i|−−interval  SEC]
-       [−D|−−data  DATA]  [−F|−−file  FILE]  [−−sslv3]	[−−tlsv1]  [−−tlsv1.1]
-       [−−tlsv1.1] [−−tlsv1.2] [−E|−−cert FILE] [−−key FILE]  [−−cacert  FILE]
-       [−k|−−insecure] [−−help]
+## OPTIONS
 
 * −v,−−verbose
 > Increase verbosity
@@ -124,5 +96,25 @@ SYNOPSIS
 * −−help
 > Show usage message
 
-### AUTHOR
+## SSL/TLS DETAILS
+
+The security model for macat is that authentication should be mutual by
+default.  Therefore, the user should normally supply both a certificate/key
+(either in a single file, or in separate files with *--key*), and a CA 
+certificate file (perhaps consisting of many certificates) which should have
+been used to sign the peer's certificate.  This is true for **BOTH** client
+and server.  (This is a but unlike traditional HTTPS, where it mutual
+authentication is the exception rather than the rule.)
+
+A client can choose to skip verification of the server by supplying
+the *--insecure* (*-k*) flag instead of the *--cacert* argument.  This is not
+recommended.  It can also choose not to authenticate itself to the server
+by simply not supplying a *--cert* and *--key*.
+
+The server (the party doing the bind) **MUST** always supply its own
+certificate.  It will normally attempt to authenticate clients, but this
+can be disabled by supplying *--insecure* or *-k* instead of
+the *--cacert* argument.
+
+## AUTHOR
 Garrett D’Amore
