@@ -71,8 +71,9 @@ func setSocket(f func() (mangos.Socket, error)) error {
 		return errors.New("protocol already selected")
 	}
 	sock, err = f()
-
-	all.AddTransports(sock)
+	if err != nil {
+		all.AddTransports(sock)
+	}
 	return err
 }
 
@@ -129,6 +130,7 @@ func setSendFile(path string) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	sendData, err = ioutil.ReadAll(f)
 	if err != nil {
 		return err
@@ -373,10 +375,11 @@ designed to be suitable for use as a drop-in replacement for nanocat(1).`
 }
 
 func printMsg(msg *mangos.Message) {
+	if printFormat == "no" {
+		return
+	}
 	bw := bufio.NewWriter(os.Stdout)
 	switch printFormat {
-	case "no":
-		return
 	case "raw":
 		bw.Write(msg.Body)
 	case "ascii":
@@ -528,11 +531,12 @@ func main() {
 		tlscfg.InsecureSkipVerify = true
 	}
 
-	sock.SetOption(mangos.OptionTLSConfig, &tlscfg)
-
 	if sock == nil {
 		fatalf("Protocol not specified.")
 	}
+
+	sock.SetOption(mangos.OptionTLSConfig, &tlscfg)
+
 	if len(listenAddrs) == 0 && len(dialAddrs) == 0 {
 		fatalf("No address specified.")
 	}
