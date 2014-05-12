@@ -64,7 +64,7 @@ func (r *req) resender() {
 
 	for {
 		select {
-		case <-r.sock.CloseChannel():
+		case <-r.sock.DrainChannel():
 			return
 		case <-r.waker.C:
 		}
@@ -87,7 +87,7 @@ func (r *req) resender() {
 				r.waker.Stop()
 			}
 			r.Unlock()
-		case <-r.sock.CloseChannel():
+		case <-r.sock.DrainChannel():
 			continue
 		}
 	}
@@ -124,7 +124,7 @@ func (r *req) sender(ep mangos.Endpoint) {
 		select {
 		case m = <-r.resend:
 		case m = <-r.sock.SendChannel():
-		case <-r.sock.CloseChannel():
+		case <-r.sock.DrainChannel():
 			return
 		}
 
@@ -132,7 +132,7 @@ func (r *req) sender(ep mangos.Endpoint) {
 		if err != nil {
 			select {
 			case r.resend <- m:
-			case <-r.sock.CloseChannel():
+			case <-r.sock.DrainChannel():
 				m.Free()
 			}
 			return

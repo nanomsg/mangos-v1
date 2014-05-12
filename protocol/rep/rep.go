@@ -52,7 +52,7 @@ func (pe *repEp) sender() {
 		var m *mangos.Message
 		select {
 		case m = <-pe.q:
-		case <-pe.sock.CloseChannel():
+		case <-pe.sock.DrainChannel():
 			return
 		}
 
@@ -103,7 +103,7 @@ func (r *rep) sender() {
 		var m *mangos.Message
 		select {
 		case m = <-r.sock.SendChannel():
-		case <-r.sock.CloseChannel():
+		case <-r.sock.DrainChannel():
 			return
 		}
 

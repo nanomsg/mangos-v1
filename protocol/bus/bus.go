@@ -49,7 +49,7 @@ func (pe *busEp) sender() {
 
 		select {
 		case m = <-pe.q:
-		case <-pe.x.sock.CloseChannel():
+		case <-pe.x.sock.DrainChannel():
 			return
 		}
 
@@ -84,7 +84,7 @@ func (x *bus) sender() {
 		var id uint32
 		select {
 		case m = <-x.sock.SendChannel():
-		case <-x.sock.CloseChannel():
+		case <-x.sock.DrainChannel():
 			return
 		}
 

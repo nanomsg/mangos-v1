@@ -48,7 +48,7 @@ func (pe *pubEp) sender() {
 
 		select {
 		case m = <-pe.q:
-		case <-pe.sock.CloseChannel():
+		case <-pe.sock.DrainChannel():
 			return
 		}
 
@@ -65,7 +65,7 @@ func (p *pub) sender() {
 		var m *mangos.Message
 		select {
 		case m = <-p.sock.SendChannel():
-		case <-p.sock.CloseChannel():
+		case <-p.sock.DrainChannel():
 			return
 		}
 

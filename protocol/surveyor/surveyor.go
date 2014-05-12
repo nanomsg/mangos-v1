@@ -53,7 +53,7 @@ func (x *surveyor) sender() {
 		var msg *mangos.Message
 		select {
 		case msg = <-x.sock.SendChannel():
-		case <-x.sock.CloseChannel():
+		case <-x.sock.DrainChannel():
 			return
 		}
 
@@ -76,7 +76,7 @@ func (peer *surveyorP) sender() {
 		var msg *mangos.Message
 		select {
 		case msg = <-peer.q:
-		case <-peer.x.sock.CloseChannel():
+		case <-peer.x.sock.DrainChannel():
 			return
 		case <-peer.closeq:
 			return

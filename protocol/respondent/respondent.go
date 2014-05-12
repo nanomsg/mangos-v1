@@ -50,7 +50,7 @@ func (x *resp) sender() {
 		var msg *mangos.Message
 		select {
 		case msg = <-x.sock.SendChannel():
-		case <-x.sock.CloseChannel():
+		case <-x.sock.DrainChannel():
 			return
 		}
 
@@ -66,7 +66,7 @@ func (x *resp) sender() {
 		// Put it on the outbound queue
 		select {
 		case peer.q <- msg:
-		case <-x.sock.CloseChannel():
+		case <-x.sock.DrainChannel():
 			msg.Free()
 			return
 		default:
@@ -82,7 +82,7 @@ func (peer *respPeer) sender() {
 		var msg *mangos.Message
 		select {
 		case msg = <-peer.q:
-		case <-peer.x.sock.CloseChannel():
+		case <-peer.x.sock.DrainChannel():
 			return
 		case <-peer.closeq:
 			return

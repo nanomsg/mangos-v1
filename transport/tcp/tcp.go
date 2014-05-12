@@ -31,7 +31,6 @@ func (d *tcpDialer) Dial() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn.SetLinger(-1) // Close returns immediately, but OS sends data
 	return mangos.NewConnPipe(conn, d.proto)
 }
 
@@ -47,7 +46,6 @@ func (a *tcpAccepter) Accept() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn.SetLinger(-1) // Close returns immediately, but OS sends data
 	return mangos.NewConnPipe(conn, a.proto)
 }
 
@@ -85,7 +83,6 @@ func (t *tcpTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, e
 	if a.listener, err = net.ListenTCP("tcp", a.addr); err != nil {
 		return nil, err
 	}
-
 	return a, nil
 }
 

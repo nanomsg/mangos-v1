@@ -35,14 +35,14 @@ func (x *push) sender(ep mangos.Endpoint) {
 	for {
 		select {
 		case m = <-x.sock.SendChannel():
-		case <-x.sock.CloseChannel():
+		case <-x.sock.DrainChannel():
 			return
 		}
 
 		err := ep.SendMsg(m)
 		if err != nil {
 			select {
-			case <-x.sock.CloseChannel():
+			case <-x.sock.DrainChannel():
 				m.Free()
 			}
 			return

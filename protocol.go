@@ -110,9 +110,16 @@ type ProtocolSocket interface {
 	RecvChannel() chan<- *Message
 
 	// The protocol can wait on this channel to close.  When it is closed,
-	// it indicates that the application has closed the upper socket, and
-	// the protocol should stop any further operations on this instance.
+	// it indicates that the application has closed the upper read socket,
+	// and the protocol should stop any further read operations on this
+	// instance.
 	CloseChannel() chan struct{}
+
+	// The protocol can wait on this channel to close.  When it is closed,
+	// it indicates that the application has closed the upper write socket,
+	// and the protocol should stop any further write operations on this
+	// instance.
+	DrainChannel() chan struct{}
 
 	// GetOption may be used by the protocol to retrieve an option from
 	// the socket.  This can ultimately wind up calling into the socket's

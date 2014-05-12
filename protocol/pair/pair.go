@@ -39,7 +39,7 @@ func (x *pair) sender(ep mangos.Endpoint) {
 		var msg *mangos.Message
 		select {
 		case msg = <-x.sock.SendChannel():
-		case <-x.sock.CloseChannel():
+		case <-x.sock.DrainChannel():
 			return
 		}
 

@@ -29,12 +29,14 @@ type socket struct {
 	uwq    chan *Message // upper write queue
 	urq    chan *Message // upper read queue
 	closeq chan struct{} // closed when user requests close
+	drainq chan struct{}
 
 	closing bool // true if Socket was closed at API level
 
 	rdeadline  time.Time
 	wdeadline  time.Time
 	reconntime time.Duration // reconnect time after error or disconnect
+	linger     time.Duration
 
 	pipes []*pipe
 
@@ -76,9 +78,11 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, 10)
 	sock.urq = make(chan *Message, 10)
 	sock.closeq = make(chan struct{})
+	sock.drainq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
+	sock.linger = time.Second
 
 	// Add some conditionals now -- saves checks later
 	if i, ok := interface{}(proto).(ProtocolRecvHook); ok {
@@ -114,13 +118,16 @@ func (sock *socket) CloseChannel() chan struct{} {
 	return sock.closeq
 }
 
+func (sock *socket) DrainChannel() chan struct{} {
+	return sock.drainq
+}
+
 //
 // Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
 //
 
 func (sock *socket) Close() error {
-	// XXX: flushq's?  linger?
 	sock.Lock()
 	if sock.closing {
 		sock.Unlock()
@@ -136,6 +143,20 @@ func (sock *socket) Close() error {
 	pipes := append([]*pipe{}, sock.pipes...)
 	sock.Unlock()
 
+	if sock.linger > 0 {
+		fin := time.After(sock.linger)
+
+		for {
+			if len(sock.uwq) == 0 {
+				break
+			}
+			select {
+			case <-fin:
+				break
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}
 	for _, p := range pipes {
 		p.Close()
 	}
