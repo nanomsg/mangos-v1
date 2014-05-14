@@ -232,11 +232,11 @@ func (s *Socket) Recv(flags int) ([]byte, error) {
 
 // Send sends a message.  For AF_SP_RAW messages the header must be
 // included in the argument.  At this time, no flags are supported.
-func (s *Socket) Send(b []byte, flags int) error {
+func (s *Socket) Send(b []byte, flags int) (int, error) {
 	var when time.Time
 
 	if flags != 0 {
-		return errNoFlag
+		return -1, errNoFlag
 	}
 
 	m := mangos.NewMessage(len(b))
@@ -249,7 +249,7 @@ func (s *Socket) Send(b []byte, flags int) error {
 	}
 	s.sock.SetOption(mangos.OptionSendDeadline, when)
 
-	return s.sock.SendMsg(m)
+	return len(b), s.sock.SendMsg(m)
 }
 
 // Protocol returns the numeric value of the sockets protocol, such as
