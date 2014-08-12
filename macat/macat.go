@@ -72,9 +72,10 @@ func setSocket(f func() (mangos.Socket, error)) error {
 	}
 	sock, err = f()
 	if err != nil {
-		all.AddTransports(sock)
+		return err
 	}
-	return err
+	all.AddTransports(sock)
+	return nil
 }
 
 func addDial(addr string) error {
