@@ -63,4 +63,15 @@ There are also internal benchmarks available:
 
 	$ go test -bench=. bitbucket.org/gdamore/mangos/test
 
+## Examples
+
+Some examples are posted in the directories under examples/
+The examples are rewrites (in Go) of Tim Dysinger's libnanomsg examples,
+which are located at
+
+http://tim.dysinger.net/posts/2013-09-16-getting-started-with-nanomsg.html
+
+godoc in the example directories will yield information about how to run
+each example program.
+
 Enjoy!
