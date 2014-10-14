@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tlstcp implements the TLS / SSL over TCP transport for mangos.
+// Package tlstcp implements the TLS over TCP transport for mangos.
 package tlstcp
 
 import (
@@ -98,11 +98,17 @@ func (t *tlsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, e
 
 // SetOption implements the Transport SetOption method. We support a single
 // option, TLSOptionConfig, which takes a single value, a *tls.Config.
+// Note that we force the minimum version to tls.VersionTLS10, as SSL3.0
+// is no longer secure.
 func (t *tlsTran) SetOption(name string, val interface{}) error {
 	switch name {
 	case mangos.OptionTLSConfig:
 		switch v := val.(type) {
 		case *tls.Config:
+			// SSL3.0 is broken.
+			if (v.MinVersion < tls.VersionTLS10) {
+				v.MinVersion = tls.VersionTLS10;
+			}
 			t.config = v
 			return nil
 		default:
