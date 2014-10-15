@@ -98,17 +98,16 @@ func (t *tlsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, e
 
 // SetOption implements the Transport SetOption method. We support a single
 // option, TLSOptionConfig, which takes a single value, a *tls.Config.
-// Note that we force the minimum version to tls.VersionTLS10, as SSL3.0
-// is no longer secure.
+// Note that we force the use of TLS1.2, as other versions have known
+// weaknesses, and we have no compatibility concerns.
 func (t *tlsTran) SetOption(name string, val interface{}) error {
 	switch name {
 	case mangos.OptionTLSConfig:
 		switch v := val.(type) {
 		case *tls.Config:
-			// SSL3.0 is broken.
-			if (v.MinVersion < tls.VersionTLS10) {
-				v.MinVersion = tls.VersionTLS10;
-			}
+			// Force TLS 1.2, others have weaknesses
+			v.MinVersion = tls.VersionTLS12;
+			v.MaxVersion = tls.VersionTLS12;
 			t.config = v
 			return nil
 		default:
