@@ -15,9 +15,9 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/rep"
-	"bitbucket.org/gdamore/mangos/protocol/req"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
 	"testing"
 )
 

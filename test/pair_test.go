@@ -15,8 +15,8 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/pair"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/pair"
 	"testing"
 )
 

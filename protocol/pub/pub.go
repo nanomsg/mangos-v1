@@ -18,7 +18,7 @@
 package pub
 
 import (
-	"bitbucket.org/gdamore/mangos"
+	"github.com/gdamore/mangos"
 	"sync"
 )
 

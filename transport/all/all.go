@@ -18,11 +18,11 @@
 package all
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/transport/inproc"
-	"bitbucket.org/gdamore/mangos/transport/ipc"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
-	"bitbucket.org/gdamore/mangos/transport/tlstcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/inproc"
+	"github.com/gdamore/mangos/transport/ipc"
+	"github.com/gdamore/mangos/transport/tcp"
+	"github.com/gdamore/mangos/transport/tlstcp"
 )
 
 // AddTransports adds all known transports to the given socket.

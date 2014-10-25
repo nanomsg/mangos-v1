@@ -27,10 +27,10 @@
 package main
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/pair"
-	"bitbucket.org/gdamore/mangos/transport/ipc"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/pair"
+	"github.com/gdamore/mangos/transport/ipc"
+	"github.com/gdamore/mangos/transport/tcp"
 	"fmt"
 	"os"
 	"time"

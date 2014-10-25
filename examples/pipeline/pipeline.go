@@ -27,11 +27,11 @@
 package main
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/pull"
-	"bitbucket.org/gdamore/mangos/protocol/push"
-	"bitbucket.org/gdamore/mangos/transport/ipc"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/pull"
+	"github.com/gdamore/mangos/protocol/push"
+	"github.com/gdamore/mangos/transport/ipc"
+	"github.com/gdamore/mangos/transport/tcp"
 	"fmt"
 	"os"
 )

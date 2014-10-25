@@ -17,7 +17,7 @@
 package respondent
 
 import (
-	"bitbucket.org/gdamore/mangos"
+	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
 )

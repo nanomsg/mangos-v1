@@ -15,10 +15,10 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/rep"
-	"bitbucket.org/gdamore/mangos/protocol/req"
-	"bitbucket.org/gdamore/mangos/transport/tlstcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
+	"github.com/gdamore/mangos/transport/tlstcp"
 	"bytes"
 	"crypto/tls"
 	"testing"

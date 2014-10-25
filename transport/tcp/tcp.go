@@ -16,7 +16,7 @@
 package tcp
 
 import (
-	"bitbucket.org/gdamore/mangos"
+	"github.com/gdamore/mangos"
 	"net"
 )
 

@@ -29,11 +29,11 @@
 package main
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/respondent"
-	"bitbucket.org/gdamore/mangos/protocol/surveyor"
-	"bitbucket.org/gdamore/mangos/transport/ipc"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/respondent"
+	"github.com/gdamore/mangos/protocol/surveyor"
+	"github.com/gdamore/mangos/transport/ipc"
+	"github.com/gdamore/mangos/transport/tcp"
 	"fmt"
 	"os"
 	"time"

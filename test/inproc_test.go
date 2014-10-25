@@ -15,8 +15,8 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/transport/inproc"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/inproc"
 	"bytes"
 	"testing"
 	"time"

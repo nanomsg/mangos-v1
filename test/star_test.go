@@ -15,9 +15,9 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/star"
-	"bitbucket.org/gdamore/mangos/transport/tcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/star"
+	"github.com/gdamore/mangos/transport/tcp"
 	"math/rand"
 	"testing"
 	"time"
