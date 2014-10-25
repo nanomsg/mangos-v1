@@ -77,4 +77,10 @@ const (
 	// OptionTLSConfig is used to supply TLS configuration details.
 	// The parameter is a tls.Config pointer.
 	OptionTLSConfig = "TLS-CONFIG"
+
+	// OptionLocalAddress is used to get the local address an accepter is
+	// listening on in string form. Generally this is known when Listen is
+	// called because it is provided, but this option is useful in the event
+	// that the port is assigned by the OS (i.e. port "0").
+	OptionLocalAddress = "LOCAL-ADDRESS"
 )
