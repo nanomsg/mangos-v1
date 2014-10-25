@@ -15,11 +15,11 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/pair"
-	"bitbucket.org/gdamore/mangos/protocol/rep"
-	"bitbucket.org/gdamore/mangos/protocol/req"
-	"bitbucket.org/gdamore/mangos/transport/all"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/pair"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
+	"github.com/gdamore/mangos/transport/all"
 	"runtime"
 	"strings"
 	"testing"

@@ -16,7 +16,7 @@
 package tlstcp
 
 import (
-	"bitbucket.org/gdamore/mangos"
+	"github.com/gdamore/mangos"
 	"crypto/tls"
 	"net"
 )

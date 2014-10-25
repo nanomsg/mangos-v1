@@ -15,9 +15,9 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/protocol/respondent"
-	"bitbucket.org/gdamore/mangos/protocol/surveyor"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/respondent"
+	"github.com/gdamore/mangos/protocol/surveyor"
 	"encoding/binary"
 	"testing"
 	"time"

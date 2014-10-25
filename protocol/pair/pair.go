@@ -17,7 +17,7 @@
 package pair
 
 import (
-	"bitbucket.org/gdamore/mangos"
+	"github.com/gdamore/mangos"
 	"sync"
 )
 

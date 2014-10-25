@@ -17,7 +17,7 @@
 package pull
 
 import (
-	"bitbucket.org/gdamore/mangos"
+	"github.com/gdamore/mangos"
 )
 
 type pull struct {

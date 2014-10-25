@@ -16,9 +16,9 @@
 package test
 
 import (
-	"bitbucket.org/gdamore/mangos"
-	"bitbucket.org/gdamore/mangos/transport/all"
-	"bitbucket.org/gdamore/mangos/transport/tlstcp"
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/all"
+	"github.com/gdamore/mangos/transport/tlstcp"
 	"bytes"
 	"encoding/binary"
 	"fmt"
