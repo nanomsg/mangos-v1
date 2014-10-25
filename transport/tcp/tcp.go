@@ -16,8 +16,9 @@
 package tcp
 
 import (
-	"github.com/gdamore/mangos"
 	"net"
+
+	"github.com/gdamore/mangos"
 )
 
 type tcpDialer struct {
@@ -55,6 +56,7 @@ func (a *tcpAccepter) Close() error {
 }
 
 type tcpTran struct {
+	localAddr net.Addr
 }
 
 func (t *tcpTran) Scheme() string {
@@ -83,6 +85,8 @@ func (t *tcpTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, e
 	if a.listener, err = net.ListenTCP("tcp", a.addr); err != nil {
 		return nil, err
 	}
+
+	t.localAddr = a.listener.Addr()
 	return a, nil
 }
 
@@ -91,8 +95,16 @@ func (*tcpTran) SetOption(string, interface{}) error {
 	return mangos.ErrBadOption
 }
 
-func (*tcpTran) GetOption(string) (interface{}, error) {
-	return nil, mangos.ErrBadOption
+func (t *tcpTran) GetOption(name string) (interface{}, error) {
+	switch name {
+	case mangos.OptionLocalAddress:
+		if t.localAddr == nil {
+			return nil, mangos.ErrBadOption
+		}
+		return t.localAddr.String(), nil
+	default:
+		return nil, mangos.ErrBadOption
+	}
 }
 
 // NewTransport allocates a new TCP transport.
