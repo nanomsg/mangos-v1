@@ -24,13 +24,12 @@ import (
 )
 
 type resp struct {
-	sock         mangos.ProtocolSocket
-	peers        map[uint32]*respPeer
-	raw          bool
-	surveyID     uint32
-	surveyOk     bool
-	backtracebuf []byte
-	backtrace    []byte
+	sock      mangos.ProtocolSocket
+	peers     map[uint32]*respPeer
+	raw       bool
+	surveyID  uint32
+	surveyOk  bool
+	backtrace uint32
 	sync.Mutex
 }
 
@@ -44,7 +43,6 @@ type respPeer struct {
 func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.peers = make(map[uint32]*respPeer)
-	x.backtracebuf = make([]byte, 64)
 
 	go x.sender()
 }
@@ -60,16 +58,18 @@ func (x *resp) sender() {
 			return
 		}
 
-		// Lop off the 32-bit peer/pipe ID. If absent, drop.
-		if len(msg.Header) < 4 {
+		// Get the endpoint ID and remove it from the header.
+		if len(msg.Header) < 8 {
 			msg.Free()
 			continue
 		}
-		id := binary.BigEndian.Uint32(msg.Header)
-		msg.Header = msg.Header[4:]
+		id := binary.BigEndian.Uint32(msg.Header[len(msg.Header)-4:])
+		msg.Header = msg.Header[0:4]
+
 		x.Lock()
 		peer := x.peers[id]
 		x.Unlock()
+
 		if peer == nil {
 			msg.Free()
 			continue
@@ -123,6 +123,11 @@ func (peer *respPeer) receiver() {
 		m.Header = append(m.Header, m.Body[:4]...)
 		m.Body = m.Body[4:]
 
+		// Also pass the endpoint ID in the header.
+		id := peer.ep.GetID()
+		m.Header = append(m.Header,
+			byte(id>>24), byte(id>>16), byte(id>>8), byte(id))
+
 		select {
 		case peer.x.sock.RecvChannel() <- m:
 		case <-peer.x.sock.CloseChannel():
@@ -139,15 +144,13 @@ func (x *resp) RecvHook(m *mangos.Message) bool {
 	x.Lock()
 	defer x.Unlock()
 
-	if len(m.Header) < 4 {
+	if len(m.Header) < 8 {
 		return false
 	}
-	x.surveyID = binary.BigEndian.Uint32(m.Header)
+	x.surveyID = binary.BigEndian.Uint32(m.Header[:4])
 	x.surveyOk = true
 
-	// Save the backtrace from this message.
-	x.backtrace = append(x.backtracebuf[0:0], m.Header...)
-	m.Header = nil
+	x.backtrace = binary.BigEndian.Uint32(m.Header[4:])
 
 	return true
 }
@@ -162,18 +165,17 @@ func (x *resp) SendHook(m *mangos.Message) bool {
 	if !x.surveyOk {
 		return false
 	}
+
 	v := x.surveyID
 	m.Header = append(m.Header,
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
-	x.surveyOk = false
 
-	// Store the saved backtrace. If none was previously stored, there is no
-	// one to reply to, so drop the message.
-	m.Header = append(m.Header[0:0], x.backtrace...)
-	x.backtrace = nil
-	if m.Header == nil {
-		return false
-	}
+	id := x.backtrace
+	m.Header = append(m.Header,
+		byte(id>>24), byte(id>>16), byte(id>>8), byte(id))
+
+	x.surveyOk = false
+	x.backtrace = 0
 
 	return true
 }
