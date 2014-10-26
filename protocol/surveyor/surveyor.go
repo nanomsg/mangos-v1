@@ -17,11 +17,14 @@
 package surveyor
 
 import (
-	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
 	"time"
+
+	"github.com/gdamore/mangos"
 )
+
+const defaultSurveyTime = time.Second
 
 type surveyor struct {
 	sock     mangos.ProtocolSocket
@@ -226,5 +229,5 @@ func (x *surveyor) GetOption(name string) (interface{}, error) {
 
 // NewSocket allocates a new Socket using the SURVEYOR protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&surveyor{}), nil
+	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime}), nil
 }
