@@ -83,7 +83,7 @@ func (p *pub) sender() {
 }
 
 func (p *pub) AddEndpoint(ep mangos.Endpoint) {
-	pe := &pubEp{ep: ep, sock: p.sock, q: make(chan *mangos.Message)}
+	pe := &pubEp{ep: ep, sock: p.sock, q: make(chan *mangos.Message, 5)}
 	p.Lock()
 	p.eps[ep.GetID()] = pe
 	p.Unlock()
