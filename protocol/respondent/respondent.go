@@ -17,17 +17,19 @@
 package respondent
 
 import (
-	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type resp struct {
-	sock     mangos.ProtocolSocket
-	peer     *respPeer
-	raw      bool
-	surveyID uint32
-	surveyOk bool
+	sock      mangos.ProtocolSocket
+	peers     map[uint32]*respPeer
+	raw       bool
+	surveyID  uint32
+	surveyOk  bool
+	backtrace uint32
 	sync.Mutex
 }
 
@@ -40,6 +42,8 @@ type respPeer struct {
 
 func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
+	x.peers = make(map[uint32]*respPeer)
+
 	go x.sender()
 }
 
@@ -54,8 +58,16 @@ func (x *resp) sender() {
 			return
 		}
 
+		// Get the endpoint ID and remove it from the header.
+		if len(msg.Header) < 8 {
+			msg.Free()
+			continue
+		}
+		id := binary.BigEndian.Uint32(msg.Header[len(msg.Header)-4:])
+		msg.Header = msg.Header[0:4]
+
 		x.Lock()
-		peer := x.peer
+		peer := x.peers[id]
 		x.Unlock()
 
 		if peer == nil {
@@ -111,6 +123,11 @@ func (peer *respPeer) receiver() {
 		m.Header = append(m.Header, m.Body[:4]...)
 		m.Body = m.Body[4:]
 
+		// Also pass the endpoint ID in the header.
+		id := peer.ep.GetID()
+		m.Header = append(m.Header,
+			byte(id>>24), byte(id>>16), byte(id>>8), byte(id))
+
 		select {
 		case peer.x.sock.RecvChannel() <- m:
 		case <-peer.x.sock.CloseChannel():
@@ -127,11 +144,14 @@ func (x *resp) RecvHook(m *mangos.Message) bool {
 	x.Lock()
 	defer x.Unlock()
 
-	if len(m.Header) < 4 {
+	if len(m.Header) < 8 {
 		return false
 	}
-	x.surveyID = binary.BigEndian.Uint32(m.Header)
+	x.surveyID = binary.BigEndian.Uint32(m.Header[:4])
 	x.surveyOk = true
+
+	x.backtrace = binary.BigEndian.Uint32(m.Header[4:])
+
 	return true
 }
 
@@ -145,22 +165,25 @@ func (x *resp) SendHook(m *mangos.Message) bool {
 	if !x.surveyOk {
 		return false
 	}
+
 	v := x.surveyID
 	m.Header = append(m.Header,
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+
+	id := x.backtrace
+	m.Header = append(m.Header,
+		byte(id>>24), byte(id>>16), byte(id>>8), byte(id))
+
 	x.surveyOk = false
+	x.backtrace = 0
+
 	return true
 }
 
 func (x *resp) AddEndpoint(ep mangos.Endpoint) {
-	x.Lock()
-	if x.peer != nil {
-		x.Unlock()
-		ep.Close()
-		return
-	}
 	peer := &respPeer{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
-	x.peer = peer
+	x.Lock()
+	x.peers[ep.GetID()] = peer
 	peer.closeq = make(chan struct{})
 	go peer.receiver()
 	go peer.sender()
@@ -169,10 +192,9 @@ func (x *resp) AddEndpoint(ep mangos.Endpoint) {
 
 func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
-	if x.peer.ep == ep {
-		peer := x.peer
-		x.peer = nil
+	if peer, ok := x.peers[ep.GetID()]; ok {
 		close(peer.closeq)
+		delete(x.peers, ep.GetID())
 	}
 	x.Unlock()
 }
