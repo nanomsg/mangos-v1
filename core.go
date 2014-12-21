@@ -30,7 +30,9 @@ type socket struct {
 	urq    chan *Message // upper read queue
 	closeq chan struct{} // closed when user requests close
 	drainq chan struct{}
+	abortq chan struct{}
 
+	aborted bool // true if Socket was aborted at API level
 	closing bool // true if Socket was closed at API level
 
 	rdeadline  time.Time
@@ -79,6 +81,7 @@ func newSocket(proto Protocol) *socket {
 	sock.urq = make(chan *Message, 10)
 	sock.closeq = make(chan struct{})
 	sock.drainq = make(chan struct{})
+	sock.abortq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
@@ -172,6 +175,9 @@ func (sock *socket) SendMsg(msg *Message) error {
 			return nil
 		}
 	}
+	if sock.aborted {
+		return ErrAborted
+	}
 	sock.Lock()
 	timeout := mkTimer(sock.wdeadline)
 	sock.Unlock()
@@ -180,6 +186,8 @@ func (sock *socket) SendMsg(msg *Message) error {
 		return ErrSendTimeout
 	case <-sock.closeq:
 		return ErrClosed
+	case <-sock.abortq:
+		return ErrAborted
 	case sock.uwq <- msg:
 		return nil
 	}
@@ -191,6 +199,10 @@ func (sock *socket) Send(b []byte) error {
 }
 
 func (sock *socket) RecvMsg() (*Message, error) {
+
+	if sock.aborted {
+		return nil, ErrAborted
+	}
 	sock.Lock()
 	timeout := mkTimer(sock.rdeadline)
 	sock.Unlock()
@@ -210,6 +222,8 @@ func (sock *socket) RecvMsg() (*Message, error) {
 			}
 		case <-sock.closeq:
 			return nil, ErrClosed
+		case <-sock.abortq:
+			return nil, ErrAborted
 		}
 	}
 }
@@ -388,4 +402,30 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 
 func (sock *socket) GetProtocol() Protocol {
 	return sock.proto
+}
+
+func (sock *socket) Abort() {
+	sock.Lock()
+	if sock.aborted {
+		sock.Unlock()
+		return
+	}
+	sock.aborted = true
+	close(sock.abortq)
+	sock.Unlock()
+}
+
+func (sock *socket) Reset() {
+	sock.Lock()
+	if !sock.aborted {
+		sock.Unlock()
+		return
+	}
+	sock.abortq = make(chan struct{})
+	sock.aborted = false
+	sock.Unlock()
+}
+
+func (sock *socket) Aborted() bool {
+	return sock.aborted
 }

@@ -65,4 +65,19 @@ type Socket interface {
 	// AddTransport adds a new Transport to the socket.  Transport specific
 	// options may have been configured on the Transport prior to this.
 	AddTransport(Transport)
+
+	// Abort aborts any blocking operation that may be in process (RecvMsg,
+	// SendMsg).  All such operations, and following operations, will
+	// return ErrAborted, until the socket is reset with Reset().  Note
+	// that underlying transports will remain open, and connections may
+	// continue to be made, but no data will be transfered.
+	Abort()
+
+	// Reset resets an aborted socket, allowing blocking calls to resume
+	// normal operation.
+	Reset()
+
+	// Aborted returns true of the socket has previously had Abort() called,
+	// and not since been Reset().
+	Aborted() bool
 }

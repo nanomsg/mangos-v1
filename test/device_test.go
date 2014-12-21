@@ -40,12 +40,13 @@ func TestDeviceBadPair(t *testing.T) {
 	}
 	defer s2.Close()
 
-	switch err := mangos.Device(s1, s2); err {
+	switch d, err := mangos.NewDevice(s1, s2); err {
 	case mangos.ErrBadProto:
 		t.Logf("Got expected err: %v", err)
 		return
 	case nil:
 		t.Errorf("Matching incompatible types succeeded")
+		d.Stop()
 		return
 	default:
 		t.Errorf("Got unexpected err: %v", err)
@@ -61,12 +62,13 @@ func TestDeviceBadSingle(t *testing.T) {
 	}
 	defer s1.Close()
 
-	switch err := mangos.Device(s1, s1); err {
+	switch d, err := mangos.NewDevice(s1, s1); err {
 	case mangos.ErrBadProto:
 		t.Logf("Got expected err: %v", err)
 		return
 	case nil:
 		t.Errorf("Matching incompatible types succeeded")
+		d.Stop()
 		return
 	default:
 		t.Errorf("Got unexpected err: %v", err)
@@ -82,9 +84,10 @@ func TestDeviceFirstNil(t *testing.T) {
 	}
 	defer s1.Close()
 
-	switch err := mangos.Device(nil, s1); err {
+	switch d, err := mangos.NewDevice(nil, s1); err {
 	case nil:
 		t.Logf("Ok!")
+		d.Stop()
 		return
 	default:
 		t.Errorf("Got unexpected err: %v", err)
@@ -100,9 +103,10 @@ func TestDeviceSecondNil(t *testing.T) {
 	}
 	defer s1.Close()
 
-	switch err := mangos.Device(s1, nil); err {
+	switch d, err := mangos.NewDevice(s1, nil); err {
 	case nil:
 		t.Logf("Ok!")
+		d.Stop()
 		return
 	default:
 		t.Errorf("Got unexpected err: %v", err)
@@ -111,12 +115,13 @@ func TestDeviceSecondNil(t *testing.T) {
 }
 
 func TestDeviceBothNil(t *testing.T) {
-	switch err := mangos.Device(nil, nil); err {
+	switch d, err := mangos.NewDevice(nil, nil); err {
 	case mangos.ErrClosed:
 		t.Logf("Got expected err: %v", err)
 		return
 	case nil:
 		t.Errorf("Matching incompatible types succeeded")
+		d.Stop()
 		return
 	default:
 		t.Errorf("Got unexpected err: %v", err)
@@ -138,9 +143,10 @@ func TestDeviceReqRep(t *testing.T) {
 	}
 	defer s2.Close()
 
-	switch err := mangos.Device(s1, s2); err {
+	switch d, err := mangos.NewDevice(s1, s2); err {
 	case nil:
 		t.Logf("Matching req/rep ok!")
+		d.Stop()
 		return
 	default:
 		t.Errorf("Got unexpected err: %v", err)
@@ -189,6 +195,7 @@ func deviceCaseClient() []TestCase {
 }
 
 func testDevLoop(t *testing.T, addr string) {
+	var d mangos.Device
 	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
@@ -206,18 +213,23 @@ func testDevLoop(t *testing.T, addr string) {
 		return
 	}
 
-	if err := mangos.Device(s1, s1); err != nil {
+	if d, err = mangos.NewDevice(s1, s1); err != nil {
 		t.Errorf("Device failed: %v", err)
 		return
 	}
 
+	d.Start()
 	RunTests(t, addr, deviceCaseClient())
+	d.Stop()
 }
 
 func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 	// This tests using multiple devices across a few transports.
 	// It looks like this:  addr1->addr2->addr3 <==> addr3->addr2->addr1
 	var err error
+	var d1 mangos.Device
+	var d2 mangos.Device
+	var d3 mangos.Device
 	s := make([]mangos.Socket, 5)
 	for i := 0; i < 5; i++ {
 		if s[i], err = pair.NewSocket(); err != nil {
@@ -252,19 +264,25 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 		t.Errorf("s[4] Listen: %v", err)
 		return
 	}
-	if err = mangos.Device(s[0], s[1]); err != nil {
+	if d1, err = mangos.NewDevice(s[0], s[1]); err != nil {
 		t.Errorf("s[0],s[1] Device: %v", err)
 		return
 	}
-	if err = mangos.Device(s[2], s[3]); err != nil {
+	if d2, err = mangos.NewDevice(s[2], s[3]); err != nil {
 		t.Errorf("s[2],s[3] Device: %v", err)
 		return
 	}
-	if err = mangos.Device(s[4], nil); err != nil {
+	if d3, err = mangos.NewDevice(s[4], nil); err != nil {
 		t.Errorf("s[4] Device: %v", err)
 		return
 	}
+	d1.Start()
+	d2.Start()
+	d3.Start()
 	RunTests(t, addr1, deviceCaseClient())
+	d3.Stop()
+	d2.Stop()
+	d1.Stop()
 }
 
 func TestDeviceChain(t *testing.T) {
