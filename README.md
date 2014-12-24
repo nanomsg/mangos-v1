@@ -1,6 +1,6 @@
 ## mangos
 
-[![GoDoc](https://godoc.org/bitbucket.org/gdamore/mangos?status.png)](https://godoc.org/bitbucket.org/gdamore/mangos)
+[![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos)
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
@@ -38,30 +38,30 @@ via my email address, garrett -at- damore -dot- org
 
 ### Using *go get*
 
-    $ go get bitbucket.org/gdamore/mangos
+    $ go get github.com/gdamore/mangos
 
 After this command *mangos* is ready to use. Its source will be in:
 
-    $GOPATH/src/pkg/bitbucket.org/gdamore/mangos
+    $GOPATH/src/pkg/github.com/gdamore/mangos
 
 You can use `go get -u -a` to update all installed packages.
 
 ## Documentation
 
-For docs, see http://godoc.org/bitbucket.org/gdamore/mangos or run:
+For docs, see http://godoc.org/github.com/gdamore/mangos or run:
 
-    $ godoc bitbucket.org/gdamore/mangos
+    $ godoc github.com/gdamore/mangos
 
 ## Testing
 
 This package supports internal self tests, which can be run in
 the idiomatic Go way, although it uses a separate test sub-package:
 
-    $ go test bitbucket.org/gdamore/mangos/test
+    $ go test github.com/gdamore/mangos/test
 
 There are also internal benchmarks available:
 
-	$ go test -bench=. bitbucket.org/gdamore/mangos/test
+	$ go test -bench=. github.com/gdamore/mangos/test
 
 ## Examples
 
