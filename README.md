@@ -1,5 +1,7 @@
 ## mangos
 
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos)
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
