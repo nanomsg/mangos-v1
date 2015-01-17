@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -128,8 +128,7 @@ func (r *req) sender(ep mangos.Endpoint) {
 			return
 		}
 
-		err := ep.SendMsg(m)
-		if err != nil {
+		if ep.SendMsg(m) != nil {
 			select {
 			case r.resend <- m:
 			case <-r.sock.DrainChannel():

@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -84,7 +84,6 @@ func (p *conn) Send(msg *Message) error {
 	// prevent interleaved writes
 	p.wlock.Lock()
 	defer p.wlock.Unlock()
-	defer msg.Free()
 
 	// send length header
 	if err := binary.Write(p.c, binary.BigEndian, l); err != nil {
@@ -97,6 +96,7 @@ func (p *conn) Send(msg *Message) error {
 	if _, err := p.c.Write(msg.Body); err != nil {
 		return err
 	}
+	msg.Free()
 	return nil
 }
 

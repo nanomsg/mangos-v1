@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -53,7 +53,7 @@ func (pe *busEp) sender() {
 			return
 		}
 
-		if err := pe.ep.SendMsg(m); err != nil {
+		if pe.ep.SendMsg(m) != nil {
 			m.Free()
 			return
 		}

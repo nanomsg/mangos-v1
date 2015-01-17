@@ -56,8 +56,7 @@ func (pe *repEp) sender() {
 			return
 		}
 
-		err := pe.ep.SendMsg(m)
-		if err != nil {
+		if pe.ep.SendMsg(m) != nil {
 			m.Free()
 			return
 		}
