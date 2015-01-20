@@ -160,7 +160,6 @@ func (p *connipc) Send(msg *Message) error {
 	// prevent interleaved writes
 	p.wlock.Lock()
 	defer p.wlock.Unlock()
-	defer msg.Free()
 
 	// send length header
 	if _, err = p.c.Write(one[:]); err != nil {
@@ -176,6 +175,7 @@ func (p *connipc) Send(msg *Message) error {
 	if _, err = p.c.Write(msg.Body); err != nil {
 		return err
 	}
+	msg.Free()
 	return nil
 }
 
