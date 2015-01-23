@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -31,16 +31,24 @@ type inproc struct {
 	peer   *inproc
 }
 
+type listener struct {
+	addr       string
+	proto      uint16
+	accepters  []*inproc
+}
+
 type inprocTran struct{}
 
-var inprocServers struct {
+var listeners struct {
 	// Who is listening, on which "address"?
-	rendezvous map[string]*inprocRendezvous
-	sync.Mutex
+	byAddr  map[string]*listener
+	cv      sync.Cond
+	mx      sync.Mutex
 }
 
 func init() {
-	inprocServers.rendezvous = make(map[string]*inprocRendezvous)
+	listeners.byAddr = make(map[string]*listener)
+	listeners.cv.L = &listeners.mx
 }
 
 func (p *inproc) Recv() (*mangos.Message, error) {
@@ -109,133 +117,85 @@ func (p *inproc) IsOpen() bool {
 	}
 }
 
-type inprocRendezvous struct {
-	sync.Mutex
-	addr       string
-	proto      uint16
-	servers    chan *inproc
-	clients    chan *inproc
-	closeq     chan interface{}
-	server     *inproc // pending inproc
-	client     *inproc // pending inproc
-	processing bool    // true if a listener is listening (exclusion)
-}
-
 type inprocDialer struct {
 	addr  string
 	proto uint16
 }
 
-func inprocGetRendezvous(addr string, proto uint16, server bool) *inprocRendezvous {
-	var r *inprocRendezvous
-	var ok bool
-	inprocServers.Lock()
-	defer inprocServers.Unlock()
-	if r, ok = inprocServers.rendezvous[addr]; r == nil || !ok {
-		r = &inprocRendezvous{addr: addr, proto: proto}
-		r.servers = make(chan *inproc, 1)
-		r.clients = make(chan *inproc, 1)
-		inprocServers.rendezvous[addr] = r
-	}
-	if server {
-		if r.processing {
-			// Server is already "processing" (Listen called)
-			return nil
-		}
-		r.closeq = make(chan interface{})
-		r.processing = true
-		go r.rendezvous()
-	} else if !r.processing {
-		// Translates to Connection Refused
-		return nil
-	}
-	return r
-}
-
 func (d *inprocDialer) Dial() (mangos.Pipe, error) {
-	var r *inprocRendezvous
-	if r = inprocGetRendezvous(d.addr, d.proto, false); r == nil {
-		return nil, mangos.ErrConnRefused
-	}
 
-	client := &inproc{proto: r.proto, addr: r.addr}
-	client.rq = make(chan *mangos.Message)
-	client.wq = make(chan *mangos.Message)
+	var server *inproc
+	client := &inproc{proto: d.proto, addr: d.addr}
 	client.readyq = make(chan struct{})
 	client.closeq = make(chan struct{})
 
-	// submit this client to the rendezvous
-	select {
-	case r.clients <- client:
+	listeners.mx.Lock()
+
+	// NB: No timeouts here!
+	for {
+		var l *listener
+		var ok bool
+		if l, ok = listeners.byAddr[d.addr]; !ok || l == nil {
+			listeners.mx.Unlock()
+			return nil, mangos.ErrConnRefused
+		}
+
+		if len(l.accepters) != 0 {
+			server = l.accepters[len(l.accepters)-1]
+			l.accepters = l.accepters[:len(l.accepters)-1]
+			break
+		}
+
+		listeners.cv.Wait()
+		continue
 	}
-	// wait for rendezvous to tell us we're ready
-	select {
-	case <-client.readyq:
-	}
-	// No timeouts (YET)
+
+	listeners.mx.Unlock()
+
+	server.wq = make(chan *mangos.Message)
+	server.rq = make(chan *mangos.Message)
+	client.rq = server.wq
+	client.wq = server.rq
+	server.peer = client
+	client.peer = server
+
+	close(server.readyq)
+	close(client.readyq)
 	return client, nil
 }
 
-func (r *inprocRendezvous) Accept() (mangos.Pipe, error) {
-	server := &inproc{proto: r.proto, addr: r.addr}
+func (l *listener) Accept() (mangos.Pipe, error) {
+	server := &inproc{proto: l.proto, addr: l.addr}
 	server.readyq = make(chan struct{})
 	server.closeq = make(chan struct{})
-	// inprocRendezvous will fill in rq and wq from client
-	select {
-	case r.servers <- server:
-	}
-	// wait for rendezvous to tell us we're ready
-	select {
-	case <-server.readyq:
-	}
-	return server, nil
-}
 
-// rendezvous() runs in a goroutine to continuously rendezvous
-// on the same location
-func (r *inprocRendezvous) rendezvous() {
-	for {
-		if r.server == nil {
-			select {
-			case r.server = <-r.servers:
-			case <-r.closeq:
-				return
-			}
-		}
-		if r.client == nil {
-			select {
-			case r.client = <-r.clients:
-			case <-r.closeq:
-				return
-			}
-		}
-		server := r.server
-		client := r.client
-		r.server = nil
-		r.client = nil
-		client.peer = server
-		server.peer = client
-		server.wq = client.rq
-		server.rq = client.wq
+	listeners.mx.Lock()
+	l.accepters = append(l.accepters, server)
+	listeners.cv.Broadcast()
+	listeners.mx.Unlock()
 
-		close(server.readyq) // wake server
-		close(client.readyq) // wake client
+	select {
+	case <- server.readyq:
+		return server, nil
+	case <- server.closeq:
+		return nil, mangos.ErrClosed
 	}
 }
 
-func (r *inprocRendezvous) Close() error {
-	inprocServers.Lock()
-	defer inprocServers.Unlock()
+func (l *listener) Close() error {
+	listeners.mx.Lock()
+	if listeners.byAddr[l.addr] == l {
+		delete(listeners.byAddr, l.addr)
+	}
+	servers := l.accepters
+	l.accepters = make([]*inproc, 0, 5)
+	listeners.cv.Broadcast()
+	listeners.mx.Unlock()
 
-	r.processing = false
-	select {
-	case <-r.closeq:
-	default:
-		close(r.closeq)
+	for _, s := range servers {
+		close(s.closeq)
 	}
-	if inprocServers.rendezvous[r.addr] == r {
-		delete(inprocServers.rendezvous, r.addr)
-	}
+
 	return nil
 }
 
@@ -248,11 +208,17 @@ func (t *inprocTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, er
 }
 
 func (t *inprocTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
-	var r *inprocRendezvous
-	if r = inprocGetRendezvous(addr, proto, true); r == nil {
+	listeners.mx.Lock()
+	if l, ok := listeners.byAddr[addr]; l != nil || ok {
+		listeners.mx.Unlock()
 		return nil, mangos.ErrAddrInUse
 	}
-	return r, nil
+	l := &listener{addr: addr, proto: proto}
+	l.accepters = make([]*inproc, 0, 5)
+	listeners.byAddr[addr] = l
+	listeners.cv.Broadcast()
+	listeners.mx.Unlock()
+	return l, nil
 }
 
 func (*inprocTran) SetOption(string, interface{}) error {
