@@ -27,16 +27,16 @@ const (
 	// The value passed is a bool.
 	OptionRaw = "RAW"
 
-	// OptionRecvDeadline is the absolute time when the next Recv should
-	// timeout.  The value is a time.Time.  Zero value may be passed to
-	// indicate that no timeout should be applied.  By default there is
-	// no timeout is used.
+	// OptionRecvDeadline is the time until the next Recv times out.  The
+	// value is a time.Duration.  Zero value may be passed to indicate that no
+	// timeout should be applied.  A negative value indicates a non-blocking
+	// operation.  By default there is no timeout.
 	OptionRecvDeadline = "RECV-DEADLINE"
 
-	// OptionSendDeadline is the absolute time when the next Send should
-	// timeout.  The value is a time.Time.  Zero value may be passed to
-	// indicate that no timeout should be applied.  By default there is
-	// no timeout.
+	// OptionSendDeadline is the time until the next Send times out.  The
+	// value is a time.Duration.  Zero value may be passed to indicate that no
+	// timeout should be applied.  A negative value indicates a non-blocking
+	// operation.  By default there is no timeout.
 	OptionSendDeadline = "SEND-DEADLINE"
 
 	// OptionRetryTime is used by REQ.  The argument is a time.Duration.

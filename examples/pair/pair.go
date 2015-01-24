@@ -27,13 +27,14 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
 	"github.com/gdamore/mangos/transport/ipc"
 	"github.com/gdamore/mangos/transport/tcp"
-	"fmt"
-	"os"
-	"time"
 )
 
 func die(format string, v ...interface{}) {
@@ -58,8 +59,7 @@ func recv_name(sock mangos.Socket, name string) {
 
 func send_recv(sock mangos.Socket, name string) {
 	for {
-		sock.SetOption(mangos.OptionRecvDeadline,
-			time.Now().Add(100*time.Millisecond))
+		sock.SetOption(mangos.OptionRecvDeadline, 100*time.Millisecond)
 		recv_name(sock, name)
 		time.Sleep(time.Second)
 		send_name(sock, name)
