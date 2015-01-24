@@ -20,6 +20,9 @@ import (
 	"time"
 )
 
+// defaultQLen is the default length of the upper read/write queues.
+const defaultQLen = 128
+
 // socket is the meaty part of the core information.
 type socket struct {
 	proto Protocol
@@ -27,11 +30,14 @@ type socket struct {
 	sync.Mutex
 
 	uwq    chan *Message // upper write queue
+	uwqLen int           // upper write queue buffer length
 	urq    chan *Message // upper read queue
+	urqLen int           // upper read queue buffer length
 	closeq chan struct{} // closed when user requests close
 	drainq chan struct{}
 
 	closing bool // true if Socket was closed at API level
+	active  bool // true if either Dial or Listen has been successfully called
 
 	rdeadline  time.Time
 	wdeadline  time.Time
@@ -75,8 +81,10 @@ func (sock *socket) remPipe(p *pipe) {
 
 func newSocket(proto Protocol) *socket {
 	sock := new(socket)
-	sock.uwq = make(chan *Message, 128)
-	sock.urq = make(chan *Message, 128)
+	sock.uwqLen = defaultQLen
+	sock.urqLen = defaultQLen
+	sock.uwq = make(chan *Message, sock.uwqLen)
+	sock.urq = make(chan *Message, sock.urqLen)
 	sock.closeq = make(chan struct{})
 	sock.drainq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?
@@ -260,6 +268,9 @@ func (sock *socket) Dial(addr string) error {
 	if err != nil {
 		return err
 	}
+	sock.Lock()
+	sock.active = true
+	sock.Unlock()
 	go sock.dialer(d)
 	return nil
 }
@@ -320,6 +331,9 @@ func (sock *socket) Listen(addr string) error {
 		return err
 	}
 	sock.accepters = append(sock.accepters, a)
+	sock.Lock()
+	sock.active = true
+	sock.Unlock()
 	go sock.serve(a)
 	return nil
 }
@@ -352,6 +366,32 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		sock.wdeadline = value.(time.Time)
 		sock.Unlock()
 		return nil
+	case OptionWriteQLen:
+		sock.Lock()
+		defer sock.Unlock()
+		if sock.active {
+			return ErrBadOption
+		}
+		length := value.(int)
+		if length < 0 {
+			return ErrBadValue
+		}
+		sock.uwqLen = length
+		sock.uwq = make(chan *Message, sock.uwqLen)
+		return nil
+	case OptionReadQLen:
+		sock.Lock()
+		defer sock.Unlock()
+		if sock.active {
+			return ErrBadOption
+		}
+		length := value.(int)
+		if length < 0 {
+			return ErrBadValue
+		}
+		sock.urqLen = length
+		sock.urq = make(chan *Message, sock.urqLen)
+		return nil
 	}
 	return ErrBadOption
 }
@@ -383,6 +423,14 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		sock.Lock()
 		defer sock.Unlock()
 		return sock.wdeadline, nil
+	case OptionWriteQLen:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.uwqLen, nil
+	case OptionReadQLen:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.urqLen, nil
 	}
 	return nil, ErrBadOption
 }
