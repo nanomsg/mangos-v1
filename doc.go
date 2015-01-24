@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -22,8 +22,5 @@
 // Surveyor/Respondant, etc.
 //
 // For more information, see www.nanomsg.org.
-//
-// This package is very very preliminary, and should probably not be put
-// into any real use at this point.  Use at your own risk!
 //
 package mangos

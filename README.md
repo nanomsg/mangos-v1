@@ -1,10 +1,6 @@
 ## mangos
 
-[![Build Status](https://travis-ci.org/gdamore/mangos.svg)](https://travis-ci.org/gdamore/mangos)
-
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-[![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos)
+[![Build Status](https://travis-ci.org/gdamore/mangos.svg?branch=master)](https://travis-ci.org/gdamore/mangos) [![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
@@ -31,9 +27,9 @@ Note that ipc:// is not supported on Windows (by either this or the reference
 implementation.)  Forcing the local TCP port in Dial is not supported yet (this
 is rarely useful).
 
-Basic interoperability with nanomsg has been tested with nanocat.
-
-Consider this a work-in-progress, and use at your own risk.
+Basic interoperability with nanomsg has been verified (you can do so yourself
+with nanocat and macat) for all protocols nanomsg supports.  Additionally there
+are a number of projects that use the two products together.
 
 If you find this useful, I would appreciate knowing about it.  I can be reached
 via my email address, garrett -at- damore -dot- org
@@ -65,7 +61,7 @@ the idiomatic Go way, although it uses a separate test sub-package:
 
 There are also internal benchmarks available:
 
-	$ go test -bench=. github.com/gdamore/mangos/test
+    $ go test -bench=. github.com/gdamore/mangos/test
 
 ## Examples
 
@@ -79,3 +75,5 @@ godoc in the example directories will yield information about how to run
 each example program.
 
 Enjoy!
+
+Copyright 2015 The Mangos Authors
