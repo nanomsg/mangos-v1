@@ -152,7 +152,6 @@ func (*surveyor) ValidPeer(peer uint16) bool {
 
 func (x *surveyor) SendHook(m *mangos.Message) bool {
 
-	var timeout time.Time
 	if x.raw {
 		return true
 	}
@@ -164,13 +163,10 @@ func (x *surveyor) SendHook(m *mangos.Message) bool {
 	m.Header = append(m.Header,
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 
-	if x.duration > 0 {
-		timeout = time.Now().Add(x.duration)
-	}
 	x.Unlock()
 
 	// We cheat and grab the recv deadline.
-	x.sock.SetOption(mangos.OptionRecvDeadline, timeout)
+	x.sock.SetOption(mangos.OptionRecvDeadline, x.duration)
 	return true
 }
 

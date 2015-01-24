@@ -21,25 +21,17 @@ import (
 	"time"
 )
 
-// mkTimer creates a timer based upon an absolute time.  If however
-// a zero valued time is passed, then a nil channel is passed
+// mkTimer creates a timer based upon a duration.  If however
+// a zero valued duration is passed, then a nil channel is passed
 // i.e. never selectable.  This allows the output to be readily used
 // with deadlines in network connections, etc.
-func mkTimer(deadline time.Time) <-chan time.Time {
+func mkTimer(deadline time.Duration) <-chan time.Time {
 
-	if deadline.IsZero() {
+	if deadline == 0 {
 		return nil
 	}
 
-	dur := deadline.Sub(time.Now())
-	if dur < 0 {
-		// a closed channel never blocks
-		tm := make(chan time.Time)
-		close(tm)
-		return tm
-	}
-
-	return time.After(dur)
+	return time.After(deadline)
 }
 
 var debug = true

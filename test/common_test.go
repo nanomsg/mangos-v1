@@ -16,9 +16,6 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/all"
-	"github.com/gdamore/mangos/transport/tlstcp"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -28,6 +25,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/all"
+	"github.com/gdamore/mangos/transport/tlstcp"
 )
 
 // T is a structure that subtests can inherit from.
@@ -127,12 +128,12 @@ func (c *T) SendMsg(m *mangos.Message) error {
 	// We sleep a tiny bit, to avoid cramming too many messages on
 	// busses, etc. all at once.  (The test requires no dropped messages.)
 	time.Sleep(c.SendDelay())
-	c.Sock.SetOption(mangos.OptionSendDeadline, time.Now().Add(time.Second*5))
+	c.Sock.SetOption(mangos.OptionSendDeadline, time.Second*5)
 	return c.Sock.SendMsg(m)
 }
 
 func (c *T) RecvMsg() (*mangos.Message, error) {
-	c.Sock.SetOption(mangos.OptionRecvDeadline, time.Now().Add(time.Second*5))
+	c.Sock.SetOption(mangos.OptionRecvDeadline, time.Second*5)
 	return c.Sock.RecvMsg()
 }
 

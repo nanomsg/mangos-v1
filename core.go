@@ -39,8 +39,8 @@ type socket struct {
 	closing bool // true if Socket was closed at API level
 	active  bool // true if either Dial or Listen has been successfully called
 
-	rdeadline  time.Time
-	wdeadline  time.Time
+	rdeadline  time.Duration
+	wdeadline  time.Duration
 	reconntime time.Duration // reconnect time after error or disconnect
 	linger     time.Duration
 
@@ -358,12 +358,12 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 	switch name {
 	case OptionRecvDeadline:
 		sock.Lock()
-		sock.rdeadline = value.(time.Time)
+		sock.rdeadline = value.(time.Duration)
 		sock.Unlock()
 		return nil
 	case OptionSendDeadline:
 		sock.Lock()
-		sock.wdeadline = value.(time.Time)
+		sock.wdeadline = value.(time.Duration)
 		sock.Unlock()
 		return nil
 	case OptionWriteQLen:
