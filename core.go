@@ -75,8 +75,8 @@ func (sock *socket) remPipe(p *pipe) {
 
 func newSocket(proto Protocol) *socket {
 	sock := new(socket)
-	sock.uwq = make(chan *Message, 10)
-	sock.urq = make(chan *Message, 10)
+	sock.uwq = make(chan *Message, 128)
+	sock.urq = make(chan *Message, 128)
 	sock.closeq = make(chan struct{})
 	sock.drainq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?

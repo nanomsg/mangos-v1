@@ -43,6 +43,21 @@ func (bt *busTest) Init(t *testing.T, addr string) bool {
 	return bt.T.Init(t, addr)
 }
 
+func (bt *busTest) WaitRecv() bool {
+	// We provide our own, so that we can provide more
+	// detailed error reporting about packet mismatches.
+	r := bt.T.WaitRecv()
+	bt.Lock()
+	defer bt.Unlock()
+	if !r {
+		bt.Errorf("Timeout socket %d", uint32(bt.GetID()))
+		for v, c := range bt.resp {
+			bt.Errorf("Last packet %d from %d", c, v)
+		}
+	}
+	return r
+}
+
 func (bt *busTest) RecvStart() bool {
 	m, err := bt.RecvMsg()
 	if err != nil {
@@ -73,6 +88,8 @@ func (bt *busTest) RecvStart() bool {
 }
 
 func (bt *busTest) SendHook(m *mangos.Message) bool {
+	bt.Lock()
+	defer bt.Unlock()
 	v := uint32(bt.GetID())
 	w := bt.send
 	bt.send++
@@ -89,6 +106,8 @@ func (bt *busTest) SendHook(m *mangos.Message) bool {
 }
 
 func (bt *busTest) RecvHook(m *mangos.Message) bool {
+	bt.Lock()
+	defer bt.Unlock()
 	if len(m.Body) < 8 {
 		bt.Errorf("Recv message length %d < 8", len(m.Body))
 		return false
@@ -101,7 +120,7 @@ func (bt *busTest) RecvHook(m *mangos.Message) bool {
 		return false
 	}
 	if w != uint32(bt.resp[v]) {
-		bt.Errorf("Got dup message #%d from %d", w, v)
+		bt.Errorf("Got wrong message #%d (!= %d) from %d", w, bt.resp[v], v)
 		return false
 	}
 	bt.resp[v]++
