@@ -1,5 +1,7 @@
 ## mangos
 
+[![Build Status](https://travis-ci.org/gdamore/mangos.svg)](https://travis-ci.org/gdamore/mangos)
+
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 [![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos)
