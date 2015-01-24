@@ -85,12 +85,12 @@ const (
 	OptionLocalAddress = "LOCAL-ADDRESS"
 
 	// OptionWriteQLen is used to set the size, in messages, of the write queue
-	// channel. By default, it's 10. This option cannot be set if Dial or
+	// channel. By default, it's 128. This option cannot be set if Dial or
 	// Listen has been called on the socket.
 	OptionWriteQLen = "WRITEQ-LEN"
 
 	// OptionReadQLen is used to set the size, in messages, of the read queue
-	// channel. By default, it's 10. This option cannot be set if Dial or
+	// channel. By default, it's 128. This option cannot be set if Dial or
 	// Listen has been called on the socket.
 	OptionReadQLen = "READQ-LEN"
 )
