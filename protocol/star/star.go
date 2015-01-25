@@ -64,19 +64,19 @@ func (pe *starEp) sender() {
 	}
 }
 
-func (x *star) broadcast(msg *mangos.Message, sender *starEp) {
+func (x *star) broadcast(m *mangos.Message, sender *starEp) {
 
 	x.Lock()
 	for _, pe := range x.eps {
 		if sender == pe {
 			continue
 		}
-		msg := msg.Dup()
+		m := m.Dup()
 		select {
-		case pe.q <- msg:
+		case pe.q <- m:
 		default:
 			// No room on outbound queue, drop it.
-			msg.Free()
+			m.Free()
 		}
 	}
 	x.Unlock()
@@ -84,15 +84,17 @@ func (x *star) broadcast(msg *mangos.Message, sender *starEp) {
 	// Grab a local copy and send it up if we aren't originator
 	if sender != nil {
 		select {
-		case x.sock.RecvChannel() <- msg:
+		case x.sock.RecvChannel() <- m:
 		case <-x.sock.CloseChannel():
+			m.Free()
 			return
 		default:
 			// No room, so we just drop it.
+			m.Free()
 		}
 	} else {
 		// Not sending it up, so we need to release it.
-		msg.Free()
+		m.Free()
 	}
 }
 
@@ -122,7 +124,11 @@ func (pe *starEp) receiver() {
 }
 
 func (x *star) AddEndpoint(ep mangos.Endpoint) {
-	pe := &starEp{ep: ep, x: x, q: make(chan *mangos.Message, 5)}
+	depth := 16
+	if i, err := x.sock.GetOption(mangos.OptionWriteQLen); err == nil {
+		depth = i.(int)
+	}
+	pe := &starEp{ep: ep, x: x, q: make(chan *mangos.Message, depth)}
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()

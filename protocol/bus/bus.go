@@ -67,9 +67,9 @@ func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 		if sender == id {
 			continue
 		}
-		msg := m.Dup()
+		m := m.Dup()
 		select {
-		case pe.q <- msg:
+		case pe.q <- m:
 		default:
 			// No room on outbound queue, drop it.
 			m.Free()
@@ -112,15 +112,24 @@ func (pe *busEp) receiver() {
 		select {
 		case pe.x.sock.RecvChannel() <- m:
 		case <-pe.x.sock.CloseChannel():
+			m.Free()
 			return
 		default:
 			// No room, so we just drop it.
+			m.Free()
 		}
 	}
 }
 
 func (x *bus) AddEndpoint(ep mangos.Endpoint) {
-	pe := &busEp{ep: ep, x: x, q: make(chan *mangos.Message, 5)}
+	// Set our broadcast depth to match upper depth -- this should
+	// help avoid dropping when bursting, if we burst before we
+	// context switch.
+	depth := 16
+	if i, err := x.sock.GetOption(mangos.OptionWriteQLen); err == nil {
+		depth = i.(int)
+	}
+	pe := &busEp{ep: ep, x: x, q: make(chan *mangos.Message, depth)}
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()

@@ -83,7 +83,11 @@ func (p *pub) sender() {
 }
 
 func (p *pub) AddEndpoint(ep mangos.Endpoint) {
-	pe := &pubEp{ep: ep, sock: p.sock, q: make(chan *mangos.Message, 5)}
+	depth := 16
+	if i, err := p.sock.GetOption(mangos.OptionWriteQLen); err == nil {
+		depth = i.(int)
+	}
+	pe := &pubEp{ep: ep, sock: p.sock, q: make(chan *mangos.Message, depth)}
 	p.Lock()
 	p.eps[ep.GetID()] = pe
 	p.Unlock()
