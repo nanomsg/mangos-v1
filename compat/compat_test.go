@@ -221,7 +221,7 @@ func ReqRepCompat(t *testing.T, addr string, num uint32) {
 }
 
 func TestCompatTCP(t *testing.T) {
-	addr := "tcp://127.0.0.1:39093"
+	addr := "tcp://127.0.0.1:34444"
 	ReqRepCompat(t, addr, 50000)
 }
 
