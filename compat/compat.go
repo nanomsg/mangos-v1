@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -167,7 +167,6 @@ func NewSocket(d Domain, p Protocol) (*Socket, error) {
 func (s *Socket) Close() error {
 	if s.sock != nil {
 		s.sock.Close()
-		s.sock = nil
 	}
 	return nil
 }
@@ -199,22 +198,23 @@ func (s *Socket) Recv(flags int) ([]byte, error) {
 	var b []byte
 	var m *mangos.Message
 	var err error
-	var when time.Time
 
 	if flags != 0 {
 		return nil, errNoFlag
 	}
 
-	if s.rto >= 0 {
-		when = time.Now().Add(s.rto)
-	} else {
-		when = time.Time{}
+	// Legacy nanomsg uses the opposite semantic for negative and
+	// zero values than mangos.  A bit unfortunate.
+	switch {
+	case s.rto > 0:
+		s.sock.SetOption(mangos.OptionRecvDeadline, s.rto)
+	case s.rto == 0:
+		s.sock.SetOption(mangos.OptionRecvDeadline, -1)
+	case s.rto < 0:
+		s.sock.SetOption(mangos.OptionRecvDeadline, 0)
 	}
 
-	s.sock.SetOption(mangos.OptionRecvDeadline, when)
-
-	m, err = s.sock.RecvMsg()
-	if err != nil {
+	if m, err = s.sock.RecvMsg(); err != nil {
 		return nil, err
 	}
 
@@ -233,7 +233,6 @@ func (s *Socket) Recv(flags int) ([]byte, error) {
 // Send sends a message.  For AF_SP_RAW messages the header must be
 // included in the argument.  At this time, no flags are supported.
 func (s *Socket) Send(b []byte, flags int) (int, error) {
-	var when time.Time
 
 	if flags != 0 {
 		return -1, errNoFlag
@@ -242,12 +241,16 @@ func (s *Socket) Send(b []byte, flags int) (int, error) {
 	m := mangos.NewMessage(len(b))
 	m.Body = append(m.Body, b...)
 
-	if s.sto >= 0 {
-		when = time.Now().Add(s.sto)
-	} else {
-		when = time.Time{}
+	// Legacy nanomsg uses the opposite semantic for negative and
+	// zero values than mangos.  A bit unfortunate.
+	switch {
+	case s.sto > 0:
+		s.sock.SetOption(mangos.OptionSendDeadline, s.sto)
+	case s.sto == 0:
+		s.sock.SetOption(mangos.OptionSendDeadline, -1)
+	case s.sto < 0:
+		s.sock.SetOption(mangos.OptionSendDeadline, 0)
 	}
-	s.sock.SetOption(mangos.OptionSendDeadline, when)
 
 	return len(b), s.sock.SendMsg(m)
 }
