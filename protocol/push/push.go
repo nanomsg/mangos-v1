@@ -49,6 +49,14 @@ func (x *push) sender(ep mangos.Endpoint) {
 	}
 }
 
+func (x *push) receiver(ep mangos.Endpoint) {
+        // In order for us to detect a dropped connection, we need to poll
+        // on the socket.  We don't care about the results and discard them,
+        // but this allows the disconnect to be noticed.  Note that we will
+        // be blocked in this call forever, until the connection is dropped.
+	ep.RecvMsg()
+}
+
 func (*push) Number() uint16 {
 	return mangos.ProtoPush
 }
@@ -62,6 +70,7 @@ func (*push) ValidPeer(peer uint16) bool {
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {
 	go x.sender(ep)
+	go x.receiver(ep)
 }
 
 func (x *push) RemoveEndpoint(ep mangos.Endpoint) {}

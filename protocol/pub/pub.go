@@ -82,6 +82,14 @@ func (p *pub) sender() {
 	}
 }
 
+func (pe *pubEp) receiver() {
+	// In order for us to detect a dropped connection, we need to poll
+	// on the socket.  We don't care about the results and discard them,
+	// but this allows the disconnect to be noticed.  Note that we will
+	// be blocked in this call forever, until the connection is dropped.
+	pe.ep.RecvMsg()
+}
+
 func (p *pub) AddEndpoint(ep mangos.Endpoint) {
 	depth := 16
 	if i, err := p.sock.GetOption(mangos.OptionWriteQLen); err == nil {
@@ -92,6 +100,7 @@ func (p *pub) AddEndpoint(ep mangos.Endpoint) {
 	p.eps[ep.GetID()] = pe
 	p.Unlock()
 	go pe.sender()
+	go pe.receiver()
 }
 
 func (p *pub) RemoveEndpoint(ep mangos.Endpoint) {
