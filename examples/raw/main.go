@@ -60,7 +60,7 @@ func main() {
 			if err != nil || nworkers < 1 {
 				die("bad worker count")
 			}
-		}	
+		}
 		client(os.Args[2], nworkers)
 		os.Exit(0)
 	}

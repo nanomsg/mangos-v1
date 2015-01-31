@@ -262,9 +262,7 @@ func (sock *socket) Dial(addr string) error {
 	if t == nil {
 		return ErrBadTran
 	}
-	// skip the tcp:// or ipc:// or whatever
-	addr = addr[len(t.Scheme())+len("://"):]
-	d, err := t.NewDialer(addr, sock.proto.Number())
+	d, err := t.NewDialer(addr, sock.proto)
 	if err != nil {
 		return err
 	}
@@ -324,9 +322,7 @@ func (sock *socket) Listen(addr string) error {
 	if t == nil {
 		return ErrBadTran
 	}
-	// skip the tcp:// or ipc:// or whatever
-	addr = addr[len(t.Scheme())+len("://"):]
-	a, err := t.NewAccepter(addr, sock.proto.Number())
+	a, err := t.NewAccepter(addr, sock.proto)
 	if err != nil {
 		return err
 	}
@@ -339,19 +335,18 @@ func (sock *socket) Listen(addr string) error {
 }
 
 func (sock *socket) SetOption(name string, value interface{}) error {
+	matched := false
 	err := sock.proto.SetOption(name, value)
 	if err == nil {
-		return nil
-	}
-	if err != ErrBadOption {
+		matched = true
+	} else if err != ErrBadOption {
 		return err
 	}
 	for _, t := range sock.transports {
 		err := t.SetOption(name, value)
 		if err == nil {
-			return nil
-		}
-		if err != ErrBadOption {
+			matched = true
+		} else if err != ErrBadOption {
 			return err
 		}
 	}
@@ -391,6 +386,9 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		}
 		sock.urqLen = length
 		sock.urq = make(chan *Message, sock.urqLen)
+		return nil
+	}
+	if matched {
 		return nil
 	}
 	return ErrBadOption

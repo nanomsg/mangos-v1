@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,9 +19,10 @@
 package sub
 
 import (
-	"github.com/gdamore/mangos"
 	"bytes"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type sub struct {
@@ -75,11 +76,16 @@ func (*sub) Number() uint16 {
 	return mangos.ProtoSub
 }
 
-func (*sub) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoSub {
-		return true
-	}
-	return false
+func (*sub) PeerNumber() uint16 {
+	return mangos.ProtoPub
+}
+
+func (*sub) Name() string {
+	return "sub"
+}
+
+func (*sub) PeerName() string {
+	return "pub"
 }
 
 func (s *sub) AddEndpoint(ep mangos.Endpoint) {
@@ -148,7 +154,12 @@ func (s *sub) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewSocket allocates a new Socket using the PUB protocol.
+// NewProtocol returns a new SUB protocol object.
+func NewProtocol() mangos.Protocol {
+	return &sub{}
+}
+
+// NewSocket allocates a new Socket using the SUB protocol.
 func NewSocket() (mangos.Socket, error) {
 	return mangos.MakeSocket(&sub{}), nil
 }

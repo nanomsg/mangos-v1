@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -27,9 +27,13 @@ import (
 	"time"
 
 	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/all"
-	"github.com/gdamore/mangos/transport/tlstcp"
 )
+
+var protoReq = req.NewProtocol()
+var protoRep = rep.NewProtocol()
 
 // T is a structure that subtests can inherit from.
 type T struct {
@@ -45,7 +49,9 @@ type T struct {
 	numrx   int32
 	timeout time.Duration
 	Sock    mangos.Socket
+	rdone   bool
 	rdoneq  chan struct{}
+	sdone   bool
 	sdoneq  chan struct{}
 	readyq  chan struct{}
 	Server  bool
@@ -103,10 +109,6 @@ func (c *T) Init(t *testing.T, addr string) bool {
 	c.txdelay = time.Duration(time.Now().UnixNano()) % time.Millisecond
 
 	all.AddTransports(c.Sock)
-	c.Sock.AddTransport(tlstcp.NewTransport())
-	if !SetTLSTest(t, c.Sock) {
-		return false
-	}
 	return true
 }
 
@@ -185,13 +187,19 @@ func (c *T) GetID() int {
 
 func (c *T) SendDone() {
 	c.Lock()
-	close(c.sdoneq)
+	if !c.sdone {
+		c.sdone = true
+		close(c.sdoneq)
+	}
 	c.Unlock()
 }
 
 func (c *T) RecvDone() {
 	c.Lock()
-	close(c.rdoneq)
+	if !c.rdone {
+		c.rdone = true
+		close(c.rdoneq)
+	}
 	c.Unlock()
 }
 
@@ -214,6 +222,9 @@ func (c *T) WaitRecv() bool {
 }
 
 func (c *T) Dial() bool {
+	if !SetTLSTest(c.t, c.Sock, false) {
+		return false
+	}
 	err := c.Sock.Dial(c.addr)
 	if err != nil {
 		c.Errorf("Dial (%s) failed: %v", c.addr, err)
@@ -225,6 +236,9 @@ func (c *T) Dial() bool {
 }
 
 func (c *T) Listen() bool {
+	if !SetTLSTest(c.t, c.Sock, true) {
+		return false
+	}
 	err := c.Sock.Listen(c.addr)
 	if err != nil {
 		c.Errorf("Listen (%s) failed: %v", c.addr, err)
@@ -236,10 +250,7 @@ func (c *T) Listen() bool {
 }
 
 func (c *T) Close() {
-	if c.Sock != nil {
-		c.Sock.Close()
-		c.Sock = nil
-	}
+	c.Sock.Close()
 }
 
 func (c *T) SendDelay() time.Duration {
@@ -540,6 +551,12 @@ var AddrTestInp = "inproc://MYTEST_INPROC"
 // AddrTestTLS is a suitable TLS address for testing.
 var AddrTestTLS = "tls+tcp://127.0.0.1:43934"
 
+// AddrTestWS is a suitable websocket address for testing.
+var AddrTestWS = "ws://127.0.0.1:53935"
+
+// AddrTestWSS is a suitable secure websocket address for testing.
+var AddrTestWSS = "wss://127.0.0.1:53936"
+
 // RunTestsTCP runs the TCP tests.
 func RunTestsTCP(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestTCP, cases)
@@ -558,4 +575,14 @@ func RunTestsInp(t *testing.T, cases []TestCase) {
 // RunTestsTLS runs the TLS tests.
 func RunTestsTLS(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestTLS, cases)
+}
+
+// RunTestsWS runs the websock tests.
+func RunTestsWS(t *testing.T, cases []TestCase) {
+	RunTests(t, AddrTestWS, cases)
+}
+
+// RunTestsWSS runs the websock tests.
+func RunTestsWSS(t *testing.T, cases []TestCase) {
+	RunTests(t, AddrTestWSS, cases)
 }

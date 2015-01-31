@@ -15,10 +15,11 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/bus"
 	"encoding/binary"
 	"testing"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/bus"
 )
 
 type busTest struct {

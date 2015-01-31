@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,6 +15,8 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
 	"github.com/gdamore/mangos/protocol/rep"
@@ -23,7 +25,8 @@ import (
 	"github.com/gdamore/mangos/transport/ipc"
 	"github.com/gdamore/mangos/transport/tcp"
 	"github.com/gdamore/mangos/transport/tlstcp"
-	"testing"
+	"github.com/gdamore/mangos/transport/ws"
+	"github.com/gdamore/mangos/transport/wss"
 )
 
 func TestDeviceBadPair(t *testing.T) {
@@ -199,7 +202,9 @@ func testDevLoop(t *testing.T, addr string) {
 	s1.AddTransport(ipc.NewTransport())
 	s1.AddTransport(inproc.NewTransport())
 	s1.AddTransport(tlstcp.NewTransport())
-	SetTLSTest(t, s1)
+	s1.AddTransport(ws.NewTransport())
+	s1.AddTransport(wss.NewTransport())
+	SetTLSTest(t, s1, true)
 
 	if err := s1.Listen(addr); err != nil {
 		t.Errorf("Failed listening to %s: %v", addr, err)
@@ -229,7 +234,7 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 		s[i].AddTransport(ipc.NewTransport())
 		s[i].AddTransport(inproc.NewTransport())
 		s[i].AddTransport(tlstcp.NewTransport())
-		SetTLSTest(t, s[i])
+		SetTLSTest(t, s[i], false)
 	}
 
 	if err = s[0].Listen(addr1); err != nil {
@@ -285,4 +290,12 @@ func TestDeviceLoopIPC(t *testing.T) {
 
 func TestDeviceLoopTLS(t *testing.T) {
 	testDevLoop(t, AddrTestTLS)
+}
+
+func TestDeviceLoopWS(t *testing.T) {
+	testDevLoop(t, AddrTestWS)
+}
+
+func TestDeviceLoopWSS(t *testing.T) {
+	testDevLoop(t, AddrTestWSS)
 }

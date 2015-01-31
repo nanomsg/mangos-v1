@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 
 type tcpDialer struct {
 	addr  *net.TCPAddr
-	proto uint16
+	proto mangos.Protocol
 }
 
 func (d *tcpDialer) Dial() (mangos.Pipe, error) {
@@ -37,7 +37,7 @@ func (d *tcpDialer) Dial() (mangos.Pipe, error) {
 
 type tcpAccepter struct {
 	addr     *net.TCPAddr
-	proto    uint16
+	proto    mangos.Protocol
 	listener *net.TCPListener
 }
 
@@ -63,20 +63,27 @@ func (t *tcpTran) Scheme() string {
 	return "tcp"
 }
 
-func (t *tcpTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
+func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
 	var err error
-	d := &tcpDialer{}
-	d.proto = proto
+	d := &tcpDialer{proto: proto}
+
+	if addr, err = mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
+
 	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
-func (t *tcpTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
+func (t *tcpTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
 	var err error
-	a := &tcpAccepter{}
-	a.proto = proto
+	a := &tcpAccepter{proto: proto}
+
+	if addr, err = mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
 
 	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err

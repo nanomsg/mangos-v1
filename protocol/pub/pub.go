@@ -18,8 +18,9 @@
 package pub
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type pubEp struct {
@@ -113,11 +114,16 @@ func (*pub) Number() uint16 {
 	return mangos.ProtoPub
 }
 
-func (*pub) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoSub {
-		return true
-	}
-	return false
+func (*pub) PeerNumber() uint16 {
+	return mangos.ProtoSub
+}
+
+func (*pub) Name() string {
+	return "pub"
+}
+
+func (*pub) PeerName() string {
+	return "sub"
 }
 
 func (p *pub) SetOption(name string, v interface{}) error {
@@ -137,6 +143,11 @@ func (p *pub) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new PUB protocol object.
+func NewProtocol() mangos.Protocol {
+	return &pub{}
 }
 
 // NewSocket allocates a new Socket using the PUB protocol.

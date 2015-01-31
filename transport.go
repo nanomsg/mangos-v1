@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -13,6 +13,10 @@
 // limitations under the License.
 
 package mangos
+
+import (
+	"strings"
+)
 
 // Pipe behaves like a full-duplex message-oriented connection between two
 // peers.  Callers may call operations on a Pipe simultaneously from
@@ -95,13 +99,13 @@ type Transport interface {
 	Scheme() string
 
 	// NewDialer creates a new Dialer for this Transport.
-	NewDialer(url string, protocol uint16) (PipeDialer, error)
+	NewDialer(url string, protocol Protocol) (PipeDialer, error)
 
 	// NewAccepter creates a new Accepter for this Transport.
 	// This generally also arranges for an OS-level file descriptor to be
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
-	NewAccepter(url string, protocol uint16) (PipeAccepter, error)
+	NewAccepter(url string, protocol Protocol) (PipeAccepter, error)
 
 	// SetOption allows for transports to handle transport specific
 	// options.  EBadOption should be returned if the Transport doesn't
@@ -112,4 +116,11 @@ type Transport interface {
 	// If the protocol doesn't recognize the option, EBadOption should
 	// be returned.
 	GetOption(string) (interface{}, error)
+}
+
+func StripScheme(t Transport, addr string) (string, error) {
+	if !strings.HasPrefix(addr, t.Scheme()+"://") {
+		return addr, ErrBadTran
+	}
+	return addr[len(t.Scheme()+"://"):], nil
 }

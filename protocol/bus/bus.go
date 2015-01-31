@@ -17,9 +17,10 @@
 package bus
 
 import (
-	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type busEp struct {
@@ -147,11 +148,16 @@ func (*bus) Number() uint16 {
 	return mangos.ProtoBus
 }
 
-func (*bus) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoBus {
-		return true
-	}
-	return false
+func (*bus) Name() string {
+	return "bus"
+}
+
+func (*bus) PeerNumber() uint16 {
+	return mangos.ProtoBus
+}
+
+func (*bus) PeerName() string {
+	return "bus"
 }
 
 func (x *bus) RecvHook(m *mangos.Message) bool {
@@ -178,6 +184,11 @@ func (x *bus) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new BUS protocol object.
+func NewProtocol() mangos.Protocol {
+	return &bus{}
 }
 
 // NewSocket allocates a new Socket using the BUS protocol.

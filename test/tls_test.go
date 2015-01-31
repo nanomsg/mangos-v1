@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,100 +15,227 @@
 package test
 
 import (
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/rep"
 	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/tlstcp"
-	"bytes"
-	"crypto/tls"
-	"testing"
-	"time"
 )
 
-// Certificates & Keys for Testing use ONLY.  These are just
-// simple self signed.  Not suitable for real use.
+var rootKey *rsa.PrivateKey
+var serverKey *rsa.PrivateKey
+var clientKey *rsa.PrivateKey
 
-var tlsTestServerKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
-MIICXgIBAAKBgQDXW+SaVRSk5he6jr4ksTimYKWwa8Xn+v2GK8u4zNi6rNV/HTXM
-YrRBUcX/HwOAyUbPYKWhJU/KuMad0uuFpG64FvoMlWmIsX8nultqGCBY7b6oltIV
-RC479wwWv8+Y1yl4QBZI1u8UgJZ3kQgAd7UWovUtSU6h9152rO4ru0aLMwIDAQAB
-AoGBAICozJULOU8ei5SPzLb9DXwQh0wzxsNFpoquxYG9F8nGkbHkUIyvd0MCyIgX
-Di+1j9E6yxjPwrC43SfSp5Rq3R2SyV+KI2zGnvCrUQgNs3vB7MvchSNHpJKLxQJW
-TiWrSVdwJx5J4ISzB9ynpVKsPiOTcKjMsu//+7TOk0Cl427pAkEA+RZ0UpQSC5sx
-lv6anRMfRlQ+185kfEzATVlhno51ifdTGUrm25UPC9RrhQYrrWHMLmyn54b81d92
-g5A9RWTvfwJBAN1V02/vskCSjkyfQ87Z+vlEVaNqZdn/83VJ6+7itbHUQTfHGOAd
-HKNJ2k46joZBOEFB2GelhdhJdxTDjPb2fk0CQF7mcDEaGvnzCeS2Yh/gLjU0WbEN
-AHnfIBEYMbogGqYS5cUoJWaZlt7x8nj/DdsD/K/fU+VBJ8kwV03uwXlT6G8CQQCk
-xCZxVruYjEE4Uvt0ehr2AuPJkgQeRAZl0tC69bQSnJKsRh+Dfsh52hmUUM0WrmiF
-U9IYXkUEHLR0FZrToe2lAkEA3cFvC+tK4q7ElcGIxIMFRMcDcjf8SgAwjRQ/cZ/0
-sGzCwGV3VljIguImpl1S0Sbcw+VDce8QmV8AvCEMYy9Qzw==
------END RSA PRIVATE KEY-----
-`
+var tlsTestRootKeyPEM []byte
+var tlsTestServerKeyPEM []byte
+var tlsTestClientKeyPEM []byte
 
-var tlsTestServerCertPEM = `-----BEGIN CERTIFICATE-----
-MIIC2zCCAkSgAwIBAgIJAM7DRUne6nfZMA0GCSqGSIb3DQEBBQUAMFMxCzAJBgNV
-BAYTAlVTMRYwFAYDVQQIEw1TdGF0ZSBvZiBNaW5kMRIwEAYDVQQHEwlIYXBwaW5l
-c3MxGDAWBgNVBAoTD0ZlZWwgR29vZCwgSW5jLjAeFw0xNDAzMjUwMzU4MTFaFw0z
-NDAzMjAwMzU4MTFaMFMxCzAJBgNVBAYTAlVTMRYwFAYDVQQIEw1TdGF0ZSBvZiBN
-aW5kMRIwEAYDVQQHEwlIYXBwaW5lc3MxGDAWBgNVBAoTD0ZlZWwgR29vZCwgSW5j
-LjCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA11vkmlUUpOYXuo6+JLE4pmCl
-sGvF5/r9hivLuMzYuqzVfx01zGK0QVHF/x8DgMlGz2CloSVPyrjGndLrhaRuuBb6
-DJVpiLF/J7pbahggWO2+qJbSFUQuO/cMFr/PmNcpeEAWSNbvFICWd5EIAHe1FqL1
-LUlOofdedqzuK7tGizMCAwEAAaOBtjCBszAdBgNVHQ4EFgQU3mEJlXXC9yyCewHa
-226sMLxFxcowgYMGA1UdIwR8MHqAFN5hCZV1wvcsgnsB2tturDC8RcXKoVekVTBT
-MQswCQYDVQQGEwJVUzEWMBQGA1UECBMNU3RhdGUgb2YgTWluZDESMBAGA1UEBxMJ
-SGFwcGluZXNzMRgwFgYDVQQKEw9GZWVsIEdvb2QsIEluYy6CCQDOw0VJ3up32TAM
-BgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBQUAA4GBAA0gbvJu4eeXsHjuuFbYJJnM
-EQgzKx3SIgXE79LOL3r9SJbhke0zRnOm5wk6vwUMf/5X6Y2bfxOtC1ApIlX6GBUd
-BM2pgQooI69Oj69/4s1ouoMXFDb06DWCYA1qh2BECkZspHL7f7e7NIN93wvIFnjm
-w18UjqzUqsn9QusTf6rP
------END CERTIFICATE-----
-`
+var tlsTestRootCertDER []byte
+var tlsTestServerCertDER []byte
+var tlsTestClientCertDER []byte
 
-var tlsTestClientKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
-MIICWwIBAAKBgQCpbrtgC9TWzBB4Pg1xg69HD56NaB/rH5DOhSI8yqeX4Tse8Qdm
-qXGp5MoQdl0RxQPZiM5KAtp7H2LOFEN32OMSGf6jpzfH6Yiz/KxV510JecA6yVyx
-GsrJX28Gl/cTvufRR5hu8x+U9XN0MtSp1Hb16EMGq1xL7w1dsBeujocPKQIDAQAB
-AoGAZyc/dO4/GrcKn+pHjQC7Sew8f6MRK7kAFHwBqDlJZ7J8qA3ej6ZByUm9q+Ak
-MZldCqe70FuEYMlvAkBcAy9Mrs6vZhnguMsle4lfkZIT57ic2SXLUBGuw7KOwlBi
-6kjgyV/sVVpsI7g5L8/qFVMfhbuUZA9HOrTZGQjPFeD/CHECQQDbMTUxNyRTbP5C
-MR0lVWJIT3R988jX5XAbLB36rm8ILwW1dmkq/HYVTAPdPsg1G1rOWZDiVkx2UC8L
-SvMwvCXTAkEAxeJrczZwiot1x9uspY8SQrwJSWewaOLm2OsHares0zB6d7AXWBPw
-ePPhGHeJ0VINpWig2hGpkrzwa+1cBgPtkwJAVjFMdHT1kOS8OvUrO+IOitbLvTef
-E97CLb00cL4lJTewbAILKv8pxAgnQNoOSmveUmSAB7Dd0myHg05OwSxLRwJAZWYG
-RT1KIdQggE7SgutzIfsUjyawwK40OEcGv+pqhrU6rAXxkFJ3UKM3XsAyQK5ZC783
-XUbbq7NhRwyTsQlmPQJARL0NloUEG+M83R60DxPLoC8xjBUeH0TKGvI3zlltCm0h
-KlJJX0BpQr80rVl62AT7+Pzy4gMy7mGnvm2QI5HQkg==
------END RSA PRIVATE KEY-----
-`
+var tlsTestRootCert *x509.Certificate
+var tlsTestServerCert *x509.Certificate
+var tlsTestClientCert *x509.Certificate
 
-var tlsTestClientCertPEM = `-----BEGIN CERTIFICATE-----
-MIICvDCCAiWgAwIBAgIJAKG00YYTtIcFMA0GCSqGSIb3DQEBBQUAMEkxCzAJBgNV
-BAYTAlVTMREwDwYDVQQIEwhJbnNhbml0eTEPMA0GA1UEBxMGQXN5bHVtMRYwFAYD
-VQQKEw1GcmVha3MgQXJlIFVzMB4XDTE0MDMyNTA0MzM0MFoXDTM0MDMyMDA0MzM0
-MFowSTELMAkGA1UEBhMCVVMxETAPBgNVBAgTCEluc2FuaXR5MQ8wDQYDVQQHEwZB
-c3lsdW0xFjAUBgNVBAoTDUZyZWFrcyBBcmUgVXMwgZ8wDQYJKoZIhvcNAQEBBQAD
-gY0AMIGJAoGBAKluu2AL1NbMEHg+DXGDr0cPno1oH+sfkM6FIjzKp5fhOx7xB2ap
-cankyhB2XRHFA9mIzkoC2nsfYs4UQ3fY4xIZ/qOnN8fpiLP8rFXnXQl5wDrJXLEa
-yslfbwaX9xO+59FHmG7zH5T1c3Qy1KnUdvXoQwarXEvvDV2wF66Ohw8pAgMBAAGj
-gaswgagwHQYDVR0OBBYEFAhSBOpvwg6eeyAdVVlAywek5QxhMHkGA1UdIwRyMHCA
-FAhSBOpvwg6eeyAdVVlAywek5QxhoU2kSzBJMQswCQYDVQQGEwJVUzERMA8GA1UE
-CBMISW5zYW5pdHkxDzANBgNVBAcTBkFzeWx1bTEWMBQGA1UEChMNRnJlYWtzIEFy
-ZSBVc4IJAKG00YYTtIcFMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADgYEA
-B0Dguox9iHjouoRLuZfdMQA+HT1BCK7bbMo/z9tRJbwVAAwTkcVholivIJmlz5iS
-hVMvNUpq/dBUhdmeUfwu19ZxAYeeEkqgHMazyVpVCP0fdgVZ1ZGbfr7GIWf2oXYa
-gYiuigwixOW006p90YD+k9NPvro1usEMwEUiqatuYIE=
------END CERTIFICATE-----
-`
+var tlsTestRootCertPEM []byte
+var tlsTestServerCertPEM []byte
+var tlsTestClientCertPEM []byte
+
+var rootTmpl = &x509.Certificate{
+	SerialNumber: big.NewInt(1),
+
+	Issuer: pkix.Name{
+		CommonName:   "issuer.mangos.example.com",
+		Organization: []string{"Mangos Issuer Org"},
+	},
+	Subject: pkix.Name{
+		CommonName:   "root.mangos.example.com",
+		Organization: []string{"Mangos Root Org"},
+	},
+	NotBefore:          time.Unix(1000, 0),
+	NotAfter:           time.Now().Add(time.Hour),
+	IsCA:               true,
+	OCSPServer:         []string{"ocsp.mangos.example.com"},
+	DNSNames:           []string{"root.mangos.example.com"},
+	IPAddresses:        []net.IP{net.ParseIP("127.0.0.1")},
+	SignatureAlgorithm: x509.SHA1WithRSA,
+	KeyUsage:           x509.KeyUsageCertSign,
+	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+}
+
+var serverTmpl = &x509.Certificate{
+	SerialNumber: big.NewInt(2),
+
+	Issuer: pkix.Name{
+		CommonName:   "issuer.mangos.example.com",
+		Organization: []string{"Mangos Issuer Org"},
+	},
+	Subject: pkix.Name{
+		CommonName:   "server.mangos.example.com",
+		Organization: []string{"Mangos Server Org"},
+	},
+	NotBefore:          time.Unix(1000, 0),
+	NotAfter:           time.Now().Add(time.Hour),
+	IsCA:               false,
+	OCSPServer:         []string{"ocsp.mangos.example.com"},
+	DNSNames:           []string{"server.mangos.example.com"},
+	IPAddresses:        []net.IP{net.ParseIP("127.0.0.1")},
+	SignatureAlgorithm: x509.SHA1WithRSA,
+	KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+}
+
+var clientTmpl = &x509.Certificate{
+	SerialNumber: big.NewInt(3),
+
+	Issuer: pkix.Name{
+		CommonName:   "issuer.mangos.example.com",
+		Organization: []string{"Mangos Issuer Org"},
+	},
+	Subject: pkix.Name{
+		CommonName:   "client.mangos.example.com",
+		Organization: []string{"Mangos Client Org"},
+	},
+	NotBefore:          time.Unix(1000, 0),
+	NotAfter:           time.Now().Add(time.Hour),
+	IsCA:               false,
+	OCSPServer:         []string{"ocsp.mangos.example.com"},
+	DNSNames:           []string{"client.mangos.example.com"},
+	IPAddresses:        []net.IP{net.ParseIP("127.0.0.1")},
+	SignatureAlgorithm: x509.SHA1WithRSA,
+	KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+}
+
+var tlslock sync.Mutex
+
+func GenerateKeysAndCerts() (err error) {
+	tlslock.Lock()
+	defer tlslock.Unlock()
+	if rootKey == nil {
+		if rootKey, err = rsa.GenerateKey(rand.Reader, 2048); err != nil {
+			return
+		}
+	}
+	if tlsTestRootKeyPEM == nil {
+		tlsTestRootKeyPEM = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(rootKey),
+		})
+	}
+
+	if serverKey == nil {
+		if serverKey, err = rsa.GenerateKey(rand.Reader, 1024); err != nil {
+			return
+		}
+	}
+	if tlsTestServerKeyPEM == nil {
+		tlsTestServerKeyPEM = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
+		})
+	}
+
+	if clientKey == nil {
+		if clientKey, err = rsa.GenerateKey(rand.Reader, 1024); err != nil {
+			return
+		}
+	}
+	if tlsTestClientKeyPEM == nil {
+		tlsTestClientKeyPEM = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
+		})
+	}
+
+	if tlsTestRootCertDER == nil {
+		var der_, pem_ []byte
+		var cert *x509.Certificate
+
+		der_, err = x509.CreateCertificate(rand.Reader, rootTmpl, rootTmpl, &rootKey.PublicKey, rootKey)
+		if err != nil {
+			return
+		}
+		if cert, err = x509.ParseCertificate(der_); err != nil {
+			return
+		}
+		pem_ = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der_})
+		tlsTestRootCertDER = der_
+		tlsTestRootCertPEM = pem_
+		tlsTestRootCert = cert
+	}
+
+	if tlsTestServerCertDER == nil {
+		var der_, pem_ []byte
+		var cert *x509.Certificate
+
+		der_, err = x509.CreateCertificate(rand.Reader, serverTmpl, tlsTestRootCert, &serverKey.PublicKey, rootKey)
+		if err != nil {
+			return
+		}
+		if cert, err = x509.ParseCertificate(der_); err != nil {
+			return
+		}
+		pem_ = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der_})
+		tlsTestServerCertDER = der_
+		tlsTestServerCertPEM = pem_
+		tlsTestServerCert = cert
+	}
+
+	if tlsTestClientCertDER == nil {
+		var der_, pem_ []byte
+		var cert *x509.Certificate
+
+		der_, err = x509.CreateCertificate(rand.Reader, clientTmpl, tlsTestRootCert, &clientKey.PublicKey, rootKey)
+		if err != nil {
+			return
+		}
+		if cert, err = x509.ParseCertificate(der_); err != nil {
+			return
+		}
+		pem_ = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der_})
+		tlsTestClientCertDER = der_
+		tlsTestClientCertPEM = pem_
+		tlsTestClientCert = cert
+	}
+
+	return nil
+}
 
 // Wrap this in a function so we can use it later.
-func SetTLSTest(t testing.TB, sock mangos.Socket) bool {
-	cfg := new(tls.Config)
-	cert, err := tls.X509KeyPair([]byte(tlsTestClientCertPEM),
-		[]byte(tlsTestClientKeyPEM))
-	if err != nil {
-		t.Errorf("Failed loading TLS certificate: %v", err)
+func SetTLSTest(t testing.TB, sock mangos.Socket, server bool) bool {
+	if err := GenerateKeysAndCerts(); err != nil {
+		t.Errorf("Failed generating keys or certs: %v", err)
 		return false
+	}
+	cfg := new(tls.Config)
+	var cert tls.Certificate
+	var err error
+	if server {
+		cert, err = tls.X509KeyPair(tlsTestServerCertPEM, tlsTestServerKeyPEM)
+		if err != nil {
+			t.Errorf("Failed loading server TLS certificate: %v", err)
+			return false
+		}
+	} else {
+		cert, err = tls.X509KeyPair(tlsTestClientCertPEM, tlsTestClientKeyPEM)
+		if err != nil {
+			t.Errorf("Failed loading client TLS certificate: %v", err)
+			return false
+		}
 	}
 	cfg.Certificates = make([]tls.Certificate, 1)
 	cfg.Certificates[0] = cert
@@ -137,6 +264,10 @@ func TestTLSReqRep(t *testing.T) {
 
 	var pass, ok bool
 
+	if err := GenerateKeysAndCerts(); err != nil {
+		t.Errorf("Failed to generate keys/certs: %v", err)
+		return
+	}
 	t.Log("Starting server")
 	go func() {
 		var err error
@@ -158,8 +289,7 @@ func TestTLSReqRep(t *testing.T) {
 		//defer srvsock.Close()
 
 		cfg = new(tls.Config)
-		cert, err = tls.X509KeyPair([]byte(tlsTestServerCertPEM),
-			[]byte(tlsTestServerKeyPEM))
+		cert, err = tls.X509KeyPair(tlsTestServerCertPEM, tlsTestServerKeyPEM)
 		if err != nil {
 			t.Errorf("Failed loading server certificate: %v", err)
 			return
@@ -228,8 +358,7 @@ func TestTLSReqRep(t *testing.T) {
 
 		// Load up ROOT CA
 		cfg = new(tls.Config)
-		cert, err = tls.X509KeyPair([]byte(tlsTestClientCertPEM),
-			[]byte(tlsTestClientKeyPEM))
+		cert, err = tls.X509KeyPair(tlsTestClientCertPEM, tlsTestClientKeyPEM)
 		if err != nil {
 			t.Errorf("Failed loading client certificate: %v", err)
 			return

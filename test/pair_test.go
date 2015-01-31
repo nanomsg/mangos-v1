@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,9 +15,10 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
-	"testing"
 )
 
 type pairTest struct {
@@ -81,4 +82,12 @@ func TestPairIPC(t *testing.T) {
 
 func TestPairTLS(t *testing.T) {
 	RunTestsTLS(t, pairCases())
+}
+
+func TestPairWS(t *testing.T) {
+	RunTestsWS(t, pairCases())
+}
+
+func TestPairWSS(t *testing.T) {
+	RunTestsWSS(t, pairCases())
 }

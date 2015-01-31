@@ -23,8 +23,9 @@
 package star
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type starEp struct {
@@ -146,11 +147,16 @@ func (*star) Number() uint16 {
 	return mangos.ProtoStar
 }
 
-func (*star) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoStar {
-		return true
-	}
-	return false
+func (*star) PeerNumber() uint16 {
+	return mangos.ProtoStar
+}
+
+func (*star) Name() string {
+	return "star"
+}
+
+func (*star) PeerName() string {
+	return "star"
 }
 
 func (x *star) SetOption(name string, v interface{}) error {
@@ -170,6 +176,11 @@ func (x *star) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new STAR protocol object.
+func NewProtocol() mangos.Protocol {
+	return &star{}
 }
 
 // NewSocket allocates a new Socket using the STAR protocol.

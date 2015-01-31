@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -17,9 +17,10 @@
 package respondent
 
 import (
-	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type resp struct {
@@ -181,11 +182,16 @@ func (*resp) Number() uint16 {
 	return mangos.ProtoRespondent
 }
 
-func (*resp) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoSurveyor {
-		return true
-	}
-	return false
+func (*resp) PeerNumber() uint16 {
+	return mangos.ProtoSurveyor
+}
+
+func (*resp) Name() string {
+	return "respondent"
+}
+
+func (*resp) PeerName() string {
+	return "surveyor"
 }
 
 func (x *resp) SetOption(name string, v interface{}) error {
@@ -205,6 +211,11 @@ func (x *resp) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new RESPONDENT protocol object.
+func NewProtocol() mangos.Protocol {
+	return &resp{}
 }
 
 // NewSocket allocates a new Socket using the RESPONDENT protocol.

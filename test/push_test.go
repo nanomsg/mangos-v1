@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,10 +15,11 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pull"
 	"github.com/gdamore/mangos/protocol/push"
-	"testing"
 )
 
 type PushTest struct {
@@ -95,4 +96,12 @@ func TestPushPullIPC(t *testing.T) {
 
 func TestPushPullTLS(t *testing.T) {
 	RunTestsTLS(t, pushCases())
+}
+
+func TestPushPullWS(t *testing.T) {
+	RunTestsWS(t, pushCases())
+}
+
+func TestPushPullWSS(t *testing.T) {
+	RunTestsWSS(t, pushCases())
 }

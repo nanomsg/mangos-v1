@@ -30,8 +30,8 @@ var L sync.Mutex
 
 func clientWorker(url string, id int) {
 	var sock mangos.Socket
-	var m    *mangos.Message
-	var err  error
+	var m *mangos.Message
+	var err error
 
 	if sock, err = req.NewSocket(); err != nil {
 		die("can't get new req socket: %s", err.Error())
@@ -72,7 +72,7 @@ func client(url string, nworkers int) {
 	var wg sync.WaitGroup
 	for i := 0; i < nworkers; i++ {
 		wg.Add(1)
-		go func (i int) {
+		go func(i int) {
 			defer wg.Done()
 			clientWorker(url, i)
 		}(i)

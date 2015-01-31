@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,11 +15,12 @@
 package test
 
 import (
+	"bytes"
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pub"
 	"github.com/gdamore/mangos/protocol/sub"
-	"bytes"
-	"testing"
 )
 
 var publish = []string{
@@ -143,4 +144,12 @@ func TestPubSubInp(t *testing.T) {
 
 func TestPubSubTLS(t *testing.T) {
 	RunTestsTLS(t, pubCases())
+}
+
+func TestPubSubWS(t *testing.T) {
+	RunTestsWS(t, pubCases())
+}
+
+func TestPubSubWSS(t *testing.T) {
+	RunTestsWSS(t, pubCases())
 }

@@ -50,10 +50,10 @@ func (x *push) sender(ep mangos.Endpoint) {
 }
 
 func (x *push) receiver(ep mangos.Endpoint) {
-        // In order for us to detect a dropped connection, we need to poll
-        // on the socket.  We don't care about the results and discard them,
-        // but this allows the disconnect to be noticed.  Note that we will
-        // be blocked in this call forever, until the connection is dropped.
+	// In order for us to detect a dropped connection, we need to poll
+	// on the socket.  We don't care about the results and discard them,
+	// but this allows the disconnect to be noticed.  Note that we will
+	// be blocked in this call forever, until the connection is dropped.
 	ep.RecvMsg()
 }
 
@@ -61,11 +61,16 @@ func (*push) Number() uint16 {
 	return mangos.ProtoPush
 }
 
-func (*push) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoPull {
-		return true
-	}
-	return false
+func (*push) PeerNumber() uint16 {
+	return mangos.ProtoPull
+}
+
+func (*push) Name() string {
+	return "push"
+}
+
+func (*push) PeerName() string {
+	return "pull"
 }
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {
@@ -92,6 +97,11 @@ func (x *push) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new PUSH protocol object.
+func NewProtocol() mangos.Protocol {
+	return &push{}
 }
 
 // NewSocket allocates a new Socket using the PUSH protocol.

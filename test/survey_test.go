@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,12 +15,13 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/respondent"
-	"github.com/gdamore/mangos/protocol/surveyor"
 	"encoding/binary"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/respondent"
+	"github.com/gdamore/mangos/protocol/surveyor"
 )
 
 type surveyTest struct {
@@ -172,4 +173,12 @@ func TestSurveyInp(t *testing.T) {
 
 func TestSurveyTLS(t *testing.T) {
 	RunTestsTLS(t, surveyCases())
+}
+
+func TestSurveyWS(t *testing.T) {
+	RunTestsWS(t, surveyCases())
+}
+
+func TestSurveyWSS(t *testing.T) {
+	RunTestsWSS(t, surveyCases())
 }

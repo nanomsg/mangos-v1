@@ -16,8 +16,9 @@
 package inproc
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 // inproc implements the Pipe interface on top of channels.
@@ -26,24 +27,24 @@ type inproc struct {
 	wq     chan *mangos.Message
 	closeq chan struct{}
 	readyq chan struct{}
-	proto  uint16
+	proto  mangos.Protocol
 	addr   string
 	peer   *inproc
 }
 
 type listener struct {
-	addr       string
-	proto      uint16
-	accepters  []*inproc
+	addr      string
+	proto     mangos.Protocol
+	accepters []*inproc
 }
 
 type inprocTran struct{}
 
 var listeners struct {
 	// Who is listening, on which "address"?
-	byAddr  map[string]*listener
-	cv      sync.Cond
-	mx      sync.Mutex
+	byAddr map[string]*listener
+	cv     sync.Cond
+	mx     sync.Mutex
 }
 
 func init() {
@@ -93,14 +94,11 @@ func (p *inproc) Send(m *mangos.Message) error {
 }
 
 func (p *inproc) LocalProtocol() uint16 {
-	return p.proto
+	return p.proto.Number()
 }
 
 func (p *inproc) RemoteProtocol() uint16 {
-	if p.peer != nil {
-		return p.peer.proto
-	}
-	return 0
+	return p.proto.PeerNumber()
 }
 
 func (p *inproc) Close() error {
@@ -119,7 +117,7 @@ func (p *inproc) IsOpen() bool {
 
 type inprocDialer struct {
 	addr  string
-	proto uint16
+	proto mangos.Protocol
 }
 
 func (d *inprocDialer) Dial() (mangos.Pipe, error) {
@@ -138,6 +136,10 @@ func (d *inprocDialer) Dial() (mangos.Pipe, error) {
 		if l, ok = listeners.byAddr[d.addr]; !ok || l == nil {
 			listeners.mx.Unlock()
 			return nil, mangos.ErrConnRefused
+		}
+
+		if !mangos.ValidPeers(client.proto, l.proto) {
+			return nil, mangos.ErrBadProto
 		}
 
 		if len(l.accepters) != 0 {
@@ -175,9 +177,9 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 	listeners.mx.Unlock()
 
 	select {
-	case <- server.readyq:
+	case <-server.readyq:
 		return server, nil
-	case <- server.closeq:
+	case <-server.closeq:
 		return nil, mangos.ErrClosed
 	}
 }
@@ -203,11 +205,11 @@ func (t *inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
+func (t *inprocTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
 	return &inprocDialer{addr: addr, proto: proto}, nil
 }
 
-func (t *inprocTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
+func (t *inprocTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
 	listeners.mx.Lock()
 	if l, ok := listeners.byAddr[addr]; l != nil || ok {
 		listeners.mx.Unlock()

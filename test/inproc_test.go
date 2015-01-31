@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,20 +15,21 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/inproc"
 	"bytes"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/inproc"
 )
 
 var inp = inproc.NewTransport()
 
 func TestInpListenAndAccept(t *testing.T) {
 
-	addr := "inp_test1"
+	addr := "inproc://inp_test1"
 	t.Logf("Establishing accepter")
-	accepter, err := inp.NewAccepter(addr, mangos.ProtoRep)
+	accepter, err := inp.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -36,7 +37,7 @@ func TestInpListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := inp.NewDialer(addr, mangos.ProtoReq)
+		d, err := inp.NewDialer(addr, protoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -70,16 +71,16 @@ func TestInpListenAndAccept(t *testing.T) {
 
 func TestInpDuplicateListen(t *testing.T) {
 
-	addr := "inp_test2"
+	addr := "inproc://inp_test2"
 	var err error
-	listener, err := inp.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := inp.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = inp.NewAccepter(addr, mangos.ProtoReq)
+	_, err = inp.NewAccepter(addr, protoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -88,9 +89,9 @@ func TestInpDuplicateListen(t *testing.T) {
 }
 
 func TestInpConnRefused(t *testing.T) {
-	addr := "/tmp/inp_test3"
+	addr := "inproc://tmp/inp_test3"
 	var err error
-	d, err := inp.NewDialer(addr, mangos.ProtoReq)
+	d, err := inp.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -104,14 +105,14 @@ func TestInpConnRefused(t *testing.T) {
 
 func TestInpSendRecv(t *testing.T) {
 
-	addr := "/tmp/inp_test4"
+	addr := "inproc://tmp/inp_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := inp.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := inp.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -123,7 +124,7 @@ func TestInpSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := inp.NewDialer(addr, mangos.ProtoReq)
+		d, err := inp.NewDialer(addr, protoReq)
 
 		client, err := d.Dial()
 		if err != nil {

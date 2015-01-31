@@ -16,26 +16,19 @@ package test
 
 import (
 	"bytes"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/ipc"
+	"github.com/gdamore/mangos/transport/ws"
 )
 
-var ipctran = ipc.NewTransport()
+var wtran = ws.NewTransport()
 
-func TestIPCListenAndAccept(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test1"
+func TestWSListenAndAccept(t *testing.T) {
+	addr := "ws://127.0.0.1:3335/mysock" // without ws://
 	t.Logf("Establishing accepter")
-	accepter, err := ipctran.NewAccepter(addr, protoRep)
+	accepter, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -43,7 +36,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := ipctran.NewDialer(addr, protoReq)
+		d, err := wtran.NewDialer(addr, protoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -64,6 +57,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 	server, err := accepter.Accept()
 	if err != nil {
 		t.Errorf("Accept failed: %v", err)
+		return
 	}
 	defer server.Close()
 
@@ -75,23 +69,17 @@ func TestIPCListenAndAccept(t *testing.T) {
 	}
 }
 
-func TestIPCDuplicateListen(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test2"
+func TestWSDuplicateListen(t *testing.T) {
+	addr := "ws://127.0.0.1:3335/bogus"
 	var err error
-	listener, err := ipctran.NewAccepter(addr, protoRep)
+	listener, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = ipctran.NewAccepter(addr, protoReq)
+	_, err = wtran.NewAccepter(addr, protoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -99,16 +87,10 @@ func TestIPCDuplicateListen(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestIPCConnRefused(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test3"
+func TestWSConnRefused(t *testing.T) {
+	addr := "ws://127.0.0.1:19/nobodythere" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := ipctran.NewDialer(addr, protoReq)
+	d, err := wtran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -120,21 +102,15 @@ func TestIPCConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestIPCSendRecv(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test4"
+func TestWSSendRecv(t *testing.T) {
+	addr := "ws://127.0.0.1:3335/exchange"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := ipctran.NewAccepter(addr, protoRep)
+	listener, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -146,7 +122,7 @@ func TestIPCSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := ipctran.NewDialer(addr, protoReq)
+		d, err := wtran.NewDialer(addr, protoReq)
 
 		client, err := d.Dial()
 		if err != nil {
@@ -157,8 +133,6 @@ func TestIPCSendRecv(t *testing.T) {
 		defer client.Close()
 
 		req := mangos.NewMessage(len(ping))
-		//req.Body = make([]byte, 0, 20)
-		//req.Header = make([]byte, 0)
 		req.Body = append(req.Body, ping...)
 
 		// Now try to send data
@@ -236,7 +210,7 @@ func TestIPCSendRecv(t *testing.T) {
 	select {
 	case nrep := <-ch:
 		if !bytes.Equal(nrep.Body, ack) {
-			t.Errorf("Client forward mismatch: %v, %v", nrep, ack)
+			t.Errorf("Client forward mismatch: %v, %v", ack, rep)
 			return
 		}
 	case <-time.After(5 * time.Second):

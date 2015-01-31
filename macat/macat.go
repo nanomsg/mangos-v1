@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -30,6 +30,7 @@ import (
 )
 
 import (
+	"github.com/droundy/goopt"
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/bus"
 	"github.com/gdamore/mangos/protocol/pair"
@@ -43,7 +44,6 @@ import (
 	"github.com/gdamore/mangos/protocol/sub"
 	"github.com/gdamore/mangos/protocol/surveyor"
 	"github.com/gdamore/mangos/transport/all"
-	"github.com/droundy/goopt"
 )
 
 var verbose int
@@ -450,6 +450,9 @@ func recvLoop(sock mangos.Socket, done chan struct{}) {
 		}
 		printMsg(msg)
 		msg.Free()
+		if sendInterval == 0 {
+			return
+		}
 	}
 }
 

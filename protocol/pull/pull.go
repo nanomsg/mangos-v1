@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -49,11 +49,16 @@ func (*pull) Number() uint16 {
 	return mangos.ProtoPull
 }
 
-func (*pull) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoPush {
-		return true
-	}
-	return false
+func (*pull) PeerNumber() uint16 {
+	return mangos.ProtoPush
+}
+
+func (*pull) Name() string {
+	return "pull"
+}
+
+func (*pull) PeerName() string {
+	return "push"
 }
 
 func (x *pull) AddEndpoint(ep mangos.Endpoint) {
@@ -83,6 +88,11 @@ func (x *pull) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol() allocates a new PULL protocol object.
+func NewProtocol() mangos.Protocol {
+	return &pull{}
 }
 
 // NewSocket allocates a new Socket using the PULL protocol.
