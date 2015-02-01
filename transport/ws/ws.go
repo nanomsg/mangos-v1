@@ -170,7 +170,8 @@ type wsListener struct {
 	cv	 sync.Cond
 	running  bool
 	addr     string
-	wssvr	 websocket.Handler
+	//wssvr	 websocket.Handler
+	wssvr	 websocket.Server
 	htsvr	 *http.Server
 	url_	 *url.URL
 	listener *net.TCPListener
@@ -199,7 +200,7 @@ func (l *wsListener) Accept() (mangos.Pipe, error) {
 	return w, nil
 }
 
-func (l *wsListener) Handler(ws *websocket.Conn) {
+func (l *wsListener) handler(ws *websocket.Conn) {
 	l.lock.Lock()
 
 	if !l.running {
@@ -224,7 +225,17 @@ func (l *wsListener) Handler(ws *websocket.Conn) {
 	w.wg.Wait()
 }
 
-func (l *wsListener) Close() error  {
+func (l *wsListener) handshake (c *websocket.Config, _ *http.Request) error {
+	for _, p := range c.Protocol {
+		if p == "x-nanomsg" {
+			c.Protocol = append([]string{}, p)
+			return nil
+		}
+	}
+	return websocket.ErrBadWebSocketProtocol
+}
+
+func (l *wsListener) Close() error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 	if !l.running {
@@ -264,6 +275,9 @@ func (t *wsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, er
 		return nil, err
 	}
 
+	// We listen separately, that way we can catch and deal with the
+	// case of a port already in use.
+
         if taddr, err = net.ResolveTCPAddr("tcp", l.url_.Host); err != nil {
 		return nil, err
 	}
@@ -274,8 +288,9 @@ func (t *wsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, er
 	l.pending = make([]*wsPipe, 0, 5)
 	l.running = true
 
-	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l}
-	l.wssvr = l.Handler
+	l.wssvr.Handler = l.handler
+	l.wssvr.Handshake = l.handshake
+	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.wssvr}
 
 	go l.htsvr.Serve(l.listener)
 
