@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -27,7 +27,7 @@ var tran = tcp.NewTransport()
 func TestTCPListenAndAccept(t *testing.T) {
 	addr := "127.0.0.1:3333"
 	t.Logf("Establishing accepter")
-	accepter, err := tran.NewAccepter(addr, mangos.ProtoRep)
+	accepter, err := tran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -35,7 +35,7 @@ func TestTCPListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := tran.NewDialer(addr, mangos.ProtoReq)
+		d, err := tran.NewDialer(addr, protoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -70,14 +70,14 @@ func TestTCPListenAndAccept(t *testing.T) {
 func TestTCPDuplicateListen(t *testing.T) {
 	addr := "127.0.0.1:3333"
 	var err error
-	listener, err := tran.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := tran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = tran.NewAccepter(addr, mangos.ProtoReq)
+	_, err = tran.NewAccepter(addr, protoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -88,7 +88,7 @@ func TestTCPDuplicateListen(t *testing.T) {
 func TestTCPConnRefused(t *testing.T) {
 	addr := "127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := tran.NewDialer(addr, mangos.ProtoReq)
+	d, err := tran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestTCPSendRecv(t *testing.T) {
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := tran.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := tran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -120,7 +120,7 @@ func TestTCPSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := tran.NewDialer(addr, mangos.ProtoReq)
+		d, err := tran.NewDialer(addr, protoReq)
 
 		client, err := d.Dial()
 		if err != nil {

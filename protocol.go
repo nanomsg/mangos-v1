@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -56,11 +56,14 @@ type Protocol interface {
 	// as assigned by the SP governing body. (IANA?)
 	Number() uint16
 
-	// ValidPeer returns true of the argument protocol number is a valid
-	// peer for this protocol, false otherwise.  For example, REP is a
-	// valid peer for REQ and XREQ, but not for SUB or PUB.  We only match
-	// based on protocol number.
-	ValidPeer(uint16) bool
+	// Name returns our name.
+	Name() string
+
+	// PeerNumber() returns a 16-bit number for our peer protocol.
+	PeerNumber() uint16
+
+	// PeerName() returns the name of our peer protocol.
+	PeerName() string
 
 	// GetOption is used to retrieve the current value of an option.
 	// If the protocol doesn't recognize the option, EBadOption should
@@ -151,3 +154,31 @@ const (
 
 	ProtoStar = (100 * 16)
 )
+
+func ProtocolName(number uint16) string {
+	names := map[uint16]string{
+		ProtoPair: "pair",
+		ProtoPub: "pub",
+		ProtoSub: "sub",
+		ProtoReq: "req",
+		ProtoRep: "rep",
+		ProtoPush: "push",
+		ProtoPull: "pull",
+		ProtoSurveyor: "surveyor",
+		ProtoRespondent: "respondent",
+		ProtoBus: "bus"}
+	return names[number]
+}
+
+// ValidPeers returns true if the two sockets are capable of
+// peering to one another.  For example, REQ can peer with REP,
+// but not with BUS.
+func ValidPeers(p1, p2 Protocol) bool {
+	if p1.Number() != p2.PeerNumber() {
+		return false
+	}
+	if p2.Number() != p1.PeerNumber() {
+		return false
+	}
+	return true
+}

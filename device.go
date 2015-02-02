@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -43,10 +43,7 @@ func Device(s1 Socket, s2 Socket) error {
 	p1 := s1.GetProtocol()
 	p2 := s2.GetProtocol()
 
-	if !p1.ValidPeer(p2.Number()) {
-		return ErrBadProto
-	}
-	if !p2.ValidPeer(p1.Number()) {
+	if !ValidPeers(p1, p2) {
 		return ErrBadProto
 	}
 

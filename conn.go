@@ -28,8 +28,7 @@ type conn struct {
 	c      net.Conn
 	rlock  sync.Mutex
 	wlock  sync.Mutex
-	rproto uint16
-	lproto uint16
+	proto  Protocol
 	open   bool
 }
 
@@ -102,12 +101,12 @@ func (p *conn) Send(msg *Message) error {
 
 // LocalProtocol returns our local protocol number.
 func (p *conn) LocalProtocol() uint16 {
-	return p.lproto
+	return p.proto.Number()
 }
 
 // RemoteProtocol returns our peer's protocol number.
 func (p *conn) RemoteProtocol() uint16 {
-	return p.rproto
+	return p.proto.PeerNumber()
 }
 
 // Close implements the Pipe Close method.
@@ -130,8 +129,8 @@ func (p *conn) IsOpen() bool {
 // and the Transport enclosing structure.   Using this layered interface,
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
-func NewConnPipe(c net.Conn, lproto uint16) (Pipe, error) {
-	p := &conn{c: c, lproto: lproto}
+func NewConnPipe(c net.Conn, proto Protocol) (Pipe, error) {
+	p := &conn{c: c, proto: proto}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
@@ -140,10 +139,10 @@ func NewConnPipe(c net.Conn, lproto uint16) (Pipe, error) {
 }
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, lproto uint16) (Pipe, error) {
+func NewConnPipeIPC(c net.Conn, proto Protocol) (Pipe, error) {
 	p := &connipc{}
 	p.c = c
-	p.lproto = lproto
+	p.proto = proto
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
@@ -232,7 +231,7 @@ type connHeader struct {
 func (p *conn) handshake() error {
 	var err error
 
-	h := connHeader{S: 'S', P: 'P', Proto: p.lproto}
+	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Number()}
 	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {
 		return err
 	}
@@ -251,7 +250,10 @@ func (p *conn) handshake() error {
 	}
 
 	// The protocol number lives as 16-bits (big-endian) at offset 4.
-	p.rproto = h.Proto
+	if h.Proto != p.proto.PeerNumber() {
+		p.c.Close()
+		return ErrBadProto
+	}
 	p.open = true
 	return nil
 }

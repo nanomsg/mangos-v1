@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -90,11 +90,16 @@ func (*pair) Number() uint16 {
 	return mangos.ProtoPair
 }
 
-func (*pair) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoPair {
-		return true
-	}
-	return false
+func (*pair) Name() string {
+	return "pair"
+}
+
+func (*pair) PeerNumber() uint16 {
+	return mangos.ProtoPair
+}
+
+func (*pair) PeerName() string {
+	return "pair"
 }
 
 func (x *pair) SetOption(name string, v interface{}) error {
@@ -114,6 +119,11 @@ func (x *pair) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new PAIR protocol object.
+func NewProtocol() mangos.Protocol {
+	return &pair{}
 }
 
 // NewSocket allocates a new Socket using the PAIR protocol.

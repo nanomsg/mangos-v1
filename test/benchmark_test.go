@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -176,6 +176,7 @@ var benchInpAddr = "inproc://benchmark_test"
 var benchTCPAddr = "tcp://127.0.0.1:33833"
 var benchIPCAddr = "ipc:///tmp/benchmark_test"
 var benchTLSAddr = "tls+tcp://127.0.0.1:44844"
+var benchWSAddr = "ws://127.0.0.1:55855/BENCHMARK"
 
 func BenchmarkLatencyInp(t *testing.B) {
 	benchmarkReq(t, benchInpAddr, 0)
@@ -188,6 +189,9 @@ func BenchmarkLatencyTCP(t *testing.B) {
 }
 func BenchmarkLatencyTLS(t *testing.B) {
 	benchmarkReq(t, benchTLSAddr, 0)
+}
+func BenchmarkLatencyWS(t *testing.B) {
+	benchmarkReq(t, benchWSAddr, 0)
 }
 
 func BenchmarkTPut4kInp(t *testing.B) {
@@ -202,6 +206,9 @@ func BenchmarkTPut4kTCP(t *testing.B) {
 func BenchmarkTPut4kTLS(t *testing.B) {
 	benchmarkPair(t, benchTLSAddr, 4096)
 }
+func BenchmarkTPut4kWS(t *testing.B) {
+	benchmarkPair(t, benchWSAddr, 4096)
+}
 
 func BenchmarkTPut64kInp(t *testing.B) {
 	benchmarkPair(t, benchInpAddr, 65536)
@@ -214,4 +221,7 @@ func BenchmarkTPut64kTCP(t *testing.B) {
 }
 func BenchmarkTPut64kTLS(t *testing.B) {
 	benchmarkPair(t, benchTLSAddr, 65536)
+}
+func BenchmarkTPut64kWS(t *testing.B) {
+	benchmarkPair(t, benchWSAddr, 65536)
 }

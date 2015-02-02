@@ -25,9 +25,9 @@ import (
 var wtran = ws.NewTransport()
 
 func TestWSListenAndAccept(t *testing.T) {
-	addr := "ws://127.0.0.1:3335/mysock"
+	addr := "127.0.0.1:3335/mysock"	// without ws://
 	t.Logf("Establishing accepter")
-	accepter, err := wtran.NewAccepter(addr, mangos.ProtoRep)
+	accepter, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -35,7 +35,7 @@ func TestWSListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := wtran.NewDialer(addr, mangos.ProtoReq)
+		d, err := wtran.NewDialer(addr, protoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -69,16 +69,16 @@ func TestWSListenAndAccept(t *testing.T) {
 }
 
 func TestWSDuplicateListen(t *testing.T) {
-	addr := "ws://127.0.0.1:3335/bogus"
+	addr := "127.0.0.1:3335/bogus"
 	var err error
-	listener, err := wtran.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = wtran.NewAccepter(addr, mangos.ProtoReq)
+	_, err = wtran.NewAccepter(addr, protoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -87,9 +87,9 @@ func TestWSDuplicateListen(t *testing.T) {
 }
 
 func TestWSConnRefused(t *testing.T) {
-	addr := "ws://127.0.0.1:19/nobodythere" // Port 19 is chargen, rarely in use
+	addr := "127.0.0.1:19/nobodythere" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := wtran.NewDialer(addr, mangos.ProtoReq)
+	d, err := wtran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -102,14 +102,14 @@ func TestWSConnRefused(t *testing.T) {
 }
 
 func TestWSSendRecv(t *testing.T) {
-	addr := "ws://127.0.0.1:3335/exchange"
+	addr := "127.0.0.1:3335/exchange"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := wtran.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -121,7 +121,7 @@ func TestWSSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := wtran.NewDialer(addr, mangos.ProtoReq)
+		d, err := wtran.NewDialer(addr, protoReq)
 
 		client, err := d.Dial()
 		if err != nil {

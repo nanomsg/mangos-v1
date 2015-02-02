@@ -20,8 +20,6 @@ import (
 	"net"
 	"net/url"
 	"net/http"
-	"strconv"
-	"strings"
 	"golang.org/x/net/websocket"
 
 	"github.com/gdamore/mangos"
@@ -33,59 +31,13 @@ type wsPipe struct {
 	ws     *websocket.Conn
 	rlock  sync.Mutex
 	wlock  sync.Mutex
-	lproto uint16
-	rproto uint16
+	proto  mangos.Protocol
 	addr   string
 	open   bool
 	wg     sync.WaitGroup
 }
 
 type wsTran struct{}
-
-func (w *wsPipe) handshake() error {
-	//
-	// Some browsers can only deal with strings.  So to keep
-	// it simple, we use a string based handshake, that takes
-	// the following form (each side sends):
-	//
-	// SP<version>:<proto>:<zero>
-	// <version> is value "0" for now.
-	// <proto> is the 16-bit numeric protocol value
-	// <zero> is the value 0 (for future use)
-	//
-	// All values are expressed in decimal, ASCII.
-	//
-	send := "SP0:" + strconv.Itoa(int(w.lproto)) + ":0"
-	if err := websocket.Message.Send(w.ws, send); err != nil {
-		w.ws.Close()
-		return err
-	}
-
-	var recv string
-	if err := websocket.Message.Receive(w.ws, &recv); err != nil {
-		w.ws.Close()
-		return err
-	}
-
-	parts := strings.Split(recv, ":")
-	if len(parts) != 3 || parts[0] != "SP0" {
-		w.ws.Close()
-		return mangos.ErrBadHeader
-	}
-	if parts[2] != "0" {
-		w.ws.Close()
-		return mangos.ErrBadVersion
-	}
-
-	if rproto, err := strconv.ParseUint(parts[1], 10, 16); err != nil {
-		w.ws.Close()
-		return mangos.ErrBadHeader
-	} else {
-		w.rproto = uint16(rproto)
-	}
-	w.open = true
-	return nil
-}
 
 func (w *wsPipe) Recv() (*mangos.Message, error) {
 
@@ -126,11 +78,11 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 }
 
 func (w *wsPipe) LocalProtocol() uint16 {
-	return w.lproto
+	return w.proto.Number()
 }
 
 func (w *wsPipe) RemoteProtocol() uint16 {
-	return w.rproto
+	return w.proto.PeerNumber()
 }
 
 func (w *wsPipe) Close() error {
@@ -146,21 +98,22 @@ func (w *wsPipe) IsOpen() bool {
 
 type wsDialer struct {
 	addr   string	// url
-	proto  uint16
+	proto  mangos.Protocol
 	origin string
 }
 
 func (d *wsDialer) Dial() (mangos.Pipe, error) {
-	d.origin = "http://localhost/"
-	ws, err := websocket.Dial(d.addr, "x-nanomsg", d.origin)
+	pname := d.proto.PeerName() + ".sp.nanomsg.org"
+	// We have to supply an origin because Go's websocket
+	// implementation seems to require it.  We fake a garbage one.
+	// Perhaps we should allow applications to fake this out.
+	d.origin = "x://"
+	ws, err := websocket.Dial(d.addr, pname, d.origin)
 	if err != nil {
 		return nil, err
 	}
-	w := &wsPipe{ws: ws, lproto: d.proto, addr: d.addr}
+	w := &wsPipe{ws: ws, proto: d.proto, addr: d.addr, open: true}
 	w.wg.Add(1)
-	if err = w.handshake(); err != nil {
-		return nil, err
-	}
 	return w, nil
 }
 
@@ -175,7 +128,7 @@ type wsListener struct {
 	htsvr	 *http.Server
 	url_	 *url.URL
 	listener *net.TCPListener
-	lproto   uint16
+	proto    mangos.Protocol
 }
 
 func (l *wsListener) Accept() (mangos.Pipe, error) {
@@ -209,11 +162,7 @@ func (l *wsListener) handler(ws *websocket.Conn) {
 		return
 	}
 
-	w := &wsPipe{ws: ws, addr: l.addr, lproto: l.lproto}
-	if err := w.handshake(); err != nil {
-		l.lock.Unlock()
-		return
-	}
+	w := &wsPipe{ws: ws, addr: l.addr, proto: l.proto, open: true}
 
 	w.wg.Add(1)
 	l.pending = append(l.pending, w)
@@ -226,8 +175,9 @@ func (l *wsListener) handler(ws *websocket.Conn) {
 }
 
 func (l *wsListener) handshake (c *websocket.Config, _ *http.Request) error {
+	pname := l.proto.Name() + ".sp.nanomsg.org"
 	for _, p := range c.Protocol {
-		if p == "x-nanomsg" {
+		if p == pname {
 			c.Protocol = append([]string{}, p)
 			return nil
 		}
@@ -259,18 +209,18 @@ func (w *wsTran) Scheme() string {
 	return "ws"
 }
 
-func (t *wsTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
-	return &wsDialer{addr: addr, proto: proto}, nil
+func (t *wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+	return &wsDialer{addr: t.Scheme() + "://" + addr, proto: proto}, nil
 }
 
-func (t *wsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
+func (t *wsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
 	var err   error
 	var taddr *net.TCPAddr
 	l := &wsListener{}
 	l.cv.L = &l.lock
 
-	l.lproto = proto
-	l.url_, err = url.ParseRequestURI(addr)
+	l.proto = proto
+	l.url_, err = url.ParseRequestURI(t.Scheme() + "://" + addr)
 	if err != nil {
 		return nil, err
 	}

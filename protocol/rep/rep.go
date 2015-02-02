@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -140,11 +140,16 @@ func (*rep) Number() uint16 {
 	return mangos.ProtoRep
 }
 
-func (*rep) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoReq {
-		return true
-	}
-	return false
+func (*rep) PeerNumber() uint16 {
+	return mangos.ProtoReq
+}
+
+func (*rep) Name() string {
+	return "rep"
+}
+
+func (*rep) PeerName() string {
+	return "req"
 }
 
 func (r *rep) AddEndpoint(ep mangos.Endpoint) {
@@ -211,6 +216,11 @@ func (r *rep) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new REP protocol object.
+func NewProtocol() mangos.Protocol {
+	return &rep{}
 }
 
 // NewSocket allocates a new Socket using the REP protocol.

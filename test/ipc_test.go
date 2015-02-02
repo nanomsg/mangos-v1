@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -34,7 +34,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 
 	addr := "/tmp/ipc_test1"
 	t.Logf("Establishing accepter")
-	accepter, err := ipctran.NewAccepter(addr, mangos.ProtoRep)
+	accepter, err := ipctran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -42,7 +42,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 	defer accepter.Close()
 
 	go func() {
-		d, err := ipctran.NewDialer(addr, mangos.ProtoReq)
+		d, err := ipctran.NewDialer(addr, protoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 		}
@@ -83,14 +83,14 @@ func TestIPCDuplicateListen(t *testing.T) {
 
 	addr := "/tmp/ipc_test2"
 	var err error
-	listener, err := ipctran.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := ipctran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
 	}
 	defer listener.Close()
 
-	_, err = ipctran.NewAccepter(addr, mangos.ProtoReq)
+	_, err = ipctran.NewAccepter(addr, protoReq)
 	if err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
@@ -107,7 +107,7 @@ func TestIPCConnRefused(t *testing.T) {
 
 	addr := "/tmp/ipc_test3"
 	var err error
-	d, err := ipctran.NewDialer(addr, mangos.ProtoReq)
+	d, err := ipctran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestIPCSendRecv(t *testing.T) {
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := ipctran.NewAccepter(addr, mangos.ProtoRep)
+	listener, err := ipctran.NewAccepter(addr, protoRep)
 	if err != nil {
 		t.Errorf("NewAccepter failed: %v", err)
 		return
@@ -145,7 +145,7 @@ func TestIPCSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := ipctran.NewDialer(addr, mangos.ProtoReq)
+		d, err := ipctran.NewDialer(addr, protoReq)
 
 		client, err := d.Dial()
 		if err != nil {

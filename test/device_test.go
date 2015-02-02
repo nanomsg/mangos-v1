@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/gdamore/mangos/transport/ipc"
 	"github.com/gdamore/mangos/transport/tcp"
 	"github.com/gdamore/mangos/transport/tlstcp"
+	"github.com/gdamore/mangos/transport/ws"
 	"testing"
 )
 
@@ -199,6 +200,7 @@ func testDevLoop(t *testing.T, addr string) {
 	s1.AddTransport(ipc.NewTransport())
 	s1.AddTransport(inproc.NewTransport())
 	s1.AddTransport(tlstcp.NewTransport())
+	s1.AddTransport(ws.NewTransport())
 	SetTLSTest(t, s1)
 
 	if err := s1.Listen(addr); err != nil {
@@ -285,4 +287,8 @@ func TestDeviceLoopIPC(t *testing.T) {
 
 func TestDeviceLoopTLS(t *testing.T) {
 	testDevLoop(t, AddrTestTLS)
+}
+
+func TestDeviceLoopWS(t *testing.T) {
+	testDevLoop(t, AddrTestWS)
 }

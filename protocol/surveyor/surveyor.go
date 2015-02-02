@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -143,11 +143,16 @@ func (*surveyor) Number() uint16 {
 	return mangos.ProtoSurveyor
 }
 
-func (*surveyor) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoRespondent {
-		return true
-	}
-	return false
+func (*surveyor) PeerNumber() uint16 {
+	return mangos.ProtoRespondent
+}
+
+func (*surveyor) Name() string {
+	return "surveyor"
+}
+
+func (*surveyor) PeerName() string {
+	return "respondent"
 }
 
 func (x *surveyor) SendHook(m *mangos.Message) bool {
@@ -221,6 +226,11 @@ func (x *surveyor) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new SURVEYOR protocol object.
+func NewSurveyor() mangos.Protocol {
+	return &surveyor{}
 }
 
 // NewSocket allocates a new Socket using the SURVEYOR protocol.

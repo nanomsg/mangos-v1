@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/gdamore/mangos/transport/ipc"
 	"github.com/gdamore/mangos/transport/tcp"
 	"github.com/gdamore/mangos/transport/tlstcp"
+	"github.com/gdamore/mangos/transport/ws"
 )
 
 // AddTransports adds all known transports to the given socket.
@@ -31,4 +32,5 @@ func AddTransports(sock mangos.Socket) {
 	sock.AddTransport(inproc.NewTransport())
 	sock.AddTransport(ipc.NewTransport())
 	sock.AddTransport(tlstcp.NewTransport())
+	sock.AddTransport(ws.NewTransport())
 }

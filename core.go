@@ -264,7 +264,7 @@ func (sock *socket) Dial(addr string) error {
 	}
 	// skip the tcp:// or ipc:// or whatever
 	addr = addr[len(t.Scheme())+len("://"):]
-	d, err := t.NewDialer(addr, sock.proto.Number())
+	d, err := t.NewDialer(addr, sock.proto)
 	if err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func (sock *socket) Listen(addr string) error {
 	}
 	// skip the tcp:// or ipc:// or whatever
 	addr = addr[len(t.Scheme())+len("://"):]
-	a, err := t.NewAccepter(addr, sock.proto.Number())
+	a, err := t.NewAccepter(addr, sock.proto)
 	if err != nil {
 		return err
 	}

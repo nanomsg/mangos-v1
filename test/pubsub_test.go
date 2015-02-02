@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -143,4 +143,8 @@ func TestPubSubInp(t *testing.T) {
 
 func TestPubSubTLS(t *testing.T) {
 	RunTestsTLS(t, pubCases())
+}
+
+func TestPubSubWS(t *testing.T) {
+	RunTestsWS(t, pubCases())
 }

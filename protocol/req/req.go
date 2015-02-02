@@ -143,11 +143,16 @@ func (*req) Number() uint16 {
 	return mangos.ProtoReq
 }
 
-func (*req) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoRep {
-		return true
-	}
-	return false
+func (*req) PeerNumber() uint16 {
+	return mangos.ProtoRep
+}
+
+func (*req) Name() string {
+	return "req"
+}
+
+func (*req) PeerName() string {
+	return "rep"
 }
 
 func (r *req) AddEndpoint(ep mangos.Endpoint) {
@@ -237,6 +242,11 @@ func (r *req) GetOption(option string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewReq returns a new REQ protocol object.
+func NewProtocol() mangos.Protocol {
+	return &req{}
 }
 
 // NewSocket allocates a new Socket using the REQ protocol.

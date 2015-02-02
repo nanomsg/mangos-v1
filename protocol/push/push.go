@@ -61,11 +61,16 @@ func (*push) Number() uint16 {
 	return mangos.ProtoPush
 }
 
-func (*push) ValidPeer(peer uint16) bool {
-	if peer == mangos.ProtoPull {
-		return true
-	}
-	return false
+func (*push) PeerNumber() uint16 {
+	return mangos.ProtoPull
+}
+
+func (*push) Name() string {
+	return "push"
+}
+
+func (*push) PeerName() string {
+	return "pull"
 }
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {
@@ -92,6 +97,11 @@ func (x *push) GetOption(name string) (interface{}, error) {
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+// NewProtocol returns a new PUSH protocol object.
+func NewProtocol() mangos.Protocol {
+	return &push{}
 }
 
 // NewSocket allocates a new Socket using the PUSH protocol.

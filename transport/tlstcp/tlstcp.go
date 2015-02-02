@@ -25,7 +25,7 @@ import (
 type tlsDialer struct {
 	addr   *net.TCPAddr
 	config *tls.Config
-	proto  uint16
+	proto  mangos.Protocol
 }
 
 func (d *tlsDialer) Dial() (mangos.Pipe, error) {
@@ -40,7 +40,7 @@ func (d *tlsDialer) Dial() (mangos.Pipe, error) {
 
 type tlsAccepter struct {
 	addr     *net.TCPAddr
-	proto    uint16
+	proto    mangos.Protocol
 	listener net.Listener
 }
 
@@ -68,11 +68,9 @@ func (t *tlsTran) Scheme() string {
 	return "tls+tcp"
 }
 
-func (t *tlsTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error) {
+func (t *tlsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
 	var err error
-	d := &tlsDialer{}
-	d.proto = proto
-	d.config = t.config
+	d := &tlsDialer{proto: proto, config: t.config}
 	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
@@ -80,10 +78,9 @@ func (t *tlsTran) NewDialer(addr string, proto uint16) (mangos.PipeDialer, error
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *tlsTran) NewAccepter(addr string, proto uint16) (mangos.PipeAccepter, error) {
+func (t *tlsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
 	var err error
-	a := &tlsAccepter{}
-	a.proto = proto
+	a := &tlsAccepter{proto: proto}
 
 	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err

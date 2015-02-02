@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -140,4 +140,8 @@ func TestReqRepInp(t *testing.T) {
 
 func TestReqRepTLS(t *testing.T) {
 	RunTestsTLS(t, reqRepCases())
+}
+
+func TestReqRepWS(t *testing.T) {
+	RunTestsWS(t, reqRepCases())
 }
