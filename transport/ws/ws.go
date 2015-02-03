@@ -51,6 +51,7 @@ func (w *wsPipe) Recv() (*mangos.Message, error) {
 		return nil, err
 	}
 	msg := mangos.NewMessage(len(buf))
+
 	// This is kind of suboptimal copying...
 	msg.Body = append(msg.Body, buf...)
 	return msg, nil
@@ -123,7 +124,6 @@ type wsListener struct {
 	cv      sync.Cond
 	running bool
 	addr    string
-	//wssvr	 websocket.Handler
 	wssvr    websocket.Server
 	htsvr    *http.Server
 	url_     *url.URL
