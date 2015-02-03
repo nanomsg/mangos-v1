@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,17 +15,18 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/ws"
 	"bytes"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/ws"
 )
 
 var wtran = ws.NewTransport()
 
 func TestWSListenAndAccept(t *testing.T) {
-	addr := "127.0.0.1:3335/mysock"	// without ws://
+	addr := "127.0.0.1:3335/mysock" // without ws://
 	t.Logf("Establishing accepter")
 	accepter, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {

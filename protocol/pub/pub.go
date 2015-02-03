@@ -18,8 +18,9 @@
 package pub
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type pubEp struct {

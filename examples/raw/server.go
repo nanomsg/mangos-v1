@@ -31,12 +31,12 @@ import (
 // is the replier's ID and the time it delayed responding for (us).
 
 func serverWorker(sock mangos.Socket, id int) {
-	var err   error
+	var err error
 
 	delay := rand.Intn(int(time.Second))
 
 	for {
-		var m      *mangos.Message
+		var m *mangos.Message
 
 		if m, err = sock.RecvMsg(); err != nil {
 			return

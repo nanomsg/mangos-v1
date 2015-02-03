@@ -15,9 +15,10 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
-	"testing"
 )
 
 type pairTest struct {

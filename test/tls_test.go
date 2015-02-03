@@ -15,14 +15,15 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
-	"github.com/gdamore/mangos/transport/tlstcp"
 	"bytes"
 	"crypto/tls"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
+	"github.com/gdamore/mangos/transport/tlstcp"
 )
 
 // Certificates & Keys for Testing use ONLY.  These are just

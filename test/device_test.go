@@ -15,6 +15,8 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
 	"github.com/gdamore/mangos/protocol/rep"
@@ -24,7 +26,6 @@ import (
 	"github.com/gdamore/mangos/transport/tcp"
 	"github.com/gdamore/mangos/transport/tlstcp"
 	"github.com/gdamore/mangos/transport/ws"
-	"testing"
 )
 
 func TestDeviceBadPair(t *testing.T) {

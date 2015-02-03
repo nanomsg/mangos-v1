@@ -15,10 +15,11 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/rep"
 	"github.com/gdamore/mangos/protocol/req"
-	"testing"
 )
 
 type reqTest struct {

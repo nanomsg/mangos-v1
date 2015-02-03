@@ -157,16 +157,16 @@ const (
 
 func ProtocolName(number uint16) string {
 	names := map[uint16]string{
-		ProtoPair: "pair",
-		ProtoPub: "pub",
-		ProtoSub: "sub",
-		ProtoReq: "req",
-		ProtoRep: "rep",
-		ProtoPush: "push",
-		ProtoPull: "pull",
-		ProtoSurveyor: "surveyor",
+		ProtoPair:       "pair",
+		ProtoPub:        "pub",
+		ProtoSub:        "sub",
+		ProtoReq:        "req",
+		ProtoRep:        "rep",
+		ProtoPush:       "push",
+		ProtoPull:       "pull",
+		ProtoSurveyor:   "surveyor",
 		ProtoRespondent: "respondent",
-		ProtoBus: "bus"}
+		ProtoBus:        "bus"}
 	return names[number]
 }
 

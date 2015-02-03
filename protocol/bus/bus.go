@@ -17,9 +17,10 @@
 package bus
 
 import (
-	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type busEp struct {

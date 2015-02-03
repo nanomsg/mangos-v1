@@ -17,10 +17,10 @@
 package ws
 
 import (
-	"net"
-	"net/url"
-	"net/http"
 	"golang.org/x/net/websocket"
+	"net"
+	"net/http"
+	"net/url"
 
 	"github.com/gdamore/mangos"
 	"sync"
@@ -28,13 +28,13 @@ import (
 
 // wsPipe implements the Pipe interface on a websocket
 type wsPipe struct {
-	ws     *websocket.Conn
-	rlock  sync.Mutex
-	wlock  sync.Mutex
-	proto  mangos.Protocol
-	addr   string
-	open   bool
-	wg     sync.WaitGroup
+	ws    *websocket.Conn
+	rlock sync.Mutex
+	wlock sync.Mutex
+	proto mangos.Protocol
+	addr  string
+	open  bool
+	wg    sync.WaitGroup
 }
 
 type wsTran struct{}
@@ -64,7 +64,7 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 	defer w.wlock.Unlock()
 
 	if len(m.Header) > 0 {
-		buf = make([]byte, 0, len(m.Header) + len(m.Body))
+		buf = make([]byte, 0, len(m.Header)+len(m.Body))
 		buf = append(buf, m.Header...)
 		buf = append(buf, m.Body...)
 	} else {
@@ -97,7 +97,7 @@ func (w *wsPipe) IsOpen() bool {
 }
 
 type wsDialer struct {
-	addr   string	// url
+	addr   string // url
 	proto  mangos.Protocol
 	origin string
 }
@@ -118,15 +118,15 @@ func (d *wsDialer) Dial() (mangos.Pipe, error) {
 }
 
 type wsListener struct {
-	pending	 []*wsPipe
-	lock	 sync.Mutex
-	cv	 sync.Cond
-	running  bool
-	addr     string
+	pending []*wsPipe
+	lock    sync.Mutex
+	cv      sync.Cond
+	running bool
+	addr    string
 	//wssvr	 websocket.Handler
-	wssvr	 websocket.Server
-	htsvr	 *http.Server
-	url_	 *url.URL
+	wssvr    websocket.Server
+	htsvr    *http.Server
+	url_     *url.URL
 	listener *net.TCPListener
 	proto    mangos.Protocol
 }
@@ -139,7 +139,7 @@ func (l *wsListener) Accept() (mangos.Pipe, error) {
 
 	for {
 		if !l.running {
-			return nil, mangos.ErrClosed	
+			return nil, mangos.ErrClosed
 		}
 		if len(l.pending) == 0 {
 			l.cv.Wait()
@@ -174,7 +174,7 @@ func (l *wsListener) handler(ws *websocket.Conn) {
 	w.wg.Wait()
 }
 
-func (l *wsListener) handshake (c *websocket.Config, _ *http.Request) error {
+func (l *wsListener) handshake(c *websocket.Config, _ *http.Request) error {
 	pname := l.proto.Name() + ".sp.nanomsg.org"
 	for _, p := range c.Protocol {
 		if p == pname {
@@ -194,7 +194,7 @@ func (l *wsListener) Close() error {
 	l.listener.Close()
 	l.running = false
 	l.cv.Broadcast()
-	for _, ws := range(l.pending) {
+	for _, ws := range l.pending {
 		ws.Close()
 	}
 	l.pending = l.pending[0:0]
@@ -214,7 +214,7 @@ func (t *wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDiale
 }
 
 func (t *wsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
-	var err   error
+	var err error
 	var taddr *net.TCPAddr
 	l := &wsListener{}
 	l.cv.L = &l.lock
@@ -228,7 +228,7 @@ func (t *wsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAcc
 	// We listen separately, that way we can catch and deal with the
 	// case of a port already in use.
 
-        if taddr, err = net.ResolveTCPAddr("tcp", l.url_.Host); err != nil {
+	if taddr, err = net.ResolveTCPAddr("tcp", l.url_.Host); err != nil {
 		return nil, err
 	}
 

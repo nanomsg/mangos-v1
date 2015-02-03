@@ -15,12 +15,13 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/respondent"
-	"github.com/gdamore/mangos/protocol/surveyor"
 	"encoding/binary"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/protocol/respondent"
+	"github.com/gdamore/mangos/protocol/surveyor"
 )
 
 type surveyTest struct {

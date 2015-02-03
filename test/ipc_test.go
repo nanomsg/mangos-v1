@@ -15,12 +15,13 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/ipc"
 	"bytes"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/ipc"
 )
 
 var ipctran = ipc.NewTransport()

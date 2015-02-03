@@ -23,8 +23,9 @@
 package star
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type starEp struct {

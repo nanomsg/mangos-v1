@@ -17,10 +17,11 @@
 package req
 
 import (
-	"github.com/gdamore/mangos"
 	"encoding/binary"
 	"sync"
 	"time"
+
+	"github.com/gdamore/mangos"
 )
 
 // req is an implementation of the req protocol.

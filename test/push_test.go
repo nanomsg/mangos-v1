@@ -15,10 +15,11 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pull"
 	"github.com/gdamore/mangos/protocol/push"
-	"testing"
 )
 
 type PushTest struct {

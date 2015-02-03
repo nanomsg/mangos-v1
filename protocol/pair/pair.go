@@ -17,8 +17,9 @@
 package pair
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type pair struct {

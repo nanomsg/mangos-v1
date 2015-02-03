@@ -32,18 +32,18 @@ type inproc struct {
 }
 
 type listener struct {
-	addr       string
-	proto      mangos.Protocol
-	accepters  []*inproc
+	addr      string
+	proto     mangos.Protocol
+	accepters []*inproc
 }
 
 type inprocTran struct{}
 
 var listeners struct {
 	// Who is listening, on which "address"?
-	byAddr  map[string]*listener
-	cv      sync.Cond
-	mx      sync.Mutex
+	byAddr map[string]*listener
+	cv     sync.Cond
+	mx     sync.Mutex
 }
 
 func init() {
@@ -176,9 +176,9 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 	listeners.mx.Unlock()
 
 	select {
-	case <- server.readyq:
+	case <-server.readyq:
 		return server, nil
-	case <- server.closeq:
+	case <-server.closeq:
 		return nil, mangos.ErrClosed
 	}
 }

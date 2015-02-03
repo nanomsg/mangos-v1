@@ -15,11 +15,12 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/tcp"
 	"bytes"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/tcp"
 )
 
 var tran = tcp.NewTransport()

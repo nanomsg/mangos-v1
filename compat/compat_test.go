@@ -25,7 +25,7 @@ type creqTest struct {
 	ok    bool
 	debug bool
 	addr  string
-        sock  *Socket
+	sock  *Socket
 	done  chan struct{}
 	t     *testing.T
 }
@@ -35,8 +35,8 @@ type crepTest struct {
 	tot   uint32
 	ok    bool
 	debug bool
-        addr  string
-        sock  *Socket
+	addr  string
+	sock  *Socket
 	done  chan struct{}
 	t     *testing.T
 }
@@ -114,7 +114,6 @@ func (rt *creqTest) DoTest() bool {
 	}
 	return true
 }
-
 
 func (rt *crepTest) Init(t *testing.T, addr string, num uint32) bool {
 	var e error

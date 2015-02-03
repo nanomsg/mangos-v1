@@ -19,9 +19,10 @@
 package sub
 
 import (
-	"github.com/gdamore/mangos"
 	"bytes"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 type sub struct {

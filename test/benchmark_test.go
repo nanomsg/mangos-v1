@@ -15,15 +15,16 @@
 package test
 
 import (
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
 	"github.com/gdamore/mangos/protocol/rep"
 	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/all"
-	"runtime"
-	"strings"
-	"testing"
-	"time"
 )
 
 func benchmarkReq(t *testing.B, url string, size int) {

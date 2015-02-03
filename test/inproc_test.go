@@ -15,11 +15,12 @@
 package test
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/inproc"
 	"bytes"
 	"testing"
 	"time"
+
+	"github.com/gdamore/mangos"
+	"github.com/gdamore/mangos/transport/inproc"
 )
 
 var inp = inproc.NewTransport()

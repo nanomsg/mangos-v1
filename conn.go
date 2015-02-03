@@ -25,11 +25,11 @@ import (
 // assumption is that transports using this have similar wire protocols,
 // and conn is meant to be used as a building block.
 type conn struct {
-	c      net.Conn
-	rlock  sync.Mutex
-	wlock  sync.Mutex
-	proto  Protocol
-	open   bool
+	c     net.Conn
+	rlock sync.Mutex
+	wlock sync.Mutex
+	proto Protocol
+	open  bool
 }
 
 // connipc is *almost* like a regular conn, but the IPC protocol insists

@@ -15,11 +15,12 @@
 package test
 
 import (
+	"bytes"
+	"testing"
+
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pub"
 	"github.com/gdamore/mangos/protocol/sub"
-	"bytes"
-	"testing"
 )
 
 var publish = []string{

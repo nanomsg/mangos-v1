@@ -29,12 +29,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pub"
 	"github.com/gdamore/mangos/protocol/sub"
 	"github.com/gdamore/mangos/transport/ipc"
 	"github.com/gdamore/mangos/transport/tcp"
-	"fmt"
 	"os"
 	"time"
 )

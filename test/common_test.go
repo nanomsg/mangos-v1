@@ -52,7 +52,7 @@ type T struct {
 	Sock    mangos.Socket
 	rdone   bool
 	rdoneq  chan struct{}
-        sdone   bool
+	sdone   bool
 	sdoneq  chan struct{}
 	readyq  chan struct{}
 	Server  bool
@@ -193,8 +193,8 @@ func (c *T) GetID() int {
 func (c *T) SendDone() {
 	c.Lock()
 	if !c.sdone {
-	    c.sdone = true
-	    close(c.sdoneq)
+		c.sdone = true
+		close(c.sdoneq)
 	}
 	c.Unlock()
 }
