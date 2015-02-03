@@ -146,3 +146,7 @@ func TestReqRepTLS(t *testing.T) {
 func TestReqRepWS(t *testing.T) {
 	RunTestsWS(t, reqRepCases())
 }
+
+func TestReqRepWSS(t *testing.T) {
+	RunTestsWSS(t, reqRepCases())
+}

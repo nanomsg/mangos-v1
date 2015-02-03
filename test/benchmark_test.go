@@ -43,7 +43,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	defer srvsock.Close()
 
 	all.AddTransports(srvsock)
-	SetTLSTest(t, srvsock)
+	SetTLSTest(t, srvsock, true)
 
 	clisock, err := req.NewSocket()
 	if err != nil || clisock == nil {
@@ -52,7 +52,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	}
 	defer clisock.Close()
 	all.AddTransports(clisock)
-	SetTLSTest(t, clisock)
+	SetTLSTest(t, clisock, false)
 
 	go func() {
 		var err error
@@ -119,7 +119,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}
 	all.AddTransports(srvsock)
 	defer srvsock.Close()
-	SetTLSTest(t, srvsock)
+	SetTLSTest(t, srvsock, true)
 
 	clisock, err := pair.NewSocket()
 	if err != nil || clisock == nil {
@@ -128,7 +128,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}
 	all.AddTransports(clisock)
 	defer clisock.Close()
-	SetTLSTest(t, clisock)
+	SetTLSTest(t, clisock, false)
 
 	go func() {
 		var err error

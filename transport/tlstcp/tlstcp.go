@@ -115,9 +115,10 @@ func (t *tlsTran) SetOption(name string, val interface{}) error {
 		switch v := val.(type) {
 		case *tls.Config:
 			// Force TLS 1.2, others have weaknesses
-			v.MinVersion = tls.VersionTLS12
-			v.MaxVersion = tls.VersionTLS12
-			t.config = v
+			cfg := *v
+			cfg.MinVersion = tls.VersionTLS12
+			cfg.MaxVersion = tls.VersionTLS12
+			t.config = &cfg
 			return nil
 		default:
 			return mangos.ErrBadValue

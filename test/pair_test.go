@@ -87,3 +87,7 @@ func TestPairTLS(t *testing.T) {
 func TestPairWS(t *testing.T) {
 	RunTestsWS(t, pairCases())
 }
+
+func TestPairWSS(t *testing.T) {
+	RunTestsWSS(t, pairCases())
+}

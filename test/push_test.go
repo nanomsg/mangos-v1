@@ -101,3 +101,7 @@ func TestPushPullTLS(t *testing.T) {
 func TestPushPullWS(t *testing.T) {
 	RunTestsWS(t, pushCases())
 }
+
+func TestPushPullWSS(t *testing.T) {
+	RunTestsWSS(t, pushCases())
+}

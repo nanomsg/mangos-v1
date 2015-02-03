@@ -31,6 +31,7 @@ import (
 	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/all"
 	"github.com/gdamore/mangos/transport/tlstcp"
+	"github.com/gdamore/mangos/transport/wss"
 )
 
 var protoReq = req.NewProtocol()
@@ -111,9 +112,7 @@ func (c *T) Init(t *testing.T, addr string) bool {
 
 	all.AddTransports(c.Sock)
 	c.Sock.AddTransport(tlstcp.NewTransport())
-	if !SetTLSTest(t, c.Sock) {
-		return false
-	}
+	c.Sock.AddTransport(wss.NewTransport())
 	return true
 }
 
@@ -227,6 +226,9 @@ func (c *T) WaitRecv() bool {
 }
 
 func (c *T) Dial() bool {
+	if !SetTLSTest(c.t, c.Sock, false) {
+		return false
+	}
 	err := c.Sock.Dial(c.addr)
 	if err != nil {
 		c.Errorf("Dial (%s) failed: %v", c.addr, err)
@@ -238,6 +240,9 @@ func (c *T) Dial() bool {
 }
 
 func (c *T) Listen() bool {
+	if !SetTLSTest(c.t, c.Sock, true) {
+		return false
+	}
 	err := c.Sock.Listen(c.addr)
 	if err != nil {
 		c.Errorf("Listen (%s) failed: %v", c.addr, err)
@@ -553,6 +558,9 @@ var AddrTestTLS = "tls+tcp://127.0.0.1:43934"
 // AddrTestWS is a suitable websocket address for testing.
 var AddrTestWS = "ws://127.0.0.1:53935"
 
+// AddrTestWSS is a suitable secure websocket address for testing.
+var AddrTestWSS = "wss://127.0.0.1:53936"
+
 // RunTestsTCP runs the TCP tests.
 func RunTestsTCP(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestTCP, cases)
@@ -576,4 +584,9 @@ func RunTestsTLS(t *testing.T, cases []TestCase) {
 // RunTestsWS runs the websock tests.
 func RunTestsWS(t *testing.T, cases []TestCase) {
 	RunTests(t, AddrTestWS, cases)
+}
+
+// RunTestsWSS runs the websock tests.
+func RunTestsWSS(t *testing.T, cases []TestCase) {
+	RunTests(t, AddrTestWSS, cases)
 }

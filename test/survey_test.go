@@ -178,3 +178,7 @@ func TestSurveyTLS(t *testing.T) {
 func TestSurveyWS(t *testing.T) {
 	RunTestsWS(t, surveyCases())
 }
+
+func TestSurveyWSS(t *testing.T) {
+	RunTestsWSS(t, surveyCases())
+}

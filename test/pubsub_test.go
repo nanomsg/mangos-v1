@@ -149,3 +149,7 @@ func TestPubSubTLS(t *testing.T) {
 func TestPubSubWS(t *testing.T) {
 	RunTestsWS(t, pubCases())
 }
+
+func TestPubSubWSS(t *testing.T) {
+	RunTestsWSS(t, pubCases())
+}
