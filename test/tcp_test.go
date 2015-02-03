@@ -26,7 +26,7 @@ import (
 var tran = tcp.NewTransport()
 
 func TestTCPListenAndAccept(t *testing.T) {
-	addr := "127.0.0.1:3333"
+	addr := "tcp://127.0.0.1:3333"
 	t.Logf("Establishing accepter")
 	accepter, err := tran.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -69,7 +69,7 @@ func TestTCPListenAndAccept(t *testing.T) {
 }
 
 func TestTCPDuplicateListen(t *testing.T) {
-	addr := "127.0.0.1:3333"
+	addr := "tcp://127.0.0.1:3333"
 	var err error
 	listener, err := tran.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -87,7 +87,7 @@ func TestTCPDuplicateListen(t *testing.T) {
 }
 
 func TestTCPConnRefused(t *testing.T) {
-	addr := "127.0.0.1:19" // Port 19 is chargen, rarely in use
+	addr := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
 	d, err := tran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
@@ -102,7 +102,7 @@ func TestTCPConnRefused(t *testing.T) {
 }
 
 func TestTCPSendRecv(t *testing.T) {
-	addr := "127.0.0.1:3333"
+	addr := "tcp://127.0.0.1:3333"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 

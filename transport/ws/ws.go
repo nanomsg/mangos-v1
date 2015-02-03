@@ -210,7 +210,7 @@ func (w *wsTran) Scheme() string {
 }
 
 func (t *wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
-	return &wsDialer{addr: t.Scheme() + "://" + addr, proto: proto}, nil
+	return &wsDialer{addr: addr, proto: proto}, nil
 }
 
 func (t *wsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
@@ -220,7 +220,7 @@ func (t *wsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAcc
 	l.cv.L = &l.lock
 
 	l.proto = proto
-	l.url_, err = url.ParseRequestURI(t.Scheme() + "://" + addr)
+	l.url_, err = url.ParseRequestURI(addr)
 	if err != nil {
 		return nil, err
 	}

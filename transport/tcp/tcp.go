@@ -66,6 +66,11 @@ func (t *tcpTran) Scheme() string {
 func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
 	var err error
 	d := &tcpDialer{proto: proto}
+
+	if addr, err = mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
+
 	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
@@ -75,6 +80,10 @@ func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 func (t *tcpTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
 	var err error
 	a := &tcpAccepter{proto: proto}
+
+	if addr, err = mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
 
 	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err

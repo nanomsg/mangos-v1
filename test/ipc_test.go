@@ -33,7 +33,7 @@ func TestIPCListenAndAccept(t *testing.T) {
 		return
 	}
 
-	addr := "/tmp/ipc_test1"
+	addr := "ipc:///tmp/ipc_test1"
 	t.Logf("Establishing accepter")
 	accepter, err := ipctran.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestIPCDuplicateListen(t *testing.T) {
 		return
 	}
 
-	addr := "/tmp/ipc_test2"
+	addr := "ipc:///tmp/ipc_test2"
 	var err error
 	listener, err := ipctran.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestIPCConnRefused(t *testing.T) {
 		return
 	}
 
-	addr := "/tmp/ipc_test3"
+	addr := "ipc:///tmp/ipc_test3"
 	var err error
 	d, err := ipctran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
@@ -127,7 +127,7 @@ func TestIPCSendRecv(t *testing.T) {
 		return
 	}
 
-	addr := "/tmp/ipc_test4"
+	addr := "ipc:///tmp/ipc_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 

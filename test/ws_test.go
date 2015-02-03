@@ -26,7 +26,7 @@ import (
 var wtran = ws.NewTransport()
 
 func TestWSListenAndAccept(t *testing.T) {
-	addr := "127.0.0.1:3335/mysock" // without ws://
+	addr := "ws://127.0.0.1:3335/mysock" // without ws://
 	t.Logf("Establishing accepter")
 	accepter, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -70,7 +70,7 @@ func TestWSListenAndAccept(t *testing.T) {
 }
 
 func TestWSDuplicateListen(t *testing.T) {
-	addr := "127.0.0.1:3335/bogus"
+	addr := "ws://127.0.0.1:3335/bogus"
 	var err error
 	listener, err := wtran.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestWSDuplicateListen(t *testing.T) {
 }
 
 func TestWSConnRefused(t *testing.T) {
-	addr := "127.0.0.1:19/nobodythere" // Port 19 is chargen, rarely in use
+	addr := "ws://127.0.0.1:19/nobodythere" // Port 19 is chargen, rarely in use
 	var err error
 	d, err := wtran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
@@ -103,7 +103,7 @@ func TestWSConnRefused(t *testing.T) {
 }
 
 func TestWSSendRecv(t *testing.T) {
-	addr := "127.0.0.1:3335/exchange"
+	addr := "ws://127.0.0.1:3335/exchange"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 

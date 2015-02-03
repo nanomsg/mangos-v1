@@ -16,8 +16,9 @@
 package ipc
 
 import (
-	"github.com/gdamore/mangos"
 	"net"
+
+	"github.com/gdamore/mangos"
 )
 
 type ipcDialer struct {
@@ -67,6 +68,11 @@ func (t *ipcTran) Scheme() string {
 // NewDialer implements the Transport NewDialer method.
 func (t *ipcTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
 	var err error
+
+	if addr, err = mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
+
 	d := &ipcDialer{proto: proto}
 	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
@@ -78,6 +84,10 @@ func (t *ipcTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 func (t *ipcTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
 	var err error
 	a := &ipcAccepter{proto: proto}
+
+	if addr, err = mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
 
 	if a.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err

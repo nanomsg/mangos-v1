@@ -16,8 +16,9 @@
 package inproc
 
 import (
-	"github.com/gdamore/mangos"
 	"sync"
+
+	"github.com/gdamore/mangos"
 )
 
 // inproc implements the Pipe interface on top of channels.

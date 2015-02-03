@@ -27,7 +27,7 @@ var inp = inproc.NewTransport()
 
 func TestInpListenAndAccept(t *testing.T) {
 
-	addr := "inp_test1"
+	addr := "inproc://inp_test1"
 	t.Logf("Establishing accepter")
 	accepter, err := inp.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -71,7 +71,7 @@ func TestInpListenAndAccept(t *testing.T) {
 
 func TestInpDuplicateListen(t *testing.T) {
 
-	addr := "inp_test2"
+	addr := "inproc://inp_test2"
 	var err error
 	listener, err := inp.NewAccepter(addr, protoRep)
 	if err != nil {
@@ -89,7 +89,7 @@ func TestInpDuplicateListen(t *testing.T) {
 }
 
 func TestInpConnRefused(t *testing.T) {
-	addr := "/tmp/inp_test3"
+	addr := "inproc://tmp/inp_test3"
 	var err error
 	d, err := inp.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
@@ -105,7 +105,7 @@ func TestInpConnRefused(t *testing.T) {
 
 func TestInpSendRecv(t *testing.T) {
 
-	addr := "/tmp/inp_test4"
+	addr := "inproc://tmp/inp_test4"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 

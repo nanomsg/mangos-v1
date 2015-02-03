@@ -14,6 +14,10 @@
 
 package mangos
 
+import (
+	"strings"
+)
+
 // Pipe behaves like a full-duplex message-oriented connection between two
 // peers.  Callers may call operations on a Pipe simultaneously from
 // different goroutines.  (These are different from net.Conn because they
@@ -112,4 +116,11 @@ type Transport interface {
 	// If the protocol doesn't recognize the option, EBadOption should
 	// be returned.
 	GetOption(string) (interface{}, error)
+}
+
+func StripScheme(t Transport, addr string) (string, error)  {
+	if !strings.HasPrefix(addr, t.Scheme() + "://") {
+		return addr, ErrBadTran
+	}
+	return addr[len(t.Scheme() + "://"):], nil
 }
