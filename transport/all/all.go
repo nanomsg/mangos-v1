@@ -24,6 +24,7 @@ import (
 	"github.com/gdamore/mangos/transport/tcp"
 	"github.com/gdamore/mangos/transport/tlstcp"
 	"github.com/gdamore/mangos/transport/ws"
+	"github.com/gdamore/mangos/transport/wss"
 )
 
 // AddTransports adds all known transports to the given socket.
@@ -33,4 +34,5 @@ func AddTransports(sock mangos.Socket) {
 	sock.AddTransport(ipc.NewTransport())
 	sock.AddTransport(tlstcp.NewTransport())
 	sock.AddTransport(ws.NewTransport())
+	sock.AddTransport(wss.NewTransport())
 }

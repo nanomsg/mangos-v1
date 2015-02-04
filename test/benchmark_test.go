@@ -178,6 +178,7 @@ var benchTCPAddr = "tcp://127.0.0.1:33833"
 var benchIPCAddr = "ipc:///tmp/benchmark_test"
 var benchTLSAddr = "tls+tcp://127.0.0.1:44844"
 var benchWSAddr = "ws://127.0.0.1:55855/BENCHMARK"
+var benchWSSAddr = "wss://127.0.0.1:55856/BENCHMARK"
 
 func BenchmarkLatencyInp(t *testing.B) {
 	benchmarkReq(t, benchInpAddr, 0)
@@ -193,6 +194,9 @@ func BenchmarkLatencyTLS(t *testing.B) {
 }
 func BenchmarkLatencyWS(t *testing.B) {
 	benchmarkReq(t, benchWSAddr, 0)
+}
+func BenchmarkLatencyWSS(t *testing.B) {
+	benchmarkReq(t, benchWSSAddr, 0)
 }
 
 func BenchmarkTPut4kInp(t *testing.B) {
@@ -210,6 +214,9 @@ func BenchmarkTPut4kTLS(t *testing.B) {
 func BenchmarkTPut4kWS(t *testing.B) {
 	benchmarkPair(t, benchWSAddr, 4096)
 }
+func BenchmarkTPut4kWSS(t *testing.B) {
+	benchmarkPair(t, benchWSSAddr, 4096)
+}
 
 func BenchmarkTPut64kInp(t *testing.B) {
 	benchmarkPair(t, benchInpAddr, 65536)
@@ -225,4 +232,7 @@ func BenchmarkTPut64kTLS(t *testing.B) {
 }
 func BenchmarkTPut64kWS(t *testing.B) {
 	benchmarkPair(t, benchWSAddr, 65536)
+}
+func BenchmarkTPut64kWSS(t *testing.B) {
+	benchmarkPair(t, benchWSSAddr, 65536)
 }

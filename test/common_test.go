@@ -30,8 +30,6 @@ import (
 	"github.com/gdamore/mangos/protocol/rep"
 	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/all"
-	"github.com/gdamore/mangos/transport/tlstcp"
-	"github.com/gdamore/mangos/transport/wss"
 )
 
 var protoReq = req.NewProtocol()
@@ -111,8 +109,6 @@ func (c *T) Init(t *testing.T, addr string) bool {
 	c.txdelay = time.Duration(time.Now().UnixNano()) % time.Millisecond
 
 	all.AddTransports(c.Sock)
-	c.Sock.AddTransport(tlstcp.NewTransport())
-	c.Sock.AddTransport(wss.NewTransport())
 	return true
 }
 
