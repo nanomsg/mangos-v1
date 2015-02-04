@@ -118,9 +118,9 @@ type Transport interface {
 	GetOption(string) (interface{}, error)
 }
 
-func StripScheme(t Transport, addr string) (string, error)  {
-	if !strings.HasPrefix(addr, t.Scheme() + "://") {
+func StripScheme(t Transport, addr string) (string, error) {
+	if !strings.HasPrefix(addr, t.Scheme()+"://") {
 		return addr, ErrBadTran
 	}
-	return addr[len(t.Scheme() + "://"):], nil
+	return addr[len(t.Scheme()+"://"):], nil
 }

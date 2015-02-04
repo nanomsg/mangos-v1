@@ -119,11 +119,11 @@ func (d *wsDialer) Dial() (mangos.Pipe, error) {
 }
 
 type wsListener struct {
-	pending []*wsPipe
-	lock    sync.Mutex
-	cv      sync.Cond
-	running bool
-	addr    string
+	pending  []*wsPipe
+	lock     sync.Mutex
+	cv       sync.Cond
+	running  bool
+	addr     string
 	wssvr    websocket.Server
 	htsvr    *http.Server
 	url_     *url.URL

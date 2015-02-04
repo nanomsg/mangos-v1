@@ -38,19 +38,19 @@ var rootKey *rsa.PrivateKey
 var serverKey *rsa.PrivateKey
 var clientKey *rsa.PrivateKey
 
-var tlsTestRootKeyPEM   []byte
+var tlsTestRootKeyPEM []byte
 var tlsTestServerKeyPEM []byte
 var tlsTestClientKeyPEM []byte
 
-var tlsTestRootCertDER   []byte
+var tlsTestRootCertDER []byte
 var tlsTestServerCertDER []byte
 var tlsTestClientCertDER []byte
 
-var tlsTestRootCert   *x509.Certificate
+var tlsTestRootCert *x509.Certificate
 var tlsTestServerCert *x509.Certificate
 var tlsTestClientCert *x509.Certificate
 
-var tlsTestRootCertPEM   []byte
+var tlsTestRootCertPEM []byte
 var tlsTestServerCertPEM []byte
 var tlsTestClientCertPEM []byte
 
@@ -59,21 +59,21 @@ var rootTmpl = &x509.Certificate{
 
 	Issuer: pkix.Name{
 		CommonName:   "issuer.mangos.example.com",
-		Organization: []string{ "Mangos Issuer Org", },
+		Organization: []string{"Mangos Issuer Org"},
 	},
-	Subject: pkix.Name {
+	Subject: pkix.Name{
 		CommonName:   "root.mangos.example.com",
-		Organization: []string{ "Mangos Root Org", },
+		Organization: []string{"Mangos Root Org"},
 	},
 	NotBefore:          time.Unix(1000, 0),
 	NotAfter:           time.Now().Add(time.Hour),
 	IsCA:               true,
-	OCSPServer:         []string{ "ocsp.mangos.example.com" },
-	DNSNames:           []string{ "root.mangos.example.com" },
-	IPAddresses:        []net.IP{ net.ParseIP("127.0.0.1") },
+	OCSPServer:         []string{"ocsp.mangos.example.com"},
+	DNSNames:           []string{"root.mangos.example.com"},
+	IPAddresses:        []net.IP{net.ParseIP("127.0.0.1")},
 	SignatureAlgorithm: x509.SHA1WithRSA,
-	KeyUsage:	    x509.KeyUsageCertSign,
-	ExtKeyUsage:	    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	KeyUsage:           x509.KeyUsageCertSign,
+	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 }
 
 var serverTmpl = &x509.Certificate{
@@ -81,21 +81,21 @@ var serverTmpl = &x509.Certificate{
 
 	Issuer: pkix.Name{
 		CommonName:   "issuer.mangos.example.com",
-		Organization: []string{ "Mangos Issuer Org", },
+		Organization: []string{"Mangos Issuer Org"},
 	},
-	Subject: pkix.Name {
+	Subject: pkix.Name{
 		CommonName:   "server.mangos.example.com",
-		Organization: []string{ "Mangos Server Org", },
+		Organization: []string{"Mangos Server Org"},
 	},
 	NotBefore:          time.Unix(1000, 0),
 	NotAfter:           time.Now().Add(time.Hour),
 	IsCA:               false,
-	OCSPServer:         []string{ "ocsp.mangos.example.com" },
-	DNSNames:           []string{ "server.mangos.example.com" },
-	IPAddresses:        []net.IP{ net.ParseIP("127.0.0.1") },
+	OCSPServer:         []string{"ocsp.mangos.example.com"},
+	DNSNames:           []string{"server.mangos.example.com"},
+	IPAddresses:        []net.IP{net.ParseIP("127.0.0.1")},
 	SignatureAlgorithm: x509.SHA1WithRSA,
-	KeyUsage:	    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-	ExtKeyUsage:	    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 }
 
 var clientTmpl = &x509.Certificate{
@@ -103,21 +103,21 @@ var clientTmpl = &x509.Certificate{
 
 	Issuer: pkix.Name{
 		CommonName:   "issuer.mangos.example.com",
-		Organization: []string{ "Mangos Issuer Org", },
+		Organization: []string{"Mangos Issuer Org"},
 	},
-	Subject: pkix.Name {
+	Subject: pkix.Name{
 		CommonName:   "client.mangos.example.com",
-		Organization: []string{ "Mangos Client Org", },
+		Organization: []string{"Mangos Client Org"},
 	},
 	NotBefore:          time.Unix(1000, 0),
 	NotAfter:           time.Now().Add(time.Hour),
 	IsCA:               false,
-	OCSPServer:         []string{ "ocsp.mangos.example.com" },
-	DNSNames:           []string{ "client.mangos.example.com" },
-	IPAddresses:        []net.IP{ net.ParseIP("127.0.0.1") },
+	OCSPServer:         []string{"ocsp.mangos.example.com"},
+	DNSNames:           []string{"client.mangos.example.com"},
+	IPAddresses:        []net.IP{net.ParseIP("127.0.0.1")},
 	SignatureAlgorithm: x509.SHA1WithRSA,
-	KeyUsage:	    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-	ExtKeyUsage:	    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 }
 
 var tlslock sync.Mutex
@@ -132,7 +132,7 @@ func GenerateKeysAndCerts() (err error) {
 	}
 	if tlsTestRootKeyPEM == nil {
 		tlsTestRootKeyPEM = pem.EncodeToMemory(&pem.Block{
-			Type: "RSA PRIVATE KEY",
+			Type:  "RSA PRIVATE KEY",
 			Bytes: x509.MarshalPKCS1PrivateKey(rootKey),
 		})
 	}
@@ -144,7 +144,7 @@ func GenerateKeysAndCerts() (err error) {
 	}
 	if tlsTestServerKeyPEM == nil {
 		tlsTestServerKeyPEM = pem.EncodeToMemory(&pem.Block{
-			Type: "RSA PRIVATE KEY",
+			Type:  "RSA PRIVATE KEY",
 			Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
 		})
 	}
@@ -156,11 +156,10 @@ func GenerateKeysAndCerts() (err error) {
 	}
 	if tlsTestClientKeyPEM == nil {
 		tlsTestClientKeyPEM = pem.EncodeToMemory(&pem.Block{
-			Type: "RSA PRIVATE KEY",
+			Type:  "RSA PRIVATE KEY",
 			Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
 		})
 	}
-
 
 	if tlsTestRootCertDER == nil {
 		var der_, pem_ []byte
@@ -173,7 +172,7 @@ func GenerateKeysAndCerts() (err error) {
 		if cert, err = x509.ParseCertificate(der_); err != nil {
 			return
 		}
-		pem_ = pem.EncodeToMemory(&pem.Block{ Type: "CERTIFICATE", Bytes: der_ })
+		pem_ = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der_})
 		tlsTestRootCertDER = der_
 		tlsTestRootCertPEM = pem_
 		tlsTestRootCert = cert
@@ -190,7 +189,7 @@ func GenerateKeysAndCerts() (err error) {
 		if cert, err = x509.ParseCertificate(der_); err != nil {
 			return
 		}
-		pem_ = pem.EncodeToMemory(&pem.Block{ Type: "CERTIFICATE", Bytes: der_ })
+		pem_ = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der_})
 		tlsTestServerCertDER = der_
 		tlsTestServerCertPEM = pem_
 		tlsTestServerCert = cert
@@ -207,7 +206,7 @@ func GenerateKeysAndCerts() (err error) {
 		if cert, err = x509.ParseCertificate(der_); err != nil {
 			return
 		}
-		pem_ = pem.EncodeToMemory(&pem.Block{ Type: "CERTIFICATE", Bytes: der_ })
+		pem_ = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der_})
 		tlsTestClientCertDER = der_
 		tlsTestClientCertPEM = pem_
 		tlsTestClientCert = cert

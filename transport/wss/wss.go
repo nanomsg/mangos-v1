@@ -101,9 +101,9 @@ func (w *wssPipe) IsOpen() bool {
 }
 
 type wssDialer struct {
-	addr   string // url
-	proto  mangos.Protocol
-	origin string
+	addr      string // url
+	proto     mangos.Protocol
+	origin    string
 	tlsconfig *tls.Config
 }
 
@@ -129,16 +129,16 @@ func (d *wssDialer) Dial() (mangos.Pipe, error) {
 }
 
 type wssListener struct {
-	pending []*wssPipe
-	lock    sync.Mutex
-	cv      sync.Cond
-	running bool
-	addr    string
-	wssvr    websocket.Server
-	htsvr    *http.Server
-	url_     *url.URL
-	listener net.Listener
-	proto    mangos.Protocol
+	pending   []*wssPipe
+	lock      sync.Mutex
+	cv        sync.Cond
+	running   bool
+	addr      string
+	wssvr     websocket.Server
+	htsvr     *http.Server
+	url_      *url.URL
+	listener  net.Listener
+	proto     mangos.Protocol
 	tlsconfig *tls.Config
 }
 
@@ -245,8 +245,8 @@ func (t *wssTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAc
 	}
 
 	if tlist, err := net.ListenTCP("tcp", taddr); err != nil {
-                return nil, err
-        } else {
+		return nil, err
+	} else {
 		l.listener = tls.NewListener(tlist, l.tlsconfig)
 	}
 	//t.localAddr = tlistener.Addr()
@@ -283,8 +283,8 @@ func (t *wssTran) SetOption(name string, val interface{}) error {
 }
 
 func (t *wssTran) GetOption(name string) (interface{}, error) {
-        switch name {
-        case mangos.OptionTLSConfig:
+	switch name {
+	case mangos.OptionTLSConfig:
 		return t.tlsconfig, nil
 	}
 	return nil, mangos.ErrBadOption
