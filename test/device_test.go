@@ -15,6 +15,7 @@
 package test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gdamore/mangos"
@@ -204,9 +205,13 @@ func testDevLoop(t *testing.T, addr string) {
 	s1.AddTransport(tlstcp.NewTransport())
 	s1.AddTransport(ws.NewTransport())
 	s1.AddTransport(wss.NewTransport())
-	SetTLSTest(t, s1, true)
 
-	if err := s1.Listen(addr); err != nil {
+	options := make(map[string]interface{})
+	if strings.HasPrefix(addr, "wss://") || strings.HasPrefix(addr, "tls+tcp://") {
+		options[mangos.OptionTLSConfig] = srvCfg
+	}
+
+	if err := s1.ListenOptions(addr, options); err != nil {
 		t.Errorf("Failed listening to %s: %v", addr, err)
 		return
 	}
@@ -234,7 +239,6 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 		s[i].AddTransport(ipc.NewTransport())
 		s[i].AddTransport(inproc.NewTransport())
 		s[i].AddTransport(tlstcp.NewTransport())
-		SetTLSTest(t, s[i], false)
 	}
 
 	if err = s[0].Listen(addr1); err != nil {

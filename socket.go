@@ -47,11 +47,21 @@ type Socket interface {
 	// If the address is invalid, then an error is returned.
 	Dial(addr string) error
 
+	DialOptions(addr string, options map[string]interface{}) error
+
+	// NewDialer returns a Dialer object which can be used to get
+	// access to the underlying configuration for dialing.
+	NewDialer(addr string, options map[string]interface{}) (Dialer, error)
+
 	// Listen connects a local endpoint to the Socket.  Remote peers
 	// may connect (e.g. with Dial) and will each be "connected" to
 	// the Socket.  The accepter logic is run in a separate goroutine.
 	// The only error possible is if the address is invalid.
 	Listen(addr string) error
+
+	ListenOptions(addr string, options map[string]interface{}) error
+
+	NewListener(addr string, options map[string]interface{}) (Listener, error)
 
 	// GetOption is used to retrieve an option for a socket.
 	GetOption(name string) (interface{}, error)

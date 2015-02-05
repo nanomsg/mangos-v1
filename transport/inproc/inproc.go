@@ -115,12 +115,12 @@ func (p *inproc) IsOpen() bool {
 	}
 }
 
-type inprocDialer struct {
+type dialer struct {
 	addr  string
 	proto mangos.Protocol
 }
 
-func (d *inprocDialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	var server *inproc
 	client := &inproc{proto: d.proto, addr: d.addr}
@@ -166,6 +166,26 @@ func (d *inprocDialer) Dial() (mangos.Pipe, error) {
 	return client, nil
 }
 
+func (*dialer) SetOption(string, interface{}) error {
+	return mangos.ErrBadOption
+}
+
+func (*dialer) GetOption(string) (interface{}, error) {
+	return nil, mangos.ErrBadOption
+}
+
+func (l *listener) Listen() error {
+	listeners.mx.Lock()
+	if _, ok := listeners.byAddr[l.addr]; ok {
+		listeners.mx.Unlock()
+		return mangos.ErrAddrInUse
+	}
+	listeners.byAddr[l.addr] = l
+	listeners.cv.Broadcast()
+	listeners.mx.Unlock()
+	return nil
+}
+
 func (l *listener) Accept() (mangos.Pipe, error) {
 	server := &inproc{proto: l.proto, addr: l.addr}
 	server.readyq = make(chan struct{})
@@ -184,13 +204,21 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 	}
 }
 
+func (*listener) SetOption(string, interface{}) error {
+	return mangos.ErrBadOption
+}
+
+func (*listener) GetOption(string) (interface{}, error) {
+	return nil, mangos.ErrBadOption
+}
+
 func (l *listener) Close() error {
 	listeners.mx.Lock()
 	if listeners.byAddr[l.addr] == l {
 		delete(listeners.byAddr, l.addr)
 	}
 	servers := l.accepters
-	l.accepters = make([]*inproc, 0, 5)
+	l.accepters = nil
 	listeners.cv.Broadcast()
 	listeners.mx.Unlock()
 
@@ -206,20 +234,11 @@ func (t *inprocTran) Scheme() string {
 }
 
 func (t *inprocTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
-	return &inprocDialer{addr: addr, proto: proto}, nil
+	return &dialer{addr: addr, proto: proto}, nil
 }
 
-func (t *inprocTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
-	listeners.mx.Lock()
-	if l, ok := listeners.byAddr[addr]; l != nil || ok {
-		listeners.mx.Unlock()
-		return nil, mangos.ErrAddrInUse
-	}
+func (t *inprocTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
 	l := &listener{addr: addr, proto: proto}
-	l.accepters = make([]*inproc, 0, 5)
-	listeners.byAddr[addr] = l
-	listeners.cv.Broadcast()
-	listeners.mx.Unlock()
 	return l, nil
 }
 

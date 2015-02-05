@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -93,4 +93,13 @@ const (
 	// channel. By default, it's 128. This option cannot be set if Dial or
 	// Listen has been called on the socket.
 	OptionReadQLen = "READQ-LEN"
+
+	// OptionKeepAlive is used to set TCP KeepAlive.  Value is a boolean.
+	// Default is true.
+	OptionKeepAlive = "KEEPALIVE"
+
+	// OptionNoDelay is used to configure Nagle -- when true messages are sent
+	// as soon as possible, otherwise some buffering may occur.  Value is
+	// a boolean.  Default is true.
+	OptionNoDelay = "NO-DELAY"
 )

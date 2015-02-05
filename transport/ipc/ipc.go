@@ -21,13 +21,34 @@ import (
 	"github.com/gdamore/mangos"
 )
 
-type ipcDialer struct {
+// options is used for shared GetOption/SetOption logic.
+type options map[string]interface{}
+
+// GetOption retrieves an option value.
+func (o options) get(name string) (interface{}, error) {
+	if o == nil {
+		return nil, mangos.ErrBadOption
+	}
+	if v, ok := o[name]; !ok {
+		return nil, mangos.ErrBadOption
+	} else {
+		return v, nil
+	}
+}
+
+// SetOption sets an option.  We have none, so just ErrBadOption.
+func (o options) set(string, interface{}) error {
+	return mangos.ErrBadOption
+}
+
+type dialer struct {
 	addr  *net.UnixAddr
 	proto mangos.Protocol
+	opts  options
 }
 
 // Dial implements the PipeDialer Dial method
-func (d *ipcDialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	conn, err := net.DialUnix("unix", nil, d.addr)
 	if err != nil {
@@ -36,26 +57,57 @@ func (d *ipcDialer) Dial() (mangos.Pipe, error) {
 	return mangos.NewConnPipeIPC(conn, d.proto)
 }
 
-type ipcAccepter struct {
+// SetOption implements a stub PipeDialer SetOption method.
+func (d *dialer) SetOption(n string, v interface{}) error {
+	return d.opts.set(n, v)
+}
+
+// GetOption implements a stub PipeDialer GetOption method.
+func (d *dialer) GetOption(n string) (interface{}, error) {
+	return d.opts.get(n)
+}
+
+type listener struct {
 	addr     *net.UnixAddr
 	proto    mangos.Protocol
 	listener *net.UnixListener
+	opts     options
 }
 
-// Accept implements the the PipeAccepter Accept method.
-func (a *ipcAccepter) Accept() (mangos.Pipe, error) {
+// Listen implements the PipeListener Listen method.
+func (l *listener) Listen() error {
+	if listener, err := net.ListenUnix("unix", l.addr); err != nil {
+		return err
+	} else {
+		l.listener = listener
+	}
+	return nil
+}
 
-	conn, err := a.listener.AcceptUnix()
+// Accept implements the the PipeListener Accept method.
+func (l *listener) Accept() (mangos.Pipe, error) {
+
+	conn, err := l.listener.AcceptUnix()
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipeIPC(conn, a.proto)
+	return mangos.NewConnPipeIPC(conn, l.proto)
 }
 
-// Close implements the PipeAccepter Close method.
-func (a *ipcAccepter) Close() error {
-	a.listener.Close()
+// Close implements the PipeListener Close method.
+func (l *listener) Close() error {
+	l.listener.Close()
 	return nil
+}
+
+// SetOption implements a stub PipeListener SetOption method.
+func (l *listener) SetOption(n string, v interface{}) error {
+	return l.opts.set(n, v)
+}
+
+// GetOption implements a stub PipeListener GetOption method.
+func (l *listener) GetOption(n string) (interface{}, error) {
+	return l.opts.get(n)
 }
 
 type ipcTran struct{}
@@ -73,31 +125,27 @@ func (t *ipcTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 		return nil, err
 	}
 
-	d := &ipcDialer{proto: proto}
+	d := &dialer{proto: proto, opts: nil}
 	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
-// NewAccepter implements the Transport NewAccepter method.
-func (t *ipcTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
+// NewListener implements the Transport NewListener method.
+func (t *ipcTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
 	var err error
-	a := &ipcAccepter{proto: proto}
+	l := &listener{proto: proto}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	if a.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
+	if l.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
 
-	if a.listener, err = net.ListenUnix("unix", a.addr); err != nil {
-		return nil, err
-	}
-
-	return a, nil
+	return l, nil
 }
 
 // SetOption implements a stub Transport SetOption method.

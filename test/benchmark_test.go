@@ -34,6 +34,13 @@ func benchmarkReq(t *testing.B, url string, size int) {
 		return
 	}
 
+	srvopts := make(map[string]interface{})
+	cliopts := make(map[string]interface{})
+
+	if strings.HasPrefix(url, "wss://") || strings.HasPrefix(url, "tls+tcp://") {
+		srvopts[mangos.OptionTLSConfig] = srvCfg
+		cliopts[mangos.OptionTLSConfig] = cliCfg
+	}
 	srvrdy := make(chan struct{})
 	srvsock, err := rep.NewSocket()
 	if err != nil || srvsock == nil {
@@ -43,7 +50,6 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	defer srvsock.Close()
 
 	all.AddTransports(srvsock)
-	SetTLSTest(t, srvsock, true)
 
 	clisock, err := req.NewSocket()
 	if err != nil || clisock == nil {
@@ -52,13 +58,12 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	}
 	defer clisock.Close()
 	all.AddTransports(clisock)
-	SetTLSTest(t, clisock, false)
 
 	go func() {
 		var err error
 		var msg *mangos.Message
 
-		if err = srvsock.Listen(url); err != nil {
+		if err = srvsock.ListenOptions(url, srvopts); err != nil {
 			t.Errorf("Server listen failed: %v", err)
 			return
 		}
@@ -78,7 +83,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 
 	}()
 
-	if err = clisock.Dial(url); err != nil {
+	if err = clisock.DialOptions(url, cliopts); err != nil {
 		t.Errorf("Client dial failed: %v", err)
 		return
 	}
@@ -110,6 +115,14 @@ func benchmarkPair(t *testing.B, url string, size int) {
 		return
 	}
 
+	srvopts := make(map[string]interface{})
+	cliopts := make(map[string]interface{})
+
+	if strings.HasPrefix(url, "wss://") || strings.HasPrefix(url, "tls+tcp://") {
+		srvopts[mangos.OptionTLSConfig] = srvCfg
+		cliopts[mangos.OptionTLSConfig] = cliCfg
+	}
+
 	finish := make(chan struct{})
 	ready := make(chan struct{})
 	srvsock, err := pair.NewSocket()
@@ -119,7 +132,6 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}
 	all.AddTransports(srvsock)
 	defer srvsock.Close()
-	SetTLSTest(t, srvsock, true)
 
 	clisock, err := pair.NewSocket()
 	if err != nil || clisock == nil {
@@ -128,13 +140,12 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}
 	all.AddTransports(clisock)
 	defer clisock.Close()
-	SetTLSTest(t, clisock, false)
 
 	go func() {
 		var err error
 		var m *mangos.Message
 
-		if err = srvsock.Listen(url); err != nil {
+		if err = srvsock.ListenOptions(url, srvopts); err != nil {
 			t.Errorf("Server listen failed: %v", err)
 			return
 		}
@@ -151,7 +162,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	}()
 	<-ready
 
-	if err = clisock.Dial(url); err != nil {
+	if err = clisock.DialOptions(url, cliopts); err != nil {
 		t.Errorf("Client dial failed: %v", err)
 		return
 	}

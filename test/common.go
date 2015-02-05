@@ -34,6 +34,8 @@ import (
 
 var protoReq = req.NewProtocol()
 var protoRep = rep.NewProtocol()
+var cliCfg, _ = NewTlsConfig(false)
+var srvCfg, _ = NewTlsConfig(true)
 
 // T is a structure that subtests can inherit from.
 type T struct {
@@ -54,6 +56,8 @@ type T struct {
 	sdone   bool
 	sdoneq  chan struct{}
 	readyq  chan struct{}
+	dialer  mangos.Dialer
+	listen  mangos.Listener
 	Server  bool
 	sync.Mutex
 }
@@ -222,10 +226,15 @@ func (c *T) WaitRecv() bool {
 }
 
 func (c *T) Dial() bool {
-	if !SetTLSTest(c.t, c.Sock, false) {
-		return false
+	options := make(map[string]interface{})
+	switch {
+	case strings.HasPrefix(c.addr, "tls+tcp://"):
+		fallthrough
+	case strings.HasPrefix(c.addr, "wss://"):
+		options[mangos.OptionTLSConfig] = cliCfg
 	}
-	err := c.Sock.Dial(c.addr)
+
+	err := c.Sock.DialOptions(c.addr, options)
 	if err != nil {
 		c.Errorf("Dial (%s) failed: %v", c.addr, err)
 		return false
@@ -236,10 +245,14 @@ func (c *T) Dial() bool {
 }
 
 func (c *T) Listen() bool {
-	if !SetTLSTest(c.t, c.Sock, true) {
-		return false
+	options := make(map[string]interface{})
+	switch {
+	case strings.HasPrefix(c.addr, "tls+tcp://"):
+		fallthrough
+	case strings.HasPrefix(c.addr, "wss://"):
+		options[mangos.OptionTLSConfig] = srvCfg
 	}
-	err := c.Sock.Listen(c.addr)
+	err := c.Sock.ListenOptions(c.addr, options)
 	if err != nil {
 		c.Errorf("Listen (%s) failed: %v", c.addr, err)
 		return false
