@@ -46,7 +46,7 @@ type socket struct {
 
 	pipes []*pipe
 
-	accepters []PipeAccepter
+	listeners []*listener
 
 	transports map[string]Transport
 
@@ -111,7 +111,7 @@ func MakeSocket(proto Protocol) *socket {
 	return newSocket(proto)
 }
 
-// Implementation of ProtocolHandle bits on coreHandle.  This is the middle
+// Implementation of ProtocolSocket bits on socket.  This is the middle
 // API presented to Protocol implementations.
 
 func (sock *socket) SendChannel() <-chan *Message {
@@ -144,8 +144,8 @@ func (sock *socket) Close() error {
 	sock.closing = true
 	close(sock.closeq)
 
-	for _, a := range sock.accepters {
-		a.Close()
+	for _, l := range sock.listeners {
+		l.l.Close()
 	}
 
 	pipes := append([]*pipe{}, sock.pipes...)
@@ -254,49 +254,39 @@ func (sock *socket) AddTransport(t Transport) {
 	sock.Unlock()
 }
 
-func (sock *socket) Dial(addr string) error {
-	// This function should fire off a dialer goroutine.  The dialer
-	// will monitor the connection state, and when it becomes closed
-	// will redial.
-	t := sock.getTransport(addr)
-	if t == nil {
-		return ErrBadTran
-	}
-	d, err := t.NewDialer(addr, sock.proto)
+func (sock *socket) DialOptions(addr string, opts map[string]interface{}) error {
+
+	d, err := sock.NewDialer(addr, opts)
 	if err != nil {
 		return err
 	}
-	sock.Lock()
-	sock.active = true
-	sock.Unlock()
-	go sock.dialer(d)
-	return nil
+	return d.Dial()
 }
 
-// dialer is used to dial or redial from a goroutine.
-func (sock *socket) dialer(d PipeDialer) {
-	for {
-		p, err := d.Dial()
-		if err == nil {
-			cp := sock.addPipe(p)
-			select {
-			case <-sock.closeq: // parent socket closed
-			case <-cp.closeq: // disconnect event
-			}
-		}
+func (sock *socket) Dial(addr string) error {
+	return sock.DialOptions(addr, nil)
+}
 
-		// we're redialing here
-		select {
-		case <-sock.closeq: // exit if parent socket closed
-			return
-		case <-time.After(sock.reconntime):
-			continue
+func (sock *socket) NewDialer(addr string, options map[string]interface{}) (Dialer, error) {
+	var err error
+	d := &dialer{sock: sock, addr: addr, closeq: make(chan struct{})}
+	t := sock.getTransport(addr)
+	if t == nil {
+		return nil, ErrBadTran
+	}
+	if d.d, err = t.NewDialer(addr, sock.proto); err != nil {
+		return nil, err
+	}
+	for n, v := range options {
+		if err = d.d.SetOption(n, v); err != nil {
+			return nil, err
 		}
 	}
+	return d, nil
 }
 
 // serve spins in a loop, calling the accepter's Accept routine.
-func (sock *socket) serve(a PipeAccepter) {
+func (sock *socket) serve(l PipeListener) {
 	for {
 		select {
 		case <-sock.closeq:
@@ -304,15 +294,32 @@ func (sock *socket) serve(a PipeAccepter) {
 		default:
 		}
 
-		// note that if the underlying Accepter is closed, then
-		// we expect to return back with an error.
-		if pipe, err := a.Accept(); err == nil {
+		// If the underlying PipeListener is closed, or not
+		// listening, we expect to return back with an error.
+		if pipe, err := l.Accept(); err == nil {
 			sock.addPipe(pipe)
+		} else if err == ErrClosed {
+			return
 		}
 	}
 }
 
+func (sock *socket) ListenOptions(addr string, options map[string]interface{}) error {
+	l, err := sock.NewListener(addr, options)
+	if err != nil {
+		return err
+	}
+	if err = l.Listen(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (sock *socket) Listen(addr string) error {
+	return sock.ListenOptions(addr, nil)
+}
+
+func (sock *socket) NewListener(addr string, options map[string]interface{}) (Listener, error) {
 	// This function sets up a goroutine to accept inbound connections.
 	// The accepted connection will be added to a list of accepted
 	// connections.  The Listener just needs to listen continuously,
@@ -320,18 +327,21 @@ func (sock *socket) Listen(addr string) error {
 	// connections without limit.
 	t := sock.getTransport(addr)
 	if t == nil {
-		return ErrBadTran
+		return nil, ErrBadTran
 	}
-	a, err := t.NewAccepter(addr, sock.proto)
+	var err error
+	l := &listener{sock: sock, addr: addr}
+	l.l, err = t.NewListener(addr, sock.proto)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	sock.accepters = append(sock.accepters, a)
-	sock.Lock()
-	sock.active = true
-	sock.Unlock()
-	go sock.serve(a)
-	return nil
+	for n, v := range options {
+		if err = l.l.SetOption(n, v); err != nil {
+			l.l.Close()
+			return nil, err
+		}
+	}
+	return l, nil
 }
 
 func (sock *socket) SetOption(name string, value interface{}) error {
@@ -435,4 +445,141 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 
 func (sock *socket) GetProtocol() Protocol {
 	return sock.proto
+}
+
+type dialer struct {
+	d      PipeDialer
+	sock   *socket
+	addr   string
+	closed bool
+	active bool
+	closeq chan struct{}
+}
+
+func (d *dialer) Dial() error {
+	d.sock.Lock()
+	if d.active {
+		d.sock.Unlock()
+		return ErrAddrInUse
+	}
+	d.closeq = make(chan struct{})
+	d.sock.active = true
+	d.active = true
+	d.sock.Unlock()
+	go d.dialer()
+	return nil
+}
+
+func (d *dialer) Close() error {
+	d.sock.Lock()
+	if d.closed {
+		d.sock.Unlock()
+		return ErrClosed
+	}
+	d.closed = true
+	close(d.closeq)
+	d.sock.Unlock()
+	return nil
+}
+
+func (d *dialer) GetOption(n string) (interface{}, error) {
+	return d.d.GetOption(n)
+}
+
+func (d *dialer) SetOption(n string, v interface{}) error {
+	return d.d.SetOption(n, v)
+}
+
+func (d *dialer) Address() string {
+	return d.addr
+}
+
+// dialer is used to dial or redial from a goroutine.
+func (d *dialer) dialer() {
+	for {
+		p, err := d.d.Dial()
+		if err == nil {
+			d.sock.Lock()
+			if d.closed {
+				p.Close()
+				return
+			}
+			d.sock.Unlock()
+			cp := d.sock.addPipe(p)
+			select {
+			case <-d.sock.closeq: // parent socket closed
+			case <-cp.closeq: // disconnect event
+			case <-d.closeq: // dialer closed
+			}
+		}
+
+		// we're redialing here
+		select {
+		case <-d.closeq: // dialer closed
+			return
+		case <-d.sock.closeq: // exit if parent socket closed
+			return
+		case <-time.After(d.sock.reconntime):
+			continue
+		}
+	}
+}
+
+type listener struct {
+	l    PipeListener
+	sock *socket
+	addr string
+}
+
+func (l *listener) GetOption(n string) (interface{}, error) {
+	return l.l.GetOption(n)
+}
+
+func (l *listener) SetOption(n string, v interface{}) error {
+	return l.l.SetOption(n, v)
+}
+
+// serve spins in a loop, calling the accepter's Accept routine.
+func (l *listener) serve() {
+	for {
+		select {
+		case <-l.sock.closeq:
+			return
+		default:
+		}
+
+		// If the underlying PipeListener is closed, or not
+		// listening, we expect to return back with an error.
+		if pipe, err := l.l.Accept(); err == nil {
+			l.sock.addPipe(pipe)
+		} else if err == ErrClosed {
+			return
+		}
+	}
+}
+
+func (l *listener) Listen() error {
+	// This function sets up a goroutine to accept inbound connections.
+	// The accepted connection will be added to a list of accepted
+	// connections.  The Listener just needs to listen continuously,
+	// as we assume that we want to continue to receive inbound
+	// connections without limit.
+
+	if err := l.l.Listen(); err != nil {
+		return err
+	}
+	l.sock.listeners = append(l.sock.listeners, l)
+	l.sock.Lock()
+	l.sock.active = true
+	l.sock.Unlock()
+	go l.serve()
+	return nil
+}
+
+func (l *listener) Address() string {
+	return l.addr
+}
+
+func (l *listener) Close() error {
+	return l.l.Close()
 }

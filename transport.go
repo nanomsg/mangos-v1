@@ -69,14 +69,28 @@ type Pipe interface {
 type PipeDialer interface {
 	// Dial is used to initiate a connection to a remote peer.
 	Dial() (Pipe, error)
+
+	// SetOption sets a local option on the dialer.
+	// ErrBadOption can be returned for unrecognized options.
+	// ErrBadValue can be returned for incorrect value types.
+	SetOption(name string, value interface{}) error
+
+	// GetOption gets a local option from the dialer.
+	// ErrBadOption can be returned for unrecognized options.
+	GetOption(name string) (value interface{}, err error)
 }
 
-// PipeAccepter represents the server side of a connection.  Servers respond
+// PipeListener represents the server side of a connection.  Servers respond
 // to a connection request from clients.
 //
-// PipeAccepter is only intended for use by transport implementors, and should
+// PipeListener is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type PipeAccepter interface {
+type PipeListener interface {
+
+	// Listen actually begins listening on the interface.  It is
+	// called just prior to the Accept() routine normally. It is
+	// the socket equivalent of bind()+listen().
+	Listen() error
 
 	// Accept completes the server side of a connection.  Once the
 	// connection is established and initial handshaking is complete,
@@ -87,8 +101,17 @@ type PipeAccepter interface {
 	// any underlying file descriptor.  Once this is done, the only way
 	// to resume listening is to create a new Server instance.  Presumably
 	// this function is only called when the last reference to the server
-	// is about to go away.
+	// is about to go away.  Established connections are unaffected.
 	Close() error
+
+	// SetOption sets a local option on the listener.
+	// ErrBadOption can be returned for unrecognized options.
+	// ErrBadValue can be returned for incorrect value types.
+	SetOption(name string, value interface{}) error
+
+	// GetOption gets a local option from the listener.
+	// ErrBadOption can be returned for unrecognized options.
+	GetOption(name string) (value interface{}, err error)
 }
 
 // Transport is the interface for transport suppliers to implement.
@@ -101,11 +124,11 @@ type Transport interface {
 	// NewDialer creates a new Dialer for this Transport.
 	NewDialer(url string, protocol Protocol) (PipeDialer, error)
 
-	// NewAccepter creates a new Accepter for this Transport.
+	// NewListener creates a new PipeListener for this Transport.
 	// This generally also arranges for an OS-level file descriptor to be
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
-	NewAccepter(url string, protocol Protocol) (PipeAccepter, error)
+	NewListener(url string, protocol Protocol) (PipeListener, error)
 
 	// SetOption allows for transports to handle transport specific
 	// options.  EBadOption should be returned if the Transport doesn't

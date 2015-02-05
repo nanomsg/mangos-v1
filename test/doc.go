@@ -12,7 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package test contains support code for varous mangos tests.
 package test
-
-// This file exists solely to silence go build.  This directory only
-// contains tests, and no actual library code.

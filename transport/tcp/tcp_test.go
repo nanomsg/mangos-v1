@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package tcp
 
 import (
 	"bytes"
@@ -20,25 +20,33 @@ import (
 	"time"
 
 	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/ws"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
 )
 
-var wtran = ws.NewTransport()
+var tran = NewTransport()
+var protoRep = rep.NewProtocol()
+var protoReq = req.NewProtocol()
 
-func TestWSListenAndAccept(t *testing.T) {
-	addr := "ws://127.0.0.1:3335/mysock" // without ws://
+func TestTCPListenAndAccept(t *testing.T) {
+	addr := "tcp://127.0.0.1:3333"
 	t.Logf("Establishing accepter")
-	accepter, err := wtran.NewAccepter(addr, protoRep)
+	l, err := tran.NewListener(addr, protoRep)
 	if err != nil {
-		t.Errorf("NewAccepter failed: %v", err)
+		t.Errorf("NewListener failed: %v", err)
 		return
 	}
-	defer accepter.Close()
+	defer l.Close()
+	if err = l.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
 
 	go func() {
-		d, err := wtran.NewDialer(addr, protoReq)
+		d, err := tran.NewDialer(addr, protoReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
+			return
 		}
 		t.Logf("Connecting")
 		client, err := d.Dial()
@@ -51,10 +59,11 @@ func TestWSListenAndAccept(t *testing.T) {
 		t.Logf("Client open: %t", client.IsOpen())
 		if !client.IsOpen() {
 			t.Error("Client is closed")
+			return
 		}
 	}()
 
-	server, err := accepter.Accept()
+	server, err := l.Accept()
 	if err != nil {
 		t.Errorf("Accept failed: %v", err)
 		return
@@ -66,33 +75,44 @@ func TestWSListenAndAccept(t *testing.T) {
 	t.Logf("Server open: %t", server.IsOpen())
 	if !server.IsOpen() {
 		t.Error("Server is closed")
+		return
 	}
 }
 
-func TestWSDuplicateListen(t *testing.T) {
-	addr := "ws://127.0.0.1:3335/bogus"
+func TestTCPDuplicateListen(t *testing.T) {
+	addr := "tcp://127.0.0.1:3333"
 	var err error
-	listener, err := wtran.NewAccepter(addr, protoRep)
+	l1, err := tran.NewListener(addr, protoRep)
 	if err != nil {
-		t.Errorf("NewAccepter failed: %v", err)
+		t.Errorf("NewListener failed: %v", err)
 		return
 	}
-	defer listener.Close()
+	defer l1.Close()
+	if err = l1.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
 
-	_, err = wtran.NewAccepter(addr, protoReq)
-	if err == nil {
+	l2, err := tran.NewListener(addr, protoReq)
+	if err != nil {
+		t.Errorf("NewListener failed: %v", err)
+		return
+	}
+	defer l2.Close()
+	if err = l2.Listen(); err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
 	}
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestWSConnRefused(t *testing.T) {
-	addr := "ws://127.0.0.1:19/nobodythere" // Port 19 is chargen, rarely in use
+func TestTCPConnRefused(t *testing.T) {
+	addr := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := wtran.NewDialer(addr, protoReq)
+	d, err := tran.NewDialer(addr, protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
+		return
 	}
 	c, err := d.Dial()
 	if err == nil || c != nil {
@@ -102,27 +122,31 @@ func TestWSConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestWSSendRecv(t *testing.T) {
-	addr := "ws://127.0.0.1:3335/exchange"
+func TestTCPSendRecv(t *testing.T) {
+	addr := "tcp://127.0.0.1:3333"
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	listener, err := wtran.NewAccepter(addr, protoRep)
+	l, err := tran.NewListener(addr, protoRep)
 	if err != nil {
-		t.Errorf("NewAccepter failed: %v", err)
+		t.Errorf("NewListener failed: %v", err)
 		return
 	}
-	defer listener.Close()
+	defer l.Close()
+	if err = l.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
 
 	go func() {
 		defer close(ch)
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := wtran.NewDialer(addr, protoReq)
+		d, err := tran.NewDialer(addr, protoReq)
 
 		client, err := d.Dial()
 		if err != nil {
@@ -165,10 +189,11 @@ func TestWSSendRecv(t *testing.T) {
 			t.Log("Client reply forwarded")
 		case <-time.After(5 * time.Second): // 5 secs should be plenty
 			t.Error("Client timeout forwarding reply")
+			return
 		}
 	}()
 
-	server, err := listener.Accept()
+	server, err := l.Accept()
 	if err != nil {
 		t.Errorf("Accept failed: %v", err)
 		return
@@ -215,6 +240,55 @@ func TestWSSendRecv(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Error("Client timeout?")
+		return
+	}
+}
+
+func TestTCPOptions(t *testing.T) {
+	addr := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
+	var err error
+	d, err := tran.NewDialer(addr, protoReq)
+	if err != nil || d == nil {
+		t.Errorf("New Dialer failed: %v", err)
+		return
+	}
+
+	t.Logf("Options are %v", interface{}(d).(*dialer).opts)
+
+	// Valid Boolean Options
+	for _, n := range []string{mangos.OptionNoDelay, mangos.OptionKeepAlive} {
+		t.Logf("Checking option %s", n)
+
+		if err := d.SetOption(n, true); err != nil {
+			t.Errorf("Set option %s failed: %v", n, err)
+			return
+		}
+
+		if val, err := d.GetOption(n); err != nil {
+			t.Errorf("Get option %s failed: %v", n, err)
+			return
+		} else {
+			switch v := val.(type) {
+			case bool:
+				if !v {
+					t.Errorf("Option %s value not true", n)
+					return
+				}
+			default:
+				t.Errorf("Option %s wrong type!", n)
+				return
+			}
+		}
+
+		if err := d.SetOption(n, 1234); err != mangos.ErrBadValue {
+			t.Errorf("Expected ErrBadValue, but did not get it")
+			return
+		}
+	}
+
+	// Negative test: try a bad option
+	if err := d.SetOption("NO-SUCH-OPTION", 0); err != mangos.ErrBadOption {
+		t.Errorf("Expected ErrBadOption, but did not get it")
 		return
 	}
 }

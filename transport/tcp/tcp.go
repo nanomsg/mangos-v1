@@ -21,38 +21,125 @@ import (
 	"github.com/gdamore/mangos"
 )
 
-type tcpDialer struct {
-	addr  *net.TCPAddr
-	proto mangos.Protocol
+// options is used for shared GetOption/SetOption logic.
+type options map[string]interface{}
+
+// GetOption retrieves an option value.
+func (o options) get(name string) (interface{}, error) {
+	if o == nil {
+		return nil, mangos.ErrBadOption
+	}
+	if v, ok := o[name]; !ok {
+		return nil, mangos.ErrBadOption
+	} else {
+		return v, nil
+	}
 }
 
-func (d *tcpDialer) Dial() (mangos.Pipe, error) {
+// SetOption sets an option.
+func (o options) set(name string, val interface{}) error {
+	switch name {
+	case mangos.OptionNoDelay:
+		fallthrough
+	case mangos.OptionKeepAlive:
+		switch v := val.(type) {
+		case bool:
+			o[name] = v
+			return nil
+		default:
+			return mangos.ErrBadValue
+		}
+	}
+	return mangos.ErrBadOption
+}
+
+func newOptions() options {
+	o := make(map[string]interface{})
+	o[mangos.OptionNoDelay] = true
+	o[mangos.OptionKeepAlive] = true
+	return options(o)
+}
+
+func configure(conn *net.TCPConn, o options) error {
+	if v, ok := o[mangos.OptionNoDelay]; ok {
+		if err := conn.SetNoDelay(v.(bool)); err != nil {
+			return err
+		}
+	}
+	if v, ok := o[mangos.OptionKeepAlive]; ok {
+		if err := conn.SetKeepAlive(v.(bool)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type dialer struct {
+	addr  *net.TCPAddr
+	proto mangos.Protocol
+	opts  options
+}
+
+func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	conn, err := net.DialTCP("tcp", nil, d.addr)
 	if err != nil {
 		return nil, err
 	}
+	if err = configure(conn, d.opts); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	return mangos.NewConnPipe(conn, d.proto)
 }
 
-type tcpAccepter struct {
+func (d *dialer) SetOption(n string, v interface{}) error {
+	return d.opts.set(n, v)
+}
+
+func (d *dialer) GetOption(n string) (interface{}, error) {
+	return d.opts.get(n)
+}
+
+type listener struct {
 	addr     *net.TCPAddr
 	proto    mangos.Protocol
 	listener *net.TCPListener
+	opts     options
 }
 
-func (a *tcpAccepter) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (mangos.Pipe, error) {
 
-	conn, err := a.listener.AcceptTCP()
+	if l.listener == nil {
+		return nil, mangos.ErrClosed
+	}
+	conn, err := l.listener.AcceptTCP()
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipe(conn, a.proto)
+	if err = configure(conn, l.opts); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return mangos.NewConnPipe(conn, l.proto)
 }
 
-func (a *tcpAccepter) Close() error {
-	a.listener.Close()
+func (l *listener) Listen() (err error) {
+	l.listener, err = net.ListenTCP("tcp", l.addr)
+	return
+}
+
+func (l *listener) Close() error {
+	l.listener.Close()
 	return nil
+}
+
+func (l *listener) SetOption(n string, v interface{}) error {
+	return l.opts.set(n, v)
+}
+
+func (l *listener) GetOption(n string) (interface{}, error) {
+	return l.opts.get(n)
 }
 
 type tcpTran struct {
@@ -65,7 +152,7 @@ func (t *tcpTran) Scheme() string {
 
 func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
 	var err error
-	d := &tcpDialer{proto: proto}
+	d := &dialer{proto: proto, opts: newOptions()}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
@@ -77,24 +164,19 @@ func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 	return d, nil
 }
 
-func (t *tcpTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
+func (t *tcpTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
 	var err error
-	a := &tcpAccepter{proto: proto}
+	l := &listener{proto: proto, opts: newOptions()}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	if a.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
+	if l.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
 
-	if a.listener, err = net.ListenTCP("tcp", a.addr); err != nil {
-		return nil, err
-	}
-
-	t.localAddr = a.listener.Addr()
-	return a, nil
+	return l, nil
 }
 
 func (*tcpTran) SetOption(string, interface{}) error {

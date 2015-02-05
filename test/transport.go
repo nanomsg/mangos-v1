@@ -16,38 +16,69 @@ package test
 
 import (
 	"bytes"
-	"runtime"
+	"crypto/tls"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/ipc"
+	"github.com/gdamore/mangos/protocol/rep"
+	"github.com/gdamore/mangos/protocol/req"
 )
 
-var ipctran = ipc.NewTransport()
+type TranTest struct {
+	addr     string
+	t        *testing.T
+	tran     mangos.Transport
+	cliCfg   *tls.Config
+	srvCfg   *tls.Config
+	protoRep mangos.Protocol
+	protoReq mangos.Protocol
+}
 
-func TestIPCListenAndAccept(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
+func NewTranTest(tran mangos.Transport, addr string) *TranTest {
+	tt := &TranTest{addr: addr, tran: tran}
+	if strings.HasPrefix(tt.addr, "tls+tcp://") || strings.HasPrefix(tt.addr, "wss://") {
+		tt.cliCfg, _ = GetTlsConfig(false)
+		tt.srvCfg, _ = GetTlsConfig(true)
 	}
+	tt.protoRep = rep.NewProtocol()
+	tt.protoReq = req.NewProtocol()
+	return tt
+}
 
-	addr := "ipc:///tmp/ipc_test1"
-	t.Logf("Establishing accepter")
-	accepter, err := ipctran.NewAccepter(addr, protoRep)
+func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
+	t.Logf("Establishing listener for %s", tt.addr)
+	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
 	if err != nil {
-		t.Errorf("NewAccepter failed: %v", err)
+		t.Errorf("NewListener failed: %v", err)
 		return
 	}
-	defer accepter.Close()
+	defer l.Close()
+	if tt.srvCfg != nil {
+		if err = l.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+			t.Errorf("Failed setting TLS config: %v", err)
+			return
+		}
+	}
+	if err = l.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
 
 	go func() {
-		d, err := ipctran.NewDialer(addr, protoReq)
+		t.Logf("Connecting on %s", tt.addr)
+		d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
 		if err != nil {
-			t.Errorf("NewDialier failed: %v", err)
+			t.Errorf("NewDialer failed: %v", err)
+			return
 		}
-		t.Logf("Connecting")
+		if tt.cliCfg != nil {
+			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
+				t.Errorf("Failed setting TLS config: %v", err)
+				return
+			}
+		}
 		client, err := d.Dial()
 		if err != nil {
 			t.Errorf("Dial failed: %v", err)
@@ -58,12 +89,14 @@ func TestIPCListenAndAccept(t *testing.T) {
 		t.Logf("Client open: %t", client.IsOpen())
 		if !client.IsOpen() {
 			t.Error("Client is closed")
+			return
 		}
 	}()
 
-	server, err := accepter.Accept()
+	server, err := l.Accept()
 	if err != nil {
 		t.Errorf("Accept failed: %v", err)
+		return
 	}
 	defer server.Close()
 
@@ -75,78 +108,100 @@ func TestIPCListenAndAccept(t *testing.T) {
 	}
 }
 
-func TestIPCDuplicateListen(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test2"
+func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	var err error
-	listener, err := ipctran.NewAccepter(addr, protoRep)
+	t.Logf("Testing Duplicate Listen on %s", tt.addr)
+	l1, err := tt.tran.NewListener(tt.addr, tt.protoRep)
 	if err != nil {
-		t.Errorf("NewAccepter failed: %v", err)
+		t.Errorf("NewListener failed: %v", err)
 		return
 	}
-	defer listener.Close()
+	defer l1.Close()
+	if tt.srvCfg != nil {
+		if err = l1.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+			t.Errorf("Failed setting TLS config: %v", err)
+			return
+		}
+	}
+	if err = l1.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
 
-	_, err = ipctran.NewAccepter(addr, protoReq)
-	if err == nil {
+	l2, err := tt.tran.NewListener(tt.addr, tt.protoReq)
+	if err != nil {
+		t.Errorf("NewListener faield: %v", err)
+		return
+	}
+	defer l2.Close()
+	if tt.srvCfg != nil {
+		if err = l2.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+			t.Errorf("Failed setting TLS config: %v", err)
+			return
+		}
+	}
+	if err = l2.Listen(); err == nil {
 		t.Errorf("Duplicate listen should not be permitted!")
 		return
 	}
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestIPCConnRefused(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test3"
-	var err error
-	d, err := ipctran.NewDialer(addr, protoReq)
+func (tt *TranTest) TranTestConnRefused(t *testing.T) {
+	d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
+	if tt.cliCfg != nil {
+		if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
+			t.Errorf("Failed setting TLS config: %v", err)
+			return
+		}
+	}
 	c, err := d.Dial()
 	if err == nil || c != nil {
-		t.Errorf("Connection not refused (%s)!", addr)
+		t.Errorf("Connection not refused (%s)!", tt.addr)
 		return
 	}
 	t.Logf("Got expected error: %v", err)
 }
 
-func TestIPCSendRecv(t *testing.T) {
-
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
-	addr := "ipc:///tmp/ipc_test4"
+func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
 	ch := make(chan *mangos.Message)
 
-	t.Logf("Establishing listener")
-	listener, err := ipctran.NewAccepter(addr, protoRep)
+	t.Logf("Establishing REP listener on %s", tt.addr)
+	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
 	if err != nil {
-		t.Errorf("NewAccepter failed: %v", err)
+		t.Errorf("NewListener failed: %v", err)
 		return
 	}
-	defer listener.Close()
+	defer l.Close()
+	if tt.srvCfg != nil {
+		if err = l.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+			t.Errorf("Failed setting TLS config: %v", err)
+			return
+		}
+	}
+	if err = l.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
 
 	go func() {
 		defer close(ch)
 
 		// Client side
-		t.Logf("Connecting")
-		d, err := ipctran.NewDialer(addr, protoReq)
+		t.Logf("Connecting REQ on %s", tt.addr)
+		d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
+		if tt.cliCfg != nil {
+			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
+				t.Errorf("Failed setting TLS config: %v", err)
+				return
+			}
+		}
 
 		client, err := d.Dial()
 		if err != nil {
@@ -157,8 +212,6 @@ func TestIPCSendRecv(t *testing.T) {
 		defer client.Close()
 
 		req := mangos.NewMessage(len(ping))
-		//req.Body = make([]byte, 0, 20)
-		//req.Header = make([]byte, 0)
 		req.Body = append(req.Body, ping...)
 
 		// Now try to send data
@@ -191,10 +244,11 @@ func TestIPCSendRecv(t *testing.T) {
 			t.Log("Client reply forwarded")
 		case <-time.After(5 * time.Second): // 5 secs should be plenty
 			t.Error("Client timeout forwarding reply")
+			return
 		}
 	}()
 
-	server, err := listener.Accept()
+	server, err := l.Accept()
 	if err != nil {
 		t.Errorf("Accept failed: %v", err)
 		return
@@ -236,7 +290,7 @@ func TestIPCSendRecv(t *testing.T) {
 	select {
 	case nrep := <-ch:
 		if !bytes.Equal(nrep.Body, ack) {
-			t.Errorf("Client forward mismatch: %v, %v", nrep, ack)
+			t.Errorf("Client forward mismatch: %v, %v", ack, rep)
 			return
 		}
 	case <-time.After(5 * time.Second):

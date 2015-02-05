@@ -26,6 +26,28 @@ import (
 	"sync"
 )
 
+type options map[string]interface{}
+
+// GetOption retrieves an option value.
+func (o options) get(name string) (interface{}, error) {
+	if o == nil {
+		return nil, mangos.ErrBadOption
+	}
+	if v, ok := o[name]; !ok {
+		return nil, mangos.ErrBadOption
+	} else {
+		return v, nil
+	}
+}
+
+// SetOption sets an option.  We have none, so just ErrBadOption.
+func (o options) set(name string, val interface{}) error {
+	switch name {
+	case mangos.OptionNoDelay:
+	}
+	return mangos.ErrBadOption
+}
+
 // wsPipe implements the Pipe interface on a websocket
 type wsPipe struct {
 	ws    *websocket.Conn
@@ -37,7 +59,7 @@ type wsPipe struct {
 	wg    sync.WaitGroup
 }
 
-type wsTran struct{}
+type wsTran int
 
 func (w *wsPipe) Recv() (*mangos.Message, error) {
 
@@ -97,13 +119,14 @@ func (w *wsPipe) IsOpen() bool {
 	return w.open
 }
 
-type wsDialer struct {
+type dialer struct {
 	addr   string // url
 	proto  mangos.Protocol
 	origin string
+	opts   options
 }
 
-func (d *wsDialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (mangos.Pipe, error) {
 	pname := d.proto.PeerName() + ".sp.nanomsg.org"
 	// We have to supply an origin because Go's websocket
 	// implementation seems to require it.  We fake a garbage one.
@@ -118,7 +141,15 @@ func (d *wsDialer) Dial() (mangos.Pipe, error) {
 	return w, nil
 }
 
-type wsListener struct {
+func (d *dialer) SetOption(n string, v interface{}) error {
+	return d.opts.set(n, v)
+}
+
+func (d *dialer) GetOption(n string) (interface{}, error) {
+	return d.opts.get(n)
+}
+
+type listener struct {
 	pending  []*wsPipe
 	lock     sync.Mutex
 	cv       sync.Cond
@@ -129,9 +160,45 @@ type wsListener struct {
 	url_     *url.URL
 	listener *net.TCPListener
 	proto    mangos.Protocol
+	opts     options
 }
 
-func (l *wsListener) Accept() (mangos.Pipe, error) {
+func (l *listener) SetOption(n string, v interface{}) error {
+	return l.opts.set(n, v)
+}
+
+func (l *listener) GetOption(n string) (interface{}, error) {
+	return l.opts.get(n)
+}
+
+func (l *listener) Listen() error {
+	var taddr *net.TCPAddr
+	var err error
+
+	// We listen separately, that way we can catch and deal with the
+	// case of a port already in use.  This also lets us configure
+	// properties of the underlying TCP connection.
+
+	if taddr, err = net.ResolveTCPAddr("tcp", l.url_.Host); err != nil {
+		return err
+	}
+
+	if l.listener, err = net.ListenTCP("tcp", taddr); err != nil {
+		return err
+	}
+	l.pending = nil
+	l.running = true
+
+	l.wssvr.Handler = l.handler
+	l.wssvr.Handshake = l.handshake
+	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.wssvr}
+
+	go l.htsvr.Serve(l.listener)
+
+	return nil
+}
+
+func (l *listener) Accept() (mangos.Pipe, error) {
 	var w *wsPipe
 
 	l.lock.Lock()
@@ -153,7 +220,7 @@ func (l *wsListener) Accept() (mangos.Pipe, error) {
 	return w, nil
 }
 
-func (l *wsListener) handler(ws *websocket.Conn) {
+func (l *listener) handler(ws *websocket.Conn) {
 	l.lock.Lock()
 
 	if !l.running {
@@ -174,7 +241,7 @@ func (l *wsListener) handler(ws *websocket.Conn) {
 	w.wg.Wait()
 }
 
-func (l *wsListener) handshake(c *websocket.Config, _ *http.Request) error {
+func (l *listener) handshake(c *websocket.Config, _ *http.Request) error {
 	pname := l.proto.Name() + ".sp.nanomsg.org"
 	for _, p := range c.Protocol {
 		if p == pname {
@@ -185,7 +252,7 @@ func (l *wsListener) handshake(c *websocket.Config, _ *http.Request) error {
 	return websocket.ErrBadWebSocketProtocol
 }
 
-func (l *wsListener) Close() error {
+func (l *listener) Close() error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 	if !l.running {
@@ -197,65 +264,44 @@ func (l *wsListener) Close() error {
 	for _, ws := range l.pending {
 		ws.Close()
 	}
-	l.pending = l.pending[0:0]
+	l.pending = nil
 	return nil
 }
 
-func (l *wsListener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	l.wssvr.ServeHTTP(w, r)
 }
 
-func (w *wsTran) Scheme() string {
+func (wsTran) Scheme() string {
 	return "ws"
 }
 
-func (t *wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
-	return &wsDialer{addr: addr, proto: proto}, nil
+func (wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+	return &dialer{addr: addr, proto: proto, opts: make(map[string]interface{})}, nil
 }
 
-func (t *wsTran) NewAccepter(addr string, proto mangos.Protocol) (mangos.PipeAccepter, error) {
+func (wsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
 	var err error
-	var taddr *net.TCPAddr
-	l := &wsListener{}
+	l := &listener{proto: proto, opts: make(map[string]interface{})}
 	l.cv.L = &l.lock
 
-	l.proto = proto
 	l.url_, err = url.ParseRequestURI(addr)
 	if err != nil {
 		return nil, err
 	}
 
-	// We listen separately, that way we can catch and deal with the
-	// case of a port already in use.
-
-	if taddr, err = net.ResolveTCPAddr("tcp", l.url_.Host); err != nil {
-		return nil, err
-	}
-
-	if l.listener, err = net.ListenTCP("tcp", taddr); err != nil {
-		return nil, err
-	}
-	l.pending = make([]*wsPipe, 0, 5)
-	l.running = true
-
-	l.wssvr.Handler = l.handler
-	l.wssvr.Handshake = l.handshake
-	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.wssvr}
-
-	go l.htsvr.Serve(l.listener)
-
 	return l, nil
 }
 
-func (*wsTran) SetOption(string, interface{}) error {
+func (wsTran) SetOption(string, interface{}) error {
 	return mangos.ErrBadOption
 }
 
-func (*wsTran) GetOption(string) (interface{}, error) {
+func (wsTran) GetOption(string) (interface{}, error) {
 	return nil, mangos.ErrBadOption
 }
 
 // NewTransport allocates a new inproc:// transport.
 func NewTransport() mangos.Transport {
-	return &wsTran{}
+	return wsTran(0)
 }
