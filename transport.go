@@ -59,6 +59,12 @@ type Pipe interface {
 
 	// IsOpen returns true if the underlying connection is open.
 	IsOpen() bool
+
+	// GetProp returns an arbitrary transport specific property.
+	// These are like options, but are read-only and specific to a single
+	// connection.  If the property doesn't exist, then ErrBadProperty
+	// should be returned.
+	GetProp(string) (interface{}, error)
 }
 
 // PipeDialer represents the client side of a connection.  Clients initiate

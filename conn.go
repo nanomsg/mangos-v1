@@ -30,6 +30,7 @@ type conn struct {
 	wlock sync.Mutex
 	proto Protocol
 	open  bool
+	props map[string]interface{}
 }
 
 // connipc is *almost* like a regular conn, but the IPC protocol insists
@@ -120,6 +121,13 @@ func (p *conn) IsOpen() bool {
 	return p.open
 }
 
+func (p *conn) GetProp(n string) (interface{}, error) {
+	if v, ok := p.props[n]; ok {
+		return v, nil
+	}
+	return nil, ErrBadProperty
+}
+
 // NewConnPipe allocates a new Pipe using the supplied net.Conn, and
 // initializes it.  It performs the handshake required at the SP layer,
 // only returning the Pipe once the SP layer negotiation is complete.
@@ -130,7 +138,7 @@ func (p *conn) IsOpen() bool {
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
 func NewConnPipe(c net.Conn, proto Protocol) (Pipe, error) {
-	p := &conn{c: c, proto: proto}
+	p := &conn{c: c, proto: proto, props: make(map[string]interface{})}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
@@ -140,9 +148,7 @@ func NewConnPipe(c net.Conn, proto Protocol) (Pipe, error) {
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
 func NewConnPipeIPC(c net.Conn, proto Protocol) (Pipe, error) {
-	p := &connipc{}
-	p.c = c
-	p.proto = proto
+	p := &connipc{conn: conn{c: c, proto: proto, props: make(map[string]interface{})}}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}

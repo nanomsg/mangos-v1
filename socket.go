@@ -75,4 +75,9 @@ type Socket interface {
 	// AddTransport adds a new Transport to the socket.  Transport specific
 	// options may have been configured on the Transport prior to this.
 	AddTransport(Transport)
+
+	// SetPortHook sets a PortHook function to be called when a Port is
+	// added or removed from this socket (connect/disconnect).  The previous
+	// hook is returned (nil if none.)
+	SetPortHook(PortHook) PortHook
 }

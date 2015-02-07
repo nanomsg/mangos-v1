@@ -53,11 +53,32 @@ type socket struct {
 	// These are conditional "type aliases" for our self
 	sendhook ProtocolSendHook
 	recvhook ProtocolRecvHook
+
+	// Port hook -- called when a port is added or removed
+	porthook PortHook
 }
 
-func (sock *socket) addPipe(tranpipe Pipe) *pipe {
-	p := newPipe(tranpipe, sock)
+func (sock *socket) addPipe(tranpipe Pipe, d *dialer, l *listener) *pipe {
+	p := newPipe(tranpipe)
+	p.d = d
+	p.l = l
+
+	// Either listener or dialer is non-nil -- this could be an assert
+	if l == nil && p == nil {
+		p.Close()
+		return nil
+	}
+
 	sock.Lock()
+	if fn := sock.porthook; fn != nil {
+		sock.Unlock()
+		if !fn(PortActionAdd, p) {
+			p.Close()
+			return nil
+		}
+		sock.Lock()
+	}
+	p.sock = sock
 	p.index = len(sock.pipes)
 	sock.pipes = append(sock.pipes, p)
 	sock.Unlock()
@@ -285,25 +306,6 @@ func (sock *socket) NewDialer(addr string, options map[string]interface{}) (Dial
 	return d, nil
 }
 
-// serve spins in a loop, calling the accepter's Accept routine.
-func (sock *socket) serve(l PipeListener) {
-	for {
-		select {
-		case <-sock.closeq:
-			return
-		default:
-		}
-
-		// If the underlying PipeListener is closed, or not
-		// listening, we expect to return back with an error.
-		if pipe, err := l.Accept(); err == nil {
-			sock.addPipe(pipe)
-		} else if err == ErrClosed {
-			return
-		}
-	}
-}
-
 func (sock *socket) ListenOptions(addr string, options map[string]interface{}) error {
 	l, err := sock.NewListener(addr, options)
 	if err != nil {
@@ -447,6 +449,14 @@ func (sock *socket) GetProtocol() Protocol {
 	return sock.proto
 }
 
+func (sock *socket) SetPortHook(newhook PortHook) PortHook {
+	sock.Lock()
+	oldhook := sock.porthook
+	sock.porthook = newhook
+	sock.Unlock()
+	return oldhook
+}
+
 type dialer struct {
 	d      PipeDialer
 	sock   *socket
@@ -505,11 +515,12 @@ func (d *dialer) dialer() {
 				return
 			}
 			d.sock.Unlock()
-			cp := d.sock.addPipe(p)
-			select {
-			case <-d.sock.closeq: // parent socket closed
-			case <-cp.closeq: // disconnect event
-			case <-d.closeq: // dialer closed
+			if cp := d.sock.addPipe(p, d, nil); cp != nil {
+				select {
+				case <-d.sock.closeq: // parent socket closed
+				case <-cp.closeq: // disconnect event
+				case <-d.closeq: // dialer closed
+				}
 			}
 		}
 
@@ -551,7 +562,7 @@ func (l *listener) serve() {
 		// If the underlying PipeListener is closed, or not
 		// listening, we expect to return back with an error.
 		if pipe, err := l.l.Accept(); err == nil {
-			l.sock.addPipe(pipe)
+			l.sock.addPipe(pipe, nil, l)
 		} else if err == ErrClosed {
 			return
 		}

@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -34,8 +34,11 @@ type pipe struct {
 	id     uint32
 	index  int // index in master list of pipes for socket
 
+	l       *listener
+	d       *dialer
 	sock    *socket
 	closing bool // true if we were closed
+
 	sync.Mutex
 }
 
@@ -44,11 +47,9 @@ func init() {
 	pipes.nextid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
 }
 
-func newPipe(tranpipe Pipe, sock *socket) *pipe {
-	p := &pipe{pipe: tranpipe}
+func newPipe(tranpipe Pipe) *pipe {
+	p := &pipe{pipe: tranpipe, index: -1}
 	p.closeq = make(chan struct{})
-	p.index = -1
-	p.sock = sock
 	for {
 		pipes.Lock()
 		p.id = pipes.nextid & 0x7fffffff
@@ -70,19 +71,29 @@ func (p *pipe) GetID() uint32 {
 }
 
 func (p *pipe) Close() error {
+	var hook PortHook
 	p.Lock()
+	sock := p.sock
+	if sock != nil {
+		hook = sock.porthook
+	}
 	if p.closing {
 		return nil
 	}
 	p.closing = true
 	p.Unlock()
 	close(p.closeq)
-	p.sock.remPipe(p)
+	if sock != nil {
+		sock.remPipe(p)
+	}
 	p.pipe.Close()
 	pipes.Lock()
 	delete(pipes.byid, p.id)
 	p.id = 0 // safety
 	pipes.Unlock()
+	if hook != nil {
+		hook(PortActionRemove, p)
+	}
 	return nil
 }
 
@@ -103,4 +114,46 @@ func (p *pipe) RecvMsg() *Message {
 		return nil
 	}
 	return msg
+}
+
+func (p *pipe) Address() string {
+	switch {
+	case p.l != nil:
+		return p.l.Address()
+	case p.d != nil:
+		return p.d.Address()
+	}
+	return ""
+}
+
+func (p *pipe) GetProp(name string) (interface{}, error) {
+	return p.pipe.GetProp(name)
+}
+
+func (p *pipe) IsOpen() bool {
+	return p.pipe.IsOpen()
+}
+
+func (p *pipe) IsClient() bool {
+	return p.d != nil
+}
+
+func (p *pipe) IsServer() bool {
+	return p.l != nil
+}
+
+func (p *pipe) LocalProtocol() uint16 {
+	return p.LocalProtocol()
+}
+
+func (p *pipe) RemoteProtocol() uint16 {
+	return p.RemoteProtocol()
+}
+
+func (p *pipe) Dialer() Dialer {
+	return p.d
+}
+
+func (p *pipe) Listener() Listener {
+	return p.l
 }

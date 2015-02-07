@@ -70,6 +70,7 @@ type wssPipe struct {
 	addr  string
 	open  bool
 	wg    sync.WaitGroup
+	props map[string]interface{}
 }
 
 type wssTran int
@@ -132,6 +133,13 @@ func (w *wssPipe) IsOpen() bool {
 	return w.open
 }
 
+func (w *wssPipe) GetProp(name string) (interface{}, error) {
+	if v, ok := w.props[name]; ok {
+		return v, nil
+	}
+	return nil, mangos.ErrBadProperty
+}
+
 type dialer struct {
 	addr   string // url
 	proto  mangos.Protocol
@@ -165,7 +173,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := &wssPipe{ws: ws, proto: d.proto, addr: d.addr, open: true}
+	w := &wssPipe{ws: ws, proto: d.proto, addr: d.addr, open: true, props: make(map[string]interface{})}
 	w.wg.Add(1)
 	return w, nil
 }
@@ -261,7 +269,7 @@ func (l *listener) handler(ws *websocket.Conn) {
 		return
 	}
 
-	w := &wssPipe{ws: ws, addr: l.addr, proto: l.proto, open: true}
+	w := &wssPipe{ws: ws, addr: l.addr, proto: l.proto, open: true, props: make(map[string]interface{})}
 
 	w.wg.Add(1)
 	l.pending = append(l.pending, w)

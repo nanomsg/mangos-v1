@@ -115,6 +115,11 @@ func (p *inproc) IsOpen() bool {
 	}
 }
 
+func (p *inproc) GetProp(string) (interface{}, error) {
+	// We have no special properties
+	return nil, mangos.ErrBadProperty
+}
+
 type dialer struct {
 	addr  string
 	proto mangos.Protocol

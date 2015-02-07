@@ -36,4 +36,5 @@ var (
 	ErrBadValue    = errors.New("invalid option value")
 	ErrGarbled     = errors.New("message garbled")
 	ErrAddrInUse   = errors.New("address in use")
+	ErrBadProperty = errors.New("invalid property name")
 )
