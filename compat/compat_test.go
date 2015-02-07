@@ -87,7 +87,7 @@ func (rt *creqTest) DoTest() bool {
 			rt.t.Logf("Send request %d", rt.cur)
 		}
 		if n, e = rt.sock.Send(m, 0); n != 1 || e != nil {
-			rt.t.Errorf("Failed to send, %d sent, err %s", n, e)
+			rt.t.Errorf("%d/%d: Failed to send, %d sent, err %s", rt.cur, rt.tot, n, e)
 			return false
 		}
 		if rt.debug {
@@ -96,15 +96,15 @@ func (rt *creqTest) DoTest() bool {
 
 		m, e = rt.sock.Recv(0)
 		if e != nil {
-			rt.t.Errorf("Failed to recv reply: %s", e)
+			rt.t.Errorf("%d/%d: Failed to recv reply: %s", rt.cur, rt.tot, e)
 			return false
 		}
 		if len(m) != 1 {
-			rt.t.Errorf("Got wrong length: %d != 1", len(m))
+			rt.t.Errorf("%d/%d: Got wrong length: %d != 1", rt.cur, rt.tot, len(m))
 			return false
 		}
 		if m[0] != byte(rt.cur) {
-			rt.t.Errorf("Got wrong reply: %d != %d", m[0], byte(rt.cur))
+			rt.t.Errorf("%d/%d: Got wrong reply: %d != %d", rt.cur, rt.tot, m[0], byte(rt.cur))
 			return false
 		}
 		if rt.debug {
@@ -161,15 +161,15 @@ func (rt *crepTest) DoTest() bool {
 			rt.t.Logf("Wait for request %d", rt.cur)
 		}
 		if m, e = rt.sock.Recv(0); e != nil {
-			rt.t.Errorf("Failed to recv request: %s", e)
+			rt.t.Errorf("%d/%d: Failed to recv request: %s", rt.cur, rt.tot, e)
 			return false
 		}
 		if len(m) != 1 {
-			rt.t.Errorf("Got wrong length: %d != 1", len(m))
+			rt.t.Errorf("%d/%d: Got wrong length: %d != 1", rt.cur, rt.tot, len(m))
 			return false
 		}
 		if m[0] != byte(rt.cur) {
-			rt.t.Errorf("Got wrong request: %d != %d", m[0], byte(rt.cur))
+			rt.t.Errorf("%d/%d: Got wrong request: %d != %d", rt.cur, rt.tot, m[0], byte(rt.cur))
 			return false
 		}
 		if rt.debug {
@@ -177,7 +177,7 @@ func (rt *crepTest) DoTest() bool {
 		}
 
 		if n, e = rt.sock.Send(m, 0); e != nil || n != 1 {
-			rt.t.Errorf("Failed to send reply: %v", e)
+			rt.t.Errorf("%d/%d: Failed to send reply: %v", rt.cur, rt.tot, e)
 			return false
 		}
 		if rt.debug {
@@ -227,4 +227,29 @@ func TestCompatTCP(t *testing.T) {
 func TestCompatInp(t *testing.T) {
 	addr := "inproc:///SOMENAME"
 	ReqRepCompat(t, addr, 500000)
+}
+
+func TestCompatSendTimeout(t *testing.T) {
+
+	addr := "tcp://127.0.0.1:19"
+	push, err := NewSocket(AF_SP, PUSH)
+	if err != nil {
+		t.Errorf("NewSocket: %v", err)
+		return
+	}
+	if err = push.SetSendTimeout(time.Duration(3000) * time.Millisecond); err != nil {
+		t.Errorf("SetSendTimeout: %v", err)
+		return
+	}
+	if _, err = push.Connect(addr); err != nil {
+		t.Errorf("Connect: %v", err)
+		return
+	}
+	t.Logf("Trying to send (should timeout)")
+	_, err = push.Send([]byte("TEST"), 0)
+	if err == nil {
+		t.Errorf("Passed, but should have timed out")
+		return
+	}
+	t.Logf("Expected timeout, got %v", err)
 }

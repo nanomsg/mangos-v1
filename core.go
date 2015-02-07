@@ -186,6 +186,15 @@ func (sock *socket) Close() error {
 			}
 			break
 		}
+		// There is a *very* brief window where data may be
+		// stuck in pipes in the way.  Lets try hard to get that
+		// out.  Rather than a complex algorithm between pipes, protocols, etc,
+		// we just delay for up to a millisecond.
+		dur := time.Millisecond
+		if dur > sock.linger {
+			dur = sock.linger
+		}
+		time.Sleep(dur)
 	}
 	for _, p := range pipes {
 		p.Close()

@@ -157,6 +157,12 @@ func NewSocket(d Domain, p Protocol) (*Socket, error) {
 		return nil, err
 	}
 
+	// Compat mode sockets should timeout on send if we don't have any pipes
+	if err = s.sock.SetOption(mangos.OptionWriteQLen, 0); err != nil {
+		s.sock.Close()
+		return nil, err
+	}
+
 	s.rto = -1
 	s.sto = -1
 	all.AddTransports(s.sock)
