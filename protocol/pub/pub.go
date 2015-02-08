@@ -53,6 +53,8 @@ func (p *pub) Shutdown(linger time.Duration) {
 	when := time.Now().Add(linger)
 	tq := time.After(linger)
 
+	p.w.WaitAbsTimeout(when)
+
 	p.Lock()
 	for _, pe := range p.eps {
 		select {
@@ -63,8 +65,6 @@ func (p *pub) Shutdown(linger time.Duration) {
 		pe.w.WaitAbsTimeout(when)
 	}
 	p.Unlock()
-
-	p.w.WaitAbsTimeout(when)
 }
 
 // Bottom sender.

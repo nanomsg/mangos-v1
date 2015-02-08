@@ -138,6 +138,7 @@ func (rt *crepTest) Init(t *testing.T, addr string, num uint32) bool {
 }
 
 func (rt *crepTest) Finish() {
+	rt.sock.Close()
 	rt.ok = rt.cur == rt.tot
 	if !rt.ok {
 		close(rt.done)

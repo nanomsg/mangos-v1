@@ -56,6 +56,7 @@ func (r *rep) Init(sock mangos.ProtocolSocket) {
 func (r *rep) Shutdown(linger time.Duration) {
 	when := time.Now().Add(linger)
 	tq := time.After(linger)
+	r.w.WaitAbsTimeout(when)
 	r.Lock()
 	for _, pe := range r.eps {
 		select {
@@ -66,7 +67,6 @@ func (r *rep) Shutdown(linger time.Duration) {
 		pe.w.WaitAbsTimeout(when)
 	}
 	r.Unlock()
-	r.w.WaitAbsTimeout(when)
 }
 
 func (pe *repEp) sender() {
