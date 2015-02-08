@@ -67,7 +67,6 @@ func (rt *creqTest) Init(t *testing.T, addr string, num uint32) bool {
 }
 
 func (rt *creqTest) Finish() {
-	rt.sock.Close()
 	rt.ok = rt.cur == rt.tot
 	close(rt.done)
 }
@@ -112,6 +111,7 @@ func (rt *creqTest) DoTest() bool {
 		}
 		rt.cur++
 	}
+	rt.t.Logf("Req got all %d replies", rt.cur)
 	return true
 }
 
@@ -138,7 +138,6 @@ func (rt *crepTest) Init(t *testing.T, addr string, num uint32) bool {
 }
 
 func (rt *crepTest) Finish() {
-	rt.sock.Close()
 	rt.ok = rt.cur == rt.tot
 	if !rt.ok {
 		close(rt.done)
@@ -185,6 +184,7 @@ func (rt *crepTest) DoTest() bool {
 		}
 		rt.cur++
 	}
+	rt.t.Logf("Rep sent %d replies", rt.cur)
 	return true
 }
 
@@ -229,7 +229,11 @@ func TestCompatInp(t *testing.T) {
 	ReqRepCompat(t, addr, 500000)
 }
 
-func TestCompatSendTimeout(t *testing.T) {
+// Don't do this right now.  There was a request at one point for send to
+// timeout when no transport was present.  But that semantic is diametrically
+// opposed with guaranteed delivery.  The only time we block or timeout is
+// if there is backpressure.
+func xTestCompatSendTimeout(t *testing.T) {
 
 	addr := "tcp://127.0.0.1:19"
 	push, err := NewSocket(AF_SP, PUSH)

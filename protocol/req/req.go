@@ -95,10 +95,13 @@ func (r *req) resender() {
 }
 
 func (r *req) receiver(ep mangos.Endpoint) {
+	rq := r.sock.RecvChannel()
+	cq := r.sock.CloseChannel()
+
 	for {
 		m := ep.RecvMsg()
 		if m == nil {
-			return
+			break
 		}
 
 		if len(m.Body) < 4 {
@@ -109,10 +112,10 @@ func (r *req) receiver(ep mangos.Endpoint) {
 		m.Body = m.Body[4:]
 
 		select {
-		case r.sock.RecvChannel() <- m:
-		case <-r.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
 			m.Free()
-			return
+			break
 		}
 	}
 }
