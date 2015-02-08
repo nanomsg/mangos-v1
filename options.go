@@ -28,15 +28,15 @@ const (
 	OptionRaw = "RAW"
 
 	// OptionRecvDeadline is the time until the next Recv times out.  The
-	// value is a time.Duration.  Zero value may be passed to indicate that no
-	// timeout should be applied.  A negative value indicates a non-blocking
-	// operation.  By default there is no timeout.
+	// value is a time.Duration.  Zero value may be passed to indicate that
+	// no timeout should be applied.  A negative value indicates a
+	// non-blocking operation.  By default there is no timeout.
 	OptionRecvDeadline = "RECV-DEADLINE"
 
 	// OptionSendDeadline is the time until the next Send times out.  The
-	// value is a time.Duration.  Zero value may be passed to indicate that no
-	// timeout should be applied.  A negative value indicates a non-blocking
-	// operation.  By default there is no timeout.
+	// value is a time.Duration.  Zero value may be passed to indicate that
+	// no timeout should be applied.  A negative value indicates a
+	// non-blocking operation.  By default there is no timeout.
 	OptionSendDeadline = "SEND-DEADLINE"
 
 	// OptionRetryTime is used by REQ.  The argument is a time.Duration.
@@ -80,26 +80,33 @@ const (
 
 	// OptionLocalAddress is used to get the local address an accepter is
 	// listening on in string form. Generally this is known when Listen is
-	// called because it is provided, but this option is useful in the event
-	// that the port is assigned by the OS (i.e. port "0").
+	// called because it is provided, but this option is useful in the
+	// event that the port is assigned by the OS (i.e. port "0").
 	OptionLocalAddress = "LOCAL-ADDRESS"
 
-	// OptionWriteQLen is used to set the size, in messages, of the write queue
-	// channel. By default, it's 128. This option cannot be set if Dial or
-	// Listen has been called on the socket.
+	// OptionWriteQLen is used to set the size, in messages, of the write
+	// queue channel. By default, it's 128. This option cannot be set if
+	// Dial or Listen has been called on the socket.
 	OptionWriteQLen = "WRITEQ-LEN"
 
-	// OptionReadQLen is used to set the size, in messages, of the read queue
-	// channel. By default, it's 128. This option cannot be set if Dial or
-	// Listen has been called on the socket.
+	// OptionReadQLen is used to set the size, in messages, of the read
+	// queue channel. By default, it's 128. This option cannot be set if
+	// Dial or Listen has been called on the socket.
 	OptionReadQLen = "READQ-LEN"
 
 	// OptionKeepAlive is used to set TCP KeepAlive.  Value is a boolean.
 	// Default is true.
 	OptionKeepAlive = "KEEPALIVE"
 
-	// OptionNoDelay is used to configure Nagle -- when true messages are sent
-	// as soon as possible, otherwise some buffering may occur.  Value is
-	// a boolean.  Default is true.
+	// OptionNoDelay is used to configure Nagle -- when true messages are
+	// sent as soon as possible, otherwise some buffering may occur.
+	// Value is a boolean.  Default is true.
 	OptionNoDelay = "NO-DELAY"
+
+	// OptionLinger is used to set the linger property.  This is the amount
+	// of time to wait for send queues to drain when Close() is called.
+	// Close() may block for up to this long if there is unsent data, but
+	// will return as soon as all data is delivered to the transport.
+	// Value is a time.Duration.  Default is one second.
+	OptionLinger = "LINGER"
 )

@@ -359,6 +359,11 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		sock.wdeadline = value.(time.Duration)
 		sock.Unlock()
 		return nil
+	case OptionLinger:
+		sock.Lock()
+		sock.linger = value.(time.Duration)
+		sock.Unlock()
+		return nil
 	case OptionWriteQLen:
 		sock.Lock()
 		defer sock.Unlock()
@@ -419,6 +424,10 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		sock.Lock()
 		defer sock.Unlock()
 		return sock.wdeadline, nil
+	case OptionLinger:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.linger, nil
 	case OptionWriteQLen:
 		sock.Lock()
 		defer sock.Unlock()
