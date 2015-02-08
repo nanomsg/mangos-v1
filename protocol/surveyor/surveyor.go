@@ -39,10 +39,9 @@ type surveyor struct {
 }
 
 type surveyorP struct {
-	q      chan *mangos.Message
-	closeq chan struct{}
-	ep     mangos.Endpoint
-	x      *surveyor
+	q  chan *mangos.Message
+	ep mangos.Endpoint
+	x  *surveyor
 }
 
 func (x *surveyor) Init(sock mangos.ProtocolSocket) {
@@ -51,22 +50,25 @@ func (x *surveyor) Init(sock mangos.ProtocolSocket) {
 	go x.sender()
 }
 
+// Shutdown does nothing. Since we're not going to be able to receive
+// any responses; there is no point in draining.
+func (x *surveyor) Shutdown(time.Duration) {}
+
 func (x *surveyor) sender() {
+	sq := x.sock.SendChannel()
 	for {
-		var msg *mangos.Message
-		select {
-		case msg = <-x.sock.SendChannel():
-		case <-x.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			break
 		}
 
 		x.Lock()
 		for _, pe := range x.peers {
-			msg := msg.Dup()
+			m := m.Dup()
 			select {
-			case pe.q <- msg:
+			case pe.q <- m:
 			default:
-				msg.Free()
+				m.Free()
 			}
 		}
 		x.Unlock()
@@ -76,23 +78,22 @@ func (x *surveyor) sender() {
 // When sending, we should have the survey ID in the header.
 func (peer *surveyorP) sender() {
 	for {
-		var msg *mangos.Message
-		select {
-		case msg = <-peer.q:
-		case <-peer.x.sock.DrainChannel():
-			return
-		case <-peer.closeq:
-			return
-		}
-
-		if peer.ep.SendMsg(msg) != nil {
-			msg.Free()
-			return
+		if m := <-peer.q; m == nil {
+			break
+		} else {
+			if peer.ep.SendMsg(m) != nil {
+				m.Free()
+				return
+			}
 		}
 	}
 }
 
 func (peer *surveyorP) receiver() {
+
+	rq := peer.x.sock.RecvChannel()
+	cq := peer.x.sock.CloseChannel()
+
 	for {
 		m := peer.ep.RecvMsg()
 		if m == nil {
@@ -109,10 +110,8 @@ func (peer *surveyorP) receiver() {
 		m.Body = m.Body[4:]
 
 		select {
-		case peer.x.sock.RecvChannel() <- m:
-		case <-peer.x.sock.CloseChannel():
-			return
-		case <-peer.closeq:
+		case rq <- m:
+		case <-cq:
 			return
 		}
 	}
@@ -122,7 +121,6 @@ func (x *surveyor) AddEndpoint(ep mangos.Endpoint) {
 	peer := &surveyorP{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
 	x.Lock()
 	x.peers[ep.GetID()] = peer
-	peer.closeq = make(chan struct{})
 	go peer.receiver()
 	go peer.sender()
 	x.Unlock()
@@ -136,7 +134,6 @@ func (x *surveyor) RemoveEndpoint(ep mangos.Endpoint) {
 		return
 	}
 	delete(x.peers, ep.GetID())
-	close(peer.closeq)
 }
 
 func (*surveyor) Number() uint16 {

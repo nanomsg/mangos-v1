@@ -17,6 +17,8 @@
 package pull
 
 import (
+	"time"
+
 	"github.com/gdamore/mangos"
 )
 
@@ -27,9 +29,15 @@ type pull struct {
 
 func (x *pull) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
+
+	go x.sender()
 }
 
+func (x *pull) Shutdown(time.Duration) {} // No sender to drain
+
 func (x *pull) receiver(ep mangos.Endpoint) {
+	rq := x.sock.RecvChannel()
+	cq := x.sock.CloseChannel()
 	for {
 
 		m := ep.RecvMsg()
@@ -38,9 +46,20 @@ func (x *pull) receiver(ep mangos.Endpoint) {
 		}
 
 		select {
-		case x.sock.RecvChannel() <- m:
-		case <-x.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
 			return
+		}
+	}
+}
+
+func (x *pull) sender() {
+	sq := x.sock.SendChannel()
+	for {
+		if m := <-sq; m == nil {
+			break
+		} else {
+			m.Free()
 		}
 	}
 }

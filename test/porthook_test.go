@@ -151,8 +151,8 @@ func TestPortHook(t *testing.T) {
 
 	// wait a second for connection to establish
 	// could also issue a req/rep...
-	t.Logf("Waiting a second...")
-	time.Sleep(time.Second)
+	t.Logf("Waiting a bit...")
+	time.Sleep(100 * time.Millisecond)
 
 	d.Close()
 	l.Close()
@@ -160,6 +160,12 @@ func TestPortHook(t *testing.T) {
 	// shut down the server
 	sockrep.Close()
 	sockreq.Close()
+
+	clitest.Lock()
+	defer clitest.Unlock()
+
+	srvtest.Lock()
+	defer srvtest.Unlock()
 
 	for i, info := range clitest.expect {
 		t.Logf("Exp C[%d]: %s", i, info.String())
@@ -183,6 +189,7 @@ func TestPortHook(t *testing.T) {
 			t.Errorf("Server hook %d wrong: %s != %s", i)
 		}
 	}
+
 	if len(clitest.calls) != len(clitest.expect) {
 		t.Errorf("Client got wrong # calls, %d != %d", len(clitest.calls), len(clitest.expect))
 		return

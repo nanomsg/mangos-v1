@@ -26,14 +26,15 @@ import (
 
 // req is an implementation of the req protocol.
 type req struct {
-	sock mangos.ProtocolSocket
 	sync.Mutex
-	eps    map[uint32]mangos.Endpoint
-	resend chan *mangos.Message
-	raw    bool
-	retry  time.Duration
-	nextid uint32
-	waker  *time.Timer
+	sock    mangos.ProtocolSocket
+	eps     map[uint32]mangos.Endpoint
+	resend  chan *mangos.Message
+	raw     bool
+	retry   time.Duration
+	nextid  uint32
+	waker   *time.Timer
+	senders mangos.Waiter
 
 	// fields describing the outstanding request
 	reqmsg *mangos.Message
@@ -44,11 +45,16 @@ func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.sock = socket
 	r.eps = make(map[uint32]mangos.Endpoint)
 	r.resend = make(chan *mangos.Message)
+	r.senders.Init()
 
 	r.nextid = uint32(time.Now().UnixNano()) // quasi-random
 	r.retry = time.Minute * 1                // retry after a minute
 	r.waker = time.NewTimer(r.retry)
 	r.waker.Stop()
+}
+
+func (r *req) Shutdown(linger time.Duration) {
+	r.senders.WaitRelTimeout(linger)
 }
 
 // nextID returns the next request ID.
@@ -65,8 +71,6 @@ func (r *req) resender() {
 
 	for {
 		select {
-		case <-r.sock.DrainChannel():
-			return
 		case <-r.waker.C:
 		}
 
@@ -79,18 +83,14 @@ func (r *req) resender() {
 		m = m.Dup()
 		r.Unlock()
 
-		select {
-		case r.resend <- m:
-			r.Lock()
-			if r.retry > 0 {
-				r.waker.Reset(r.retry)
-			} else {
-				r.waker.Stop()
-			}
-			r.Unlock()
-		case <-r.sock.DrainChannel():
-			continue
+		r.resend <- m
+		r.Lock()
+		if r.retry > 0 {
+			r.waker.Reset(r.retry)
+		} else {
+			r.waker.Stop()
 		}
+		r.Unlock()
 	}
 }
 
@@ -118,26 +118,27 @@ func (r *req) receiver(ep mangos.Endpoint) {
 }
 
 func (r *req) sender(ep mangos.Endpoint) {
-	var m *mangos.Message
+
+	sq := r.sock.SendChannel()
 
 	for {
+		var m *mangos.Message
 
 		select {
 		case m = <-r.resend:
-		case m = <-r.sock.SendChannel():
-		case <-r.sock.DrainChannel():
-			return
+		case m = <-sq:
+		}
+		if m == nil {
+			break
 		}
 
 		if ep.SendMsg(m) != nil {
-			select {
-			case r.resend <- m:
-			case <-r.sock.DrainChannel():
-				m.Free()
-			}
-			return
+			r.resend <- m
+			break
 		}
 	}
+
+	r.senders.Done()
 }
 
 func (*req) Number() uint16 {
@@ -160,6 +161,7 @@ func (r *req) AddEndpoint(ep mangos.Endpoint) {
 	r.Lock()
 	r.eps[ep.GetID()] = ep
 	r.Unlock()
+	r.senders.Add()
 	go r.receiver(ep)
 	go r.sender(ep)
 }

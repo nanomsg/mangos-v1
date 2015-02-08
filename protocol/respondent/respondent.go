@@ -19,6 +19,7 @@ package respondent
 import (
 	"encoding/binary"
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
@@ -29,30 +30,47 @@ type resp struct {
 	raw      bool
 	surveyID uint32
 	surveyOk bool
+	senders  mangos.Waiter
 	sync.Mutex
 }
 
 type respPeer struct {
-	q      chan *mangos.Message
-	closeq chan struct{}
-	ep     mangos.Endpoint
-	x      *resp
+	q  chan *mangos.Message
+	ep mangos.Endpoint
+	x  *resp
 }
 
 func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
+	x.senders.Init()
 	go x.sender()
+}
+
+// Shutdown just returns.  There is no point in draining a survey --
+// we're going to close before we can receive any responses anyway.
+func (x *resp) Shutdown(linger time.Duration) {
+	x.senders.WaitRelTimeout(linger)
 }
 
 func (x *resp) sender() {
 	// This is pretty easy because we have only one peer at a time.
 	// If the peer goes away, we'll just drop the message on the floor.
+
+	sq := x.sock.SendChannel()
 	for {
-		var msg *mangos.Message
-		select {
-		case msg = <-x.sock.SendChannel():
-		case <-x.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			// We want to send the nil down to the peer to alert it
+			// to drain.
+			x.Lock()
+			if peer := x.peer; peer != nil {
+				select {
+				case peer.q <- nil:
+				default:
+				}
+			}
+			x.Unlock()
+			break
 		}
 
 		x.Lock()
@@ -60,19 +78,16 @@ func (x *resp) sender() {
 		x.Unlock()
 
 		if peer == nil {
-			msg.Free()
+			m.Free()
 			continue
 		}
 
 		// Put it on the outbound queue
 		select {
-		case peer.q <- msg:
-		case <-x.sock.DrainChannel():
-			msg.Free()
-			return
+		case peer.q <- m:
 		default:
 			// Backpressure, drop it.
-			msg.Free()
+			m.Free()
 		}
 	}
 }
@@ -80,23 +95,23 @@ func (x *resp) sender() {
 // When sending, we should have the survey ID in the header.
 func (peer *respPeer) sender() {
 	for {
-		var msg *mangos.Message
-		select {
-		case msg = <-peer.q:
-		case <-peer.x.sock.DrainChannel():
-			return
-		case <-peer.closeq:
-			return
+		m := <-peer.q
+		if m == nil {
+			break
 		}
-
-		if peer.ep.SendMsg(msg) != nil {
-			msg.Free()
-			return
+		if peer.ep.SendMsg(m) != nil {
+			m.Free()
+			break
 		}
 	}
+	peer.x.senders.Done()
 }
 
 func (peer *respPeer) receiver() {
+
+	rq := peer.x.sock.RecvChannel()
+	cq := peer.x.sock.CloseChannel()
+
 	for {
 		m := peer.ep.RecvMsg()
 		if m == nil {
@@ -113,8 +128,9 @@ func (peer *respPeer) receiver() {
 		m.Body = m.Body[4:]
 
 		select {
-		case peer.x.sock.RecvChannel() <- m:
-		case <-peer.x.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
+			m.Free()
 			return
 		}
 	}
@@ -162,18 +178,17 @@ func (x *resp) AddEndpoint(ep mangos.Endpoint) {
 	}
 	peer := &respPeer{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
 	x.peer = peer
-	peer.closeq = make(chan struct{})
+	x.Unlock()
+
+	x.senders.Add()
 	go peer.receiver()
 	go peer.sender()
-	x.Unlock()
 }
 
 func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	if x.peer.ep == ep {
-		peer := x.peer
 		x.peer = nil
-		close(peer.closeq)
 	}
 	x.Unlock()
 }

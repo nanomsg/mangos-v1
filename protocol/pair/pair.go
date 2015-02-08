@@ -18,49 +18,63 @@ package pair
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
 
 type pair struct {
-	sock mangos.ProtocolSocket
-	peer mangos.Endpoint
-	raw  bool
+	sock    mangos.ProtocolSocket
+	peer    mangos.Endpoint
+	raw     bool
+	senders mangos.Waiter
 	sync.Mutex
 }
 
 func (x *pair) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
+	x.senders.Init()
+}
+
+func (x *pair) Shutdown(linger time.Duration) {
+	x.senders.WaitRelTimeout(linger)
 }
 
 func (x *pair) sender(ep mangos.Endpoint) {
+
+	sq := x.sock.SendChannel()
+
 	// This is pretty easy because we have only one peer at a time.
 	// If the peer goes away, we'll just drop the message on the floor.
 	for {
-		var msg *mangos.Message
-		select {
-		case msg = <-x.sock.SendChannel():
-		case <-x.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			break
 		}
 
-		if ep.SendMsg(msg) != nil {
-			msg.Free()
-			return
+		if ep.SendMsg(m) != nil {
+			m.Free()
+			break
 		}
 	}
+
+	x.senders.Done()
 }
 
 func (x *pair) receiver(ep mangos.Endpoint) {
+
+	rq := x.sock.RecvChannel()
+	cq := x.sock.CloseChannel()
+
 	for {
-		msg := ep.RecvMsg()
-		if msg == nil {
+		m := ep.RecvMsg()
+		if m == nil {
 			return
 		}
 
 		select {
-		case x.sock.RecvChannel() <- msg:
-		case <-x.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
 			return
 		}
 	}
@@ -74,9 +88,11 @@ func (x *pair) AddEndpoint(ep mangos.Endpoint) {
 		return
 	}
 	x.peer = ep
+	x.Unlock()
+
+	x.senders.Add()
 	go x.receiver(ep)
 	go x.sender(ep)
-	x.Unlock()
 }
 
 func (x *pair) RemoveEndpoint(ep mangos.Endpoint) {

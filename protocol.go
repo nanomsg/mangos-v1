@@ -14,6 +14,10 @@
 
 package mangos
 
+import (
+	"time"
+)
+
 // Endpoint represents the handle that a Protocol implementation has
 // to the underlying stream transport.  It can be thought of as one side
 // of a TCP, IPC, or other type of connection.
@@ -43,6 +47,13 @@ type Protocol interface {
 	// any initialization steps it needs.  It should save the handle
 	// for future use, as well.
 	Init(ProtocolSocket)
+
+	// Shutdown is used to drain the send side.  It is only ever called
+	// when the socket is being shutdown cleanly. Protocols should use
+	// the linger time, and wait up to that time for sockets to drain.
+	// If the linger time is zero, then they should just cease all
+	// send/receive activity.
+	Shutdown(time.Duration)
 
 	// AddEndpoint is called when a new Endpoint is added to the socket.
 	// Typically this is as a result of connect or accept completing.
@@ -104,7 +115,8 @@ type ProtocolSendHook interface {
 type ProtocolSocket interface {
 	// SendChannel represents the channel used to send messages.  The
 	// application injects messages to it, and the protocol consumes
-	// messages from it.
+	// messages from it.  When the socket is done sending, it will send
+	// a nil message on the channel, or close the channel.
 	SendChannel() <-chan *Message
 
 	// RecvChannel is the channel used to receive messages.  The protocol
@@ -117,12 +129,6 @@ type ProtocolSocket interface {
 	// and the protocol should stop any further read operations on this
 	// instance.
 	CloseChannel() chan struct{}
-
-	// The protocol can wait on this channel to close.  When it is closed,
-	// it indicates that the application has closed the upper write socket,
-	// and the protocol should stop any further write operations on this
-	// instance.
-	DrainChannel() chan struct{}
 
 	// GetOption may be used by the protocol to retrieve an option from
 	// the socket.  This can ultimately wind up calling into the socket's

@@ -19,6 +19,7 @@ package rep
 import (
 	"encoding/binary"
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
@@ -27,6 +28,8 @@ type repEp struct {
 	q    chan *mangos.Message
 	ep   mangos.Endpoint
 	sock mangos.ProtocolSocket
+	w    mangos.Waiter
+	r    *rep
 }
 
 type rep struct {
@@ -36,6 +39,7 @@ type rep struct {
 	backtrace    []byte
 	backtraceL   sync.Mutex
 	raw          bool
+	w            mangos.Waiter
 
 	sync.Mutex
 }
@@ -44,24 +48,40 @@ func (r *rep) Init(sock mangos.ProtocolSocket) {
 	r.sock = sock
 	r.eps = make(map[uint32]*repEp)
 	r.backtracebuf = make([]byte, 64)
-
+	r.w.Init()
+	r.w.Add()
 	go r.sender()
+}
+
+func (r *rep) Shutdown(linger time.Duration) {
+	when := time.Now().Add(linger)
+	tq := time.After(linger)
+	r.Lock()
+	for _, pe := range r.eps {
+		select {
+		case pe.q <- nil:
+		case <-tq:
+			tq = time.After(0)
+		}
+		pe.w.WaitAbsTimeout(when)
+	}
+	r.Unlock()
+	r.w.WaitAbsTimeout(when)
 }
 
 func (pe *repEp) sender() {
 	for {
-		var m *mangos.Message
-		select {
-		case m = <-pe.q:
-		case <-pe.sock.DrainChannel():
-			return
+		m := <-pe.q
+		if m == nil {
+			break
 		}
 
 		if pe.ep.SendMsg(m) != nil {
 			m.Free()
-			return
+			break
 		}
 	}
+	pe.w.Done()
 }
 
 func (r *rep) receiver(ep mangos.Endpoint) {
@@ -99,12 +119,12 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 }
 
 func (r *rep) sender() {
+	sq := r.sock.SendChannel()
+
 	for {
-		var m *mangos.Message
-		select {
-		case m = <-r.sock.SendChannel():
-		case <-r.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			break
 		}
 
 		// Lop off the 32-bit peer/pipe ID.  If absent, drop.
@@ -135,6 +155,8 @@ func (r *rep) sender() {
 			m.Free()
 		}
 	}
+
+	r.w.Done()
 }
 
 func (*rep) Number() uint16 {
@@ -154,10 +176,12 @@ func (*rep) PeerName() string {
 }
 
 func (r *rep) AddEndpoint(ep mangos.Endpoint) {
-	pe := &repEp{ep: ep, sock: r.sock, q: make(chan *mangos.Message, 2)}
+	pe := &repEp{ep: ep, r: r, q: make(chan *mangos.Message, 2)}
+	pe.w.Init()
 	r.Lock()
 	r.eps[ep.GetID()] = pe
 	r.Unlock()
+	pe.w.Add()
 	go r.receiver(ep)
 	go pe.sender()
 }

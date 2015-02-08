@@ -106,6 +106,7 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	if size > 128 {
 		t.SetBytes(int64(size))
 	}
+	t.StopTimer()
 }
 
 func benchmarkPair(t *testing.B, url string, size int) {

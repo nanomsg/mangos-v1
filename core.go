@@ -34,7 +34,6 @@ type socket struct {
 	urq    chan *Message // upper read queue
 	urqLen int           // upper read queue buffer length
 	closeq chan struct{} // closed when user requests close
-	drainq chan struct{}
 
 	closing bool // true if Socket was closed at API level
 	active  bool // true if either Dial or Listen has been successfully called
@@ -107,7 +106,6 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, sock.uwqLen)
 	sock.urq = make(chan *Message, sock.urqLen)
 	sock.closeq = make(chan struct{})
-	sock.drainq = make(chan struct{})
 	sock.reconntime = time.Second * 1 // make it a tunable?
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
@@ -147,10 +145,6 @@ func (sock *socket) CloseChannel() chan struct{} {
 	return sock.closeq
 }
 
-func (sock *socket) DrainChannel() chan struct{} {
-	return sock.drainq
-}
-
 //
 // Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
@@ -172,30 +166,13 @@ func (sock *socket) Close() error {
 	pipes := append([]*pipe{}, sock.pipes...)
 	sock.Unlock()
 
-	if sock.linger > 0 {
-		fin := time.After(sock.linger)
-
-		for {
-			if len(sock.uwq) == 0 {
-				break
-			}
-			select {
-			case <-fin:
-			case <-time.After(100 * time.Millisecond):
-				continue
-			}
-			break
-		}
-		// There is a *very* brief window where data may be
-		// stuck in pipes in the way.  Lets try hard to get that
-		// out.  Rather than a complex algorithm between pipes, protocols, etc,
-		// we just delay for up to a millisecond.
-		dur := time.Millisecond
-		if dur > sock.linger {
-			dur = sock.linger
-		}
-		time.Sleep(dur)
+	fin := time.After(sock.linger)
+	select {
+	// send a nil to drain the socket
+	case sock.uwq <- nil:
+	case <-fin:
 	}
+	sock.proto.Shutdown(sock.linger)
 	for _, p := range pipes {
 		p.Close()
 	}

@@ -21,6 +21,7 @@ package sub
 import (
 	"bytes"
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
@@ -35,6 +36,21 @@ type sub struct {
 func (s *sub) Init(sock mangos.ProtocolSocket) {
 	s.sock = sock
 	s.subs = [][]byte{}
+
+	go s.sender()
+}
+
+func (*sub) Shutdown(time.Duration) {} // No sender to drain.
+
+func (s *sub) sender() {
+	sq := s.sock.SendChannel()
+	for {
+		if m := <-sq; m == nil {
+			break
+		} else {
+			m.Free()
+		}
+	}
 }
 
 func (s *sub) receiver(ep mangos.Endpoint) {

@@ -19,55 +19,80 @@ package pub
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
 
 type pubEp struct {
-	ep   mangos.Endpoint
-	q    chan *mangos.Message
-	sock mangos.ProtocolSocket
+	ep mangos.Endpoint
+	q  chan *mangos.Message
+	p  *pub
+	w  mangos.Waiter
 }
 
 type pub struct {
 	sock mangos.ProtocolSocket
+	eps  map[uint32]*pubEp
+	raw  bool
+	w    mangos.Waiter
+
 	sync.Mutex
-	eps map[uint32]*pubEp
-	raw bool
 }
 
 func (p *pub) Init(sock mangos.ProtocolSocket) {
 	p.sock = sock
 	p.eps = make(map[uint32]*pubEp)
+	p.w.Init()
+	p.w.Add()
 	go p.sender()
+}
+
+func (p *pub) Shutdown(linger time.Duration) {
+
+	when := time.Now().Add(linger)
+	tq := time.After(linger)
+
+	p.Lock()
+	for _, pe := range p.eps {
+		select {
+		case pe.q <- nil:
+		case <-tq:
+			tq = time.After(0)
+		}
+		pe.w.WaitAbsTimeout(when)
+	}
+	p.Unlock()
+
+	p.w.WaitAbsTimeout(when)
 }
 
 // Bottom sender.
 func (pe *pubEp) sender() {
-	for {
-		var m *mangos.Message
 
-		select {
-		case m = <-pe.q:
-		case <-pe.sock.DrainChannel():
-			return
+	for {
+		m := <-pe.q
+		if m == nil {
+			break
 		}
 
 		if pe.ep.SendMsg(m) != nil {
 			m.Free()
-			return
+			break
 		}
 	}
+
+	pe.w.Done()
 }
 
 // Top sender.
 func (p *pub) sender() {
+	sq := p.sock.SendChannel()
+
 	for {
-		var m *mangos.Message
-		select {
-		case m = <-p.sock.SendChannel():
-		case <-p.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			break
 		}
 
 		p.Lock()
@@ -81,6 +106,7 @@ func (p *pub) sender() {
 		}
 		p.Unlock()
 	}
+	p.w.Done()
 }
 
 func (pe *pubEp) receiver() {
@@ -96,10 +122,13 @@ func (p *pub) AddEndpoint(ep mangos.Endpoint) {
 	if i, err := p.sock.GetOption(mangos.OptionWriteQLen); err == nil {
 		depth = i.(int)
 	}
-	pe := &pubEp{ep: ep, sock: p.sock, q: make(chan *mangos.Message, depth)}
+	pe := &pubEp{ep: ep, p: p, q: make(chan *mangos.Message, depth)}
+	pe.w.Init()
 	p.Lock()
 	p.eps[ep.GetID()] = pe
 	p.Unlock()
+
+	pe.w.Add()
 	go pe.sender()
 	go pe.receiver()
 }

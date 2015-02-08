@@ -24,6 +24,7 @@ package star
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
@@ -35,34 +36,39 @@ type starEp struct {
 }
 
 type star struct {
-	sock mangos.ProtocolSocket
+	sock    mangos.ProtocolSocket
+	eps     map[uint32]*starEp
+	raw     bool
+	senders mangos.Waiter
+
 	sync.Mutex
-	eps map[uint32]*starEp
-	raw bool
 }
 
 func (x *star) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*starEp)
+	x.senders.Init()
 	go x.sender()
+}
+
+func (x *star) Shutdown(linger time.Duration) {
+	x.senders.WaitRelTimeout(linger)
 }
 
 // Bottom sender.
 func (pe *starEp) sender() {
 	for {
-		var msg *mangos.Message
-
-		select {
-		case msg = <-pe.q:
-		case <-pe.x.sock.CloseChannel():
-			return
+		m := <-pe.q
+		if m == nil {
+			break
 		}
 
-		if pe.ep.SendMsg(msg) != nil {
-			msg.Free()
-			return
+		if pe.ep.SendMsg(m) != nil {
+			m.Free()
+			break
 		}
 	}
+	pe.x.senders.Done()
 }
 
 func (x *star) broadcast(m *mangos.Message, sender *starEp) {
@@ -72,42 +78,48 @@ func (x *star) broadcast(m *mangos.Message, sender *starEp) {
 		if sender == pe {
 			continue
 		}
-		m := m.Dup()
+		if m != nil {
+			m = m.Dup()
+		}
 		select {
 		case pe.q <- m:
 		default:
 			// No room on outbound queue, drop it.
-			m.Free()
+			if m != nil {
+				m.Free()
+			}
 		}
 	}
 	x.Unlock()
 
 	// Grab a local copy and send it up if we aren't originator
-	if sender != nil {
-		select {
-		case x.sock.RecvChannel() <- m:
-		case <-x.sock.CloseChannel():
-			m.Free()
-			return
-		default:
-			// No room, so we just drop it.
+	if m != nil {
+		if sender != nil {
+			select {
+			case x.sock.RecvChannel() <- m:
+			case <-x.sock.CloseChannel():
+				m.Free()
+				return
+			default:
+				// No room, so we just drop it.
+				m.Free()
+			}
+		} else {
+			// Not sending it up, so we need to release it.
 			m.Free()
 		}
-	} else {
-		// Not sending it up, so we need to release it.
-		m.Free()
 	}
 }
 
 func (x *star) sender() {
+	sq := x.sock.SendChannel()
+
 	for {
-		var msg *mangos.Message
-		select {
-		case msg = <-x.sock.SendChannel():
-		case <-x.sock.CloseChannel():
-			return
+		m := <-sq
+		x.broadcast(m, nil)
+		if m == nil {
+			break
 		}
-		x.broadcast(msg, nil)
 	}
 }
 
@@ -133,6 +145,7 @@ func (x *star) AddEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()
+	x.senders.Add()
 	go pe.sender()
 	go pe.receiver()
 }

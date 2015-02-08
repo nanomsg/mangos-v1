@@ -19,6 +19,7 @@ package bus
 import (
 	"encoding/binary"
 	"sync"
+	"time"
 
 	"github.com/gdamore/mangos"
 )
@@ -30,63 +31,78 @@ type busEp struct {
 }
 
 type bus struct {
-	sock mangos.ProtocolSocket
+	sock    mangos.ProtocolSocket
+	eps     map[uint32]*busEp
+	raw     bool
+	senders mangos.Waiter
+
 	sync.Mutex
-	eps map[uint32]*busEp
-	raw bool
 }
 
 // Init implements the Protocol Init method.
 func (x *bus) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*busEp)
+	x.senders.Init()
 	go x.sender()
+}
+
+func (x *bus) Shutdown(linger time.Duration) {
+	x.senders.WaitRelTimeout(linger)
 }
 
 // Bottom sender.
 func (pe *busEp) sender() {
 	for {
-		var m *mangos.Message
-
-		select {
-		case m = <-pe.q:
-		case <-pe.x.sock.DrainChannel():
-			return
+		m := <-pe.q
+		if m == nil {
+			break
 		}
 
 		if pe.ep.SendMsg(m) != nil {
 			m.Free()
-			return
+			break
 		}
 	}
+	pe.x.senders.Done()
 }
 
 func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 
 	x.Lock()
 	for id, pe := range x.eps {
-		if sender == id {
-			continue
+		if m != nil {
+			if sender == id {
+				continue
+			}
+			m = m.Dup()
 		}
-		m := m.Dup()
 		select {
 		case pe.q <- m:
 		default:
 			// No room on outbound queue, drop it.
-			m.Free()
+			// Note that if we are passing on a linger/shutdown
+			// notification and we can't deliver due to queue
+			// full, it means we will wind up waiting the full
+			// linger time in the lower sender.  Its correct, if
+			// suboptimal, behavior.
+			if m != nil {
+				m.Free()
+			}
 		}
 	}
 	x.Unlock()
 }
 
 func (x *bus) sender() {
+	sq := x.sock.SendChannel()
 	for {
-		var m *mangos.Message
 		var id uint32
-		select {
-		case m = <-x.sock.SendChannel():
-		case <-x.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			// Forward on the close / drain notification
+			x.broadcast(m, id)
+			break
 		}
 
 		// If a header was present, it means this message is being
@@ -101,6 +117,10 @@ func (x *bus) sender() {
 }
 
 func (pe *busEp) receiver() {
+
+	rq := pe.x.sock.RecvChannel()
+	cq := pe.x.sock.CloseChannel()
+
 	for {
 		m := pe.ep.RecvMsg()
 		if m == nil {
@@ -111,8 +131,8 @@ func (pe *busEp) receiver() {
 			byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 
 		select {
-		case pe.x.sock.RecvChannel() <- m:
-		case <-pe.x.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
 			m.Free()
 			return
 		default:
@@ -134,6 +154,7 @@ func (x *bus) AddEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()
+	x.senders.Add()
 	go pe.sender()
 	go pe.receiver()
 }

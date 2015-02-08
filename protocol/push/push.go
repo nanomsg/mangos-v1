@@ -17,36 +17,42 @@
 package push
 
 import (
+	"time"
+
 	"github.com/gdamore/mangos"
 )
 
 type push struct {
-	sock mangos.ProtocolSocket
-	raw  bool
+	sock    mangos.ProtocolSocket
+	raw     bool
+	senders mangos.Waiter
 }
 
 func (x *push) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
+	x.senders.Init()
+}
+
+func (x *push) Shutdown(linger time.Duration) {
+	x.senders.WaitRelTimeout(linger)
 }
 
 func (x *push) sender(ep mangos.Endpoint) {
-	var m *mangos.Message
+	sq := x.sock.SendChannel()
 
 	for {
-		select {
-		case m = <-x.sock.SendChannel():
-		case <-x.sock.DrainChannel():
-			return
+		m := <-sq
+		if m == nil {
+			break
 		}
 
 		if ep.SendMsg(m) != nil {
-			select {
-			case <-x.sock.DrainChannel():
-				m.Free()
-			}
-			return
+			m.Free()
+			break
 		}
 	}
+
+	x.senders.Done()
 }
 
 func (x *push) receiver(ep mangos.Endpoint) {
@@ -54,7 +60,11 @@ func (x *push) receiver(ep mangos.Endpoint) {
 	// on the socket.  We don't care about the results and discard them,
 	// but this allows the disconnect to be noticed.  Note that we will
 	// be blocked in this call forever, until the connection is dropped.
-	ep.RecvMsg()
+	for {
+		if m := ep.RecvMsg(); m == nil {
+			break
+		}
+	}
 }
 
 func (*push) Number() uint16 {
@@ -74,6 +84,7 @@ func (*push) PeerName() string {
 }
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {
+	x.senders.Add()
 	go x.sender(ep)
 	go x.receiver(ep)
 }
