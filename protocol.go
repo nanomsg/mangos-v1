@@ -128,7 +128,7 @@ type ProtocolSocket interface {
 	// it indicates that the application has closed the upper read socket,
 	// and the protocol should stop any further read operations on this
 	// instance.
-	CloseChannel() chan struct{}
+	CloseChannel() <-chan struct{}
 
 	// GetOption may be used by the protocol to retrieve an option from
 	// the socket.  This can ultimately wind up calling into the socket's

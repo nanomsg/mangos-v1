@@ -141,7 +141,7 @@ func (sock *socket) RecvChannel() chan<- *Message {
 	return sock.urq
 }
 
-func (sock *socket) CloseChannel() chan struct{} {
+func (sock *socket) CloseChannel() <-chan struct{} {
 	return sock.closeq
 }
 
