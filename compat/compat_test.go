@@ -234,7 +234,7 @@ func TestCompatInp(t *testing.T) {
 // timeout when no transport was present.  But that semantic is diametrically
 // opposed with guaranteed delivery.  The only time we block or timeout is
 // if there is backpressure.
-func xTestCompatSendTimeout(t *testing.T) {
+func TestCompatSendTimeout(t *testing.T) {
 
 	addr := "tcp://127.0.0.1:19"
 	push, err := NewSocket(AF_SP, PUSH)

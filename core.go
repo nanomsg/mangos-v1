@@ -41,6 +41,7 @@ type socket struct {
 	rdeadline  time.Duration
 	wdeadline  time.Duration
 	reconntime time.Duration // reconnect time after error or disconnect
+	reconnmax  time.Duration // max reconnect interval
 	linger     time.Duration
 
 	pipes []*pipe
@@ -106,7 +107,8 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, sock.uwqLen)
 	sock.urq = make(chan *Message, sock.urqLen)
 	sock.closeq = make(chan struct{})
-	sock.reconntime = time.Second * 1 // make it a tunable?
+	sock.reconntime = time.Millisecond * 100 // make it a tunable?
+	sock.reconnmax = time.Minute
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
 	sock.linger = time.Second
@@ -501,9 +503,13 @@ func (d *dialer) Address() string {
 
 // dialer is used to dial or redial from a goroutine.
 func (d *dialer) dialer() {
+	rtime := d.sock.reconntime
+	rtmax := d.sock.reconnmax
 	for {
 		p, err := d.d.Dial()
 		if err == nil {
+			// reset retry time
+			rtime = d.sock.reconntime
 			d.sock.Lock()
 			if d.closed {
 				p.Close()
@@ -525,7 +531,11 @@ func (d *dialer) dialer() {
 			return
 		case <-d.sock.closeq: // exit if parent socket closed
 			return
-		case <-time.After(d.sock.reconntime):
+		case <-time.After(rtime):
+			rtime *= 2
+			if rtime > rtmax {
+				rtime = rtmax
+			}
 			continue
 		}
 	}

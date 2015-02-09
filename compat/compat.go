@@ -157,6 +157,12 @@ func NewSocket(d Domain, p Protocol) (*Socket, error) {
 		return nil, err
 	}
 
+	// Compat mode sockets should timeout on send if we don't have any pipes
+	if err = s.sock.SetOption(mangos.OptionWriteQLen, 0); err != nil {
+		s.sock.Close()
+		return nil, err
+	}
+
 	s.rto = -1
 	s.sto = -1
 	all.AddTransports(s.sock)
@@ -185,7 +191,11 @@ func (s *Socket) Bind(addr string) (*Endpoint, error) {
 // to a remote peer.  The client will attempt to keep reconnecting.
 // This wraps around mangos' Dial() socket inteface.
 func (s *Socket) Connect(addr string) (*Endpoint, error) {
-	if err := s.sock.Dial(addr); err != nil {
+	d, err := s.sock.NewDialer(addr, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.Dial(); err != nil {
 		return nil, err
 	}
 	return &Endpoint{Address: addr}, nil
