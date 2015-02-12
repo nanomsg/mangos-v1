@@ -328,26 +328,6 @@ func init() {
 	goopt.ReqArg([]string{"--file", "-F"}, "FILE", "Send contents of FILE",
 		setSendFile)
 
-	goopt.NoArg([]string{"--sslv3"}, "Force SSLv3 when using SSL/TLS",
-		func() error {
-			return setTLSVer(tls.VersionSSL30, tls.VersionSSL30)
-		})
-	goopt.NoArg([]string{"--tlsv1"}, "Force TLSv1.x when using SSL/TLS",
-		func() error {
-			return setTLSVer(tls.VersionTLS10, tls.VersionTLS12)
-		})
-	goopt.NoArg([]string{"--tlsv1.1"}, "Force TLSv1.0 when using SSL/TLS",
-		func() error {
-			return setTLSVer(tls.VersionTLS10, tls.VersionTLS10)
-		})
-	goopt.NoArg([]string{"--tlsv1.1"}, "Force TLSv1.1 when using SSL/TLS",
-		func() error {
-			return setTLSVer(tls.VersionTLS11, tls.VersionTLS11)
-		})
-	goopt.NoArg([]string{"--tlsv1.2"}, "Force TLSv1.2 when using SSL/TLS",
-		func() error {
-			return setTLSVer(tls.VersionTLS12, tls.VersionTLS12)
-		})
 	goopt.ReqArg([]string{"--cert", "-E"}, "FILE",
 		"Use certificate in FILE for SSL/TLS", setCert)
 	goopt.ReqArg([]string{"--key"}, "FILE",
@@ -539,7 +519,7 @@ func main() {
 		fatalf("Protocol not specified.")
 	}
 
-	sock.SetOption(mangos.OptionTLSConfig, &tlscfg)
+	sock.SetOption(mangos.OptionTlsConfig, &tlscfg)
 
 	if len(listenAddrs) == 0 && len(dialAddrs) == 0 {
 		fatalf("No address specified.")

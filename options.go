@@ -74,9 +74,9 @@ const (
 	// indicate an infinite time.  Default is 1 second.
 	OptionSurveyTime = "SURVEY-TIME"
 
-	// OptionTLSConfig is used to supply TLS configuration details.
+	// OptionTlsConfig is used to supply TLS configuration details.
 	// The parameter is a tls.Config pointer.
-	OptionTLSConfig = "TLS-CONFIG"
+	OptionTlsConfig = "TLS-CONFIG"
 
 	// OptionLocalAddress is used to get the local address an accepter is
 	// listening on in string form. Generally this is known when Listen is

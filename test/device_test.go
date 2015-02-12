@@ -208,7 +208,7 @@ func testDevLoop(t *testing.T, addr string) {
 
 	options := make(map[string]interface{})
 	if strings.HasPrefix(addr, "wss://") || strings.HasPrefix(addr, "tls+tcp://") {
-		options[mangos.OptionTLSConfig] = srvCfg
+		options[mangos.OptionTlsConfig] = srvCfg
 	}
 
 	if err := s1.ListenOptions(addr, options); err != nil {

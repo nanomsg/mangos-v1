@@ -26,9 +26,6 @@ type options map[string]interface{}
 
 // GetOption retrieves an option value.
 func (o options) get(name string) (interface{}, error) {
-	if o == nil {
-		return nil, mangos.ErrBadOption
-	}
 	if v, ok := o[name]; !ok {
 		return nil, mangos.ErrBadOption
 	} else {
@@ -60,7 +57,7 @@ func newOptions() options {
 	return options(o)
 }
 
-func configure(conn *net.TCPConn, o options) error {
+func (o options) configTCP(conn *net.TCPConn) error {
 	if v, ok := o[mangos.OptionNoDelay]; ok {
 		if err := conn.SetNoDelay(v.(bool)); err != nil {
 			return err
@@ -86,7 +83,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = configure(conn, d.opts); err != nil {
+	if err = d.opts.configTCP(conn); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -117,7 +114,7 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = configure(conn, l.opts); err != nil {
+	if err = l.opts.configTCP(conn); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -177,23 +174,6 @@ func (t *tcpTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeLi
 	}
 
 	return l, nil
-}
-
-func (*tcpTran) SetOption(string, interface{}) error {
-	// Likely we should support some options here...
-	return mangos.ErrBadOption
-}
-
-func (t *tcpTran) GetOption(name string) (interface{}, error) {
-	switch name {
-	case mangos.OptionLocalAddress:
-		if t.localAddr == nil {
-			return nil, mangos.ErrBadOption
-		}
-		return t.localAddr.String(), nil
-	default:
-		return nil, mangos.ErrBadOption
-	}
 }
 
 // NewTransport allocates a new TCP transport.

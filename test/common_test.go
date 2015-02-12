@@ -231,7 +231,7 @@ func (c *T) Dial() bool {
 	case strings.HasPrefix(c.addr, "tls+tcp://"):
 		fallthrough
 	case strings.HasPrefix(c.addr, "wss://"):
-		options[mangos.OptionTLSConfig] = cliCfg
+		options[mangos.OptionTlsConfig] = cliCfg
 	}
 
 	err := c.Sock.DialOptions(c.addr, options)
@@ -250,7 +250,7 @@ func (c *T) Listen() bool {
 	case strings.HasPrefix(c.addr, "tls+tcp://"):
 		fallthrough
 	case strings.HasPrefix(c.addr, "wss://"):
-		options[mangos.OptionTLSConfig] = srvCfg
+		options[mangos.OptionTlsConfig] = srvCfg
 	}
 	err := c.Sock.ListenOptions(c.addr, options)
 	if err != nil {

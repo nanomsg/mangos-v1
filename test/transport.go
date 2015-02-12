@@ -17,7 +17,9 @@ package test
 import (
 	"bytes"
 	"crypto/tls"
+	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,7 +58,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 	}
 	defer l.Close()
 	if tt.srvCfg != nil {
-		if err = l.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+		if err = l.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -66,7 +68,11 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 		return
 	}
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		t.Logf("Connecting on %s", tt.addr)
 		d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
 		if err != nil {
@@ -74,7 +80,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 			return
 		}
 		if tt.cliCfg != nil {
-			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
+			if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)
 				return
 			}
@@ -83,6 +89,16 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 		if err != nil {
 			t.Errorf("Dial failed: %v", err)
 			return
+		}
+		if v, err := client.GetProp(mangos.PropLocalAddr); err == nil {
+			addr := v.(net.Addr)
+			t.Logf("Dialed on local net %s addr %s", addr.Network(), addr.String())
+		} else {
+			t.Logf("err is ", err.Error())
+		}
+		if v, err := client.GetProp(mangos.PropRemoteAddr); err == nil {
+			addr := v.(net.Addr)
+			t.Logf("Dialed remote peer %s addr %s", addr.Network(), addr.String())
 		}
 		t.Logf("Connected client: %d (server %d)",
 			client.LocalProtocol(), client.RemoteProtocol())
@@ -98,6 +114,14 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 		t.Errorf("Accept failed: %v", err)
 		return
 	}
+	if v, err := server.GetProp(mangos.PropLocalAddr); err == nil {
+		addr := v.(net.Addr)
+		t.Logf("Accepted on local net %s addr %s", addr.Network(), addr.String())
+	}
+	if v, err := server.GetProp(mangos.PropRemoteAddr); err == nil {
+		addr := v.(net.Addr)
+		t.Logf("Accepted remote peer %s addr %s", addr.Network(), addr.String())
+	}
 	defer server.Close()
 
 	t.Logf("Connected server: %d (client %d)",
@@ -106,6 +130,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 	if !server.IsOpen() {
 		t.Error("Server is closed")
 	}
+	wg.Wait()
 }
 
 func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
@@ -118,7 +143,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	}
 	defer l1.Close()
 	if tt.srvCfg != nil {
-		if err = l1.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+		if err = l1.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -135,7 +160,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	}
 	defer l2.Close()
 	if tt.srvCfg != nil {
-		if err = l2.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+		if err = l2.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -153,7 +178,7 @@ func (tt *TranTest) TranTestConnRefused(t *testing.T) {
 		t.Errorf("New Dialer failed: %v", err)
 	}
 	if tt.cliCfg != nil {
-		if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
+		if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -180,7 +205,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 	}
 	defer l.Close()
 	if tt.srvCfg != nil {
-		if err = l.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
+		if err = l.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -197,7 +222,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 		t.Logf("Connecting REQ on %s", tt.addr)
 		d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
 		if tt.cliCfg != nil {
-			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
+			if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)
 				return
 			}

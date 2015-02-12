@@ -16,6 +16,7 @@
 package inproc
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/gdamore/mangos"
@@ -28,8 +29,22 @@ type inproc struct {
 	closeq chan struct{}
 	readyq chan struct{}
 	proto  mangos.Protocol
-	addr   string
+	addr   addr
 	peer   *inproc
+}
+
+type addr string
+
+func (a addr) String() string {
+	s := string(a)
+	if strings.HasPrefix(s, "inproc://") {
+		s = s[len("inproc://"):]
+	}
+	return s
+}
+
+func (addr) Network() string {
+	return "inproc"
 }
 
 type listener struct {
@@ -115,7 +130,13 @@ func (p *inproc) IsOpen() bool {
 	}
 }
 
-func (p *inproc) GetProp(string) (interface{}, error) {
+func (p *inproc) GetProp(name string) (interface{}, error) {
+	switch name {
+	case mangos.PropRemoteAddr:
+		return p.addr, nil
+	case mangos.PropLocalAddr:
+		return p.addr, nil
+	}
 	// We have no special properties
 	return nil, mangos.ErrBadProperty
 }
@@ -128,7 +149,7 @@ type dialer struct {
 func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	var server *inproc
-	client := &inproc{proto: d.proto, addr: d.addr}
+	client := &inproc{proto: d.proto, addr: addr(d.addr)}
 	client.readyq = make(chan struct{})
 	client.closeq = make(chan struct{})
 
@@ -192,7 +213,7 @@ func (l *listener) Listen() error {
 }
 
 func (l *listener) Accept() (mangos.Pipe, error) {
-	server := &inproc{proto: l.proto, addr: l.addr}
+	server := &inproc{proto: l.proto, addr: addr(l.addr)}
 	server.readyq = make(chan struct{})
 	server.closeq = make(chan struct{})
 
@@ -245,14 +266,6 @@ func (t *inprocTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeD
 func (t *inprocTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
 	l := &listener{addr: addr, proto: proto}
 	return l, nil
-}
-
-func (*inprocTran) SetOption(string, interface{}) error {
-	return mangos.ErrBadOption
-}
-
-func (*inprocTran) GetOption(string) (interface{}, error) {
-	return nil, mangos.ErrBadOption
 }
 
 // NewTransport allocates a new inproc:// transport.

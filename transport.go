@@ -135,16 +135,6 @@ type Transport interface {
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
 	NewListener(url string, protocol Protocol) (PipeListener, error)
-
-	// SetOption allows for transports to handle transport specific
-	// options.  EBadOption should be returned if the Transport doesn't
-	// recognize the option.
-	SetOption(string, interface{}) error
-
-	// GetOption is used to retrieve the current value of an option.
-	// If the protocol doesn't recognize the option, EBadOption should
-	// be returned.
-	GetOption(string) (interface{}, error)
 }
 
 func StripScheme(t Transport, addr string) (string, error) {

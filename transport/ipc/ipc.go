@@ -148,16 +148,6 @@ func (t *ipcTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeLi
 	return l, nil
 }
 
-// SetOption implements a stub Transport SetOption method.
-func (t *ipcTran) SetOption(string, interface{}) error {
-	return mangos.ErrBadOption
-}
-
-// GetOption implements a stub Transport GetOption method.
-func (t *ipcTran) GetOption(string) (interface{}, error) {
-	return nil, mangos.ErrBadOption
-}
-
 // NewTransport allocates a new IPC transport.
 func NewTransport() mangos.Transport {
 	return &ipcTran{}

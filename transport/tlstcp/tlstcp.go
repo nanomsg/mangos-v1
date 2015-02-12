@@ -17,15 +17,9 @@ package tlstcp
 
 import (
 	"crypto/tls"
-	"errors"
 	"net"
 
 	"github.com/gdamore/mangos"
-)
-
-var (
-	ErrTLSNoConfig = errors.New("missing TLS config")
-	ErrTLSNoCert   = errors.New("missing TLS certificate")
 )
 
 type options map[string]interface{}
@@ -39,7 +33,7 @@ func (o options) get(name string) (interface{}, error) {
 
 func (o options) set(name string, val interface{}) error {
 	switch name {
-	case mangos.OptionTLSConfig:
+	case mangos.OptionTlsConfig:
 		switch v := val.(type) {
 		case *tls.Config:
 			// Make a private copy
@@ -58,12 +52,23 @@ func (o options) set(name string, val interface{}) error {
 }
 
 func (o options) configTCP(conn *net.TCPConn) error {
+	if v, ok := o[mangos.OptionNoDelay]; ok {
+		if err := conn.SetNoDelay(v.(bool)); err != nil {
+			return err
+		}
+	}
+	if v, ok := o[mangos.OptionKeepAlive]; ok {
+		if err := conn.SetKeepAlive(v.(bool)); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func newOptions(t *tlsTran) options {
 	o := make(map[string]interface{})
-	o[mangos.OptionTLSConfig] = t.config
+	o[mangos.OptionTlsConfig] = t.config
 	return options(o)
 }
 
@@ -84,11 +89,12 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 		tconn.Close()
 		return nil, err
 	}
-	if v, ok := d.opts[mangos.OptionTLSConfig]; ok {
+	if v, ok := d.opts[mangos.OptionTlsConfig]; ok {
 		config = v.(*tls.Config)
 	}
 	conn := tls.Client(tconn, config)
-	return mangos.NewConnPipe(conn, d.proto)
+	return mangos.NewConnPipe(conn, d.proto,
+		mangos.PropTlsConnState, conn.ConnectionState())
 }
 
 func (d *dialer) SetOption(n string, v interface{}) error {
@@ -110,16 +116,16 @@ type listener struct {
 func (l *listener) Listen() error {
 
 	var err error
-	if v, ok := l.opts[mangos.OptionTLSConfig]; !ok {
-		return ErrTLSNoConfig
+	if v, ok := l.opts[mangos.OptionTlsConfig]; !ok {
+		return mangos.ErrTlsNoConfig
 	} else {
 		l.config = v.(*tls.Config)
 	}
 	if l.config == nil {
-		return ErrTLSNoConfig
+		return mangos.ErrTlsNoConfig
 	}
 	if l.config.Certificates == nil || len(l.config.Certificates) == 0 {
-		return ErrTLSNoCert
+		return mangos.ErrTlsNoCert
 	}
 
 	if l.listener, err = net.ListenTCP("tcp", l.addr); err != nil {
@@ -192,46 +198,6 @@ func (t *tlsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeLi
 	}
 
 	return l, nil
-}
-
-// SetOption implements the Transport SetOption method. We support a single
-// option, OptionTLSConfig, which takes a single value, a *tls.Config.
-// Note that we force the use of TLS1.2, as other versions have known
-// weaknesses, and we have no compatibility concerns.
-func (t *tlsTran) SetOption(name string, val interface{}) error {
-	switch name {
-	case mangos.OptionTLSConfig:
-		switch v := val.(type) {
-		case *tls.Config:
-			// Force TLS 1.2, others have weaknesses
-			cfg := *v
-			cfg.MinVersion = tls.VersionTLS12
-			cfg.MaxVersion = tls.VersionTLS12
-			t.config = &cfg
-			return nil
-		default:
-			return mangos.ErrBadValue
-		}
-	default:
-		return mangos.ErrBadOption
-	}
-}
-
-// GetOption implements the Transport GetOption method. We support two options,
-// OptionTLSConfig, which is a *tls.Config, and OptionLocalAddress, which is a
-// string.
-func (t *tlsTran) GetOption(name string) (interface{}, error) {
-	switch name {
-	case mangos.OptionTLSConfig:
-		return t.config, nil
-	case mangos.OptionLocalAddress:
-		if t.localAddr == nil {
-			return nil, mangos.ErrBadOption
-		}
-		return t.localAddr.String(), nil
-	default:
-		return nil, mangos.ErrBadOption
-	}
 }
 
 // NewTransport allocates a new inproc transport.

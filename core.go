@@ -342,14 +342,6 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 	} else if err != ErrBadOption {
 		return err
 	}
-	for _, t := range sock.transports {
-		err := t.SetOption(name, value)
-		if err == nil {
-			matched = true
-		} else if err != ErrBadOption {
-			return err
-		}
-	}
 	switch name {
 	case OptionRecvDeadline:
 		sock.Lock()
@@ -406,15 +398,6 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 	}
 	if err != ErrBadOption {
 		return nil, err
-	}
-	for _, t := range sock.transports {
-		val, err := t.GetOption(name)
-		if err == nil {
-			return val, nil
-		}
-		if err != ErrBadOption {
-			return nil, err
-		}
 	}
 
 	switch name {

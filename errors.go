@@ -37,4 +37,6 @@ var (
 	ErrGarbled     = errors.New("message garbled")
 	ErrAddrInUse   = errors.New("address in use")
 	ErrBadProperty = errors.New("invalid property name")
+	ErrTlsNoConfig = errors.New("missing TLS configuration")
+	ErrTlsNoCert   = errors.New("missing TLS certificates")
 )

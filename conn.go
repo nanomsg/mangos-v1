@@ -137,8 +137,16 @@ func (p *conn) GetProp(n string) (interface{}, error) {
 // and the Transport enclosing structure.   Using this layered interface,
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
-func NewConnPipe(c net.Conn, proto Protocol) (Pipe, error) {
-	p := &conn{c: c, proto: proto, props: make(map[string]interface{})}
+func NewConnPipe(c net.Conn, proto Protocol, props ...interface{}) (Pipe, error) {
+	p := &conn{c: c, proto: proto}
+
+	p.props = make(map[string]interface{})
+	p.props[PropLocalAddr] = c.LocalAddr()
+	p.props[PropRemoteAddr] = c.RemoteAddr()
+
+	for i := 0; i+1 < len(props); i++ {
+		p.props[props[i].(string)] = props[i+1]
+	}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
@@ -147,8 +155,16 @@ func NewConnPipe(c net.Conn, proto Protocol) (Pipe, error) {
 }
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, proto Protocol) (Pipe, error) {
-	p := &connipc{conn: conn{c: c, proto: proto, props: make(map[string]interface{})}}
+func NewConnPipeIPC(c net.Conn, proto Protocol, props ...interface{}) (Pipe, error) {
+	p := &connipc{conn: conn{c: c, proto: proto}}
+
+	p.props = make(map[string]interface{})
+	p.props[PropLocalAddr] = c.LocalAddr()
+	p.props[PropRemoteAddr] = c.RemoteAddr()
+
+	for i := 0; i+1 < len(props); i++ {
+		p.props[props[i].(string)] = props[i+1]
+	}
 	if err := p.handshake(); err != nil {
 		return nil, err
 	}
