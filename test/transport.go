@@ -30,7 +30,6 @@ import (
 
 type TranTest struct {
 	addr     string
-	t        *testing.T
 	tran     mangos.Transport
 	cliCfg   *tls.Config
 	srvCfg   *tls.Config
@@ -322,4 +321,124 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 		t.Error("Client timeout?")
 		return
 	}
+}
+
+func (tt *TranTest) TranTestScheme(t *testing.T) {
+	scheme := tt.tran.Scheme()
+	t.Log("Checking scheme")
+	if !strings.HasPrefix(tt.addr, scheme + "://") {
+		t.Errorf("Wrong scheme: addr %s, scheme %s", tt.addr, scheme)
+		return
+	}
+	t.Log("Scheme match")
+}
+
+func (tt *TranTest) TranTestListenerSetOptionInvalid(t *testing.T) {
+	t.Log("Trying invalid listener SetOption")
+	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	if err != nil {
+		t.Errorf("Unable to create listener")
+		return
+	}
+	err = l.SetOption("NO-SUCH-OPTION", true)
+	switch err {
+	case mangos.ErrBadOption:
+		t.Log("Got expected err BadOption")
+	case nil:
+		t.Errorf("Got nil err, but expected BadOption!")
+	default:
+		t.Errorf("Got unexpected error %v, expected BadOption", err)
+	}
+}
+
+func (tt *TranTest) TranTestListenerGetOptionInvalid(t *testing.T) {
+	t.Log("Trying invalid listener GetOption")
+	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	if err != nil {
+		t.Errorf("Unable to create listener")
+		return
+	}
+	_, err = l.GetOption("NO-SUCH-OPTION")
+	switch err {
+	case mangos.ErrBadOption:
+		t.Log("Got expected err BadOption")
+	case nil:
+		t.Errorf("Got nil err, but expected BadOption!")
+	default:
+		t.Errorf("Got unexpected error %v, expected BadOption", err)
+	}
+}
+
+func (tt *TranTest) TranTestDialerSetOptionInvalid(t *testing.T) {
+	t.Log("Trying invalid dialer SetOption")
+	d, err := tt.tran.NewDialer(tt.addr, tt.protoRep)
+	if err != nil {
+		t.Errorf("Unable to create dialer")
+		return
+	}
+	err = d.SetOption("NO-SUCH-OPTION", true)
+	switch err {
+	case mangos.ErrBadOption:
+		t.Log("Got expected err BadOption")
+	case nil:
+		t.Errorf("Got nil err, but expected BadOption!")
+	default:
+		t.Errorf("Got unexpected error %v, expected BadOption", err)
+	}
+}
+
+func (tt *TranTest) TranTestDialerGetOptionInvalid(t *testing.T) {
+	t.Log("Trying invalid listener GetOption")
+	d, err := tt.tran.NewDialer(tt.addr, tt.protoRep)
+	if err != nil {
+		t.Errorf("Unable to create dialer")
+		return
+	}
+	_, err = d.GetOption("NO-SUCH-OPTION")
+	switch err {
+	case mangos.ErrBadOption:
+		t.Log("Got expected err BadOption")
+	case nil:
+		t.Errorf("Got nil err, but expected BadOption!")
+	default:
+		t.Errorf("Got unexpected error %v, expected BadOption", err)
+	}
+}
+
+func (tt *TranTest) TestDialerBadScheme(t *testing.T) {
+	t.Logf("NewDialer with bogus scheme")
+	d, err := tt.tran.NewDialer("bogus://address", tt.protoRep)
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	} else if d != nil {
+		t.Errorf("Got non-nil error, and non-nil dialer")
+	} else {
+		t.Logf("Got expected error %v", err)
+	}
+}
+
+func (tt *TranTest) TestListenerBadScheme(t *testing.T) {
+	t.Logf("NewListener with bogus scheme")
+	d, err := tt.tran.NewListener("bogus://address", tt.protoRep)
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	} else if d != nil {
+		t.Errorf("Got non-nil error, and non-nil listener")
+	} else {
+		t.Logf("Got expected error %v", err)
+	}
+}
+
+func (tt *TranTest) TranTestAll(t *testing.T) {
+	tt.TranTestScheme(t)
+	tt.TranTestListenAndAccept(t)
+	tt.TranTestConnRefused(t)
+	tt.TranTestDuplicateListen(t)
+	tt.TranTestSendRecv(t)
+	tt.TranTestDialerSetOptionInvalid(t)
+	tt.TranTestDialerGetOptionInvalid(t)
+	tt.TranTestListenerSetOptionInvalid(t)
+	tt.TranTestListenerGetOptionInvalid(t)
+	tt.TestDialerBadScheme(t)
+	tt.TestListenerBadScheme(t)
 }

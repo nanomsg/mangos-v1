@@ -37,3 +37,7 @@ func TestTLSConnRefused(t *testing.T) {
 func TestTLSSendRecv(t *testing.T) {
 	tt.TranTestSendRecv(t)
 }
+
+func TestTLSAll(t *testing.T) {
+	tt.TranTestAll(t)
+}

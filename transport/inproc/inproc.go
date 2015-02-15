@@ -260,10 +260,16 @@ func (t *inprocTran) Scheme() string {
 }
 
 func (t *inprocTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+	if _, err := mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
 	return &dialer{addr: addr, proto: proto}, nil
 }
 
 func (t *inprocTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+	if _, err := mangos.StripScheme(t, addr); err != nil {
+		return nil, err
+	}
 	l := &listener{addr: addr, proto: proto}
 	return l, nil
 }

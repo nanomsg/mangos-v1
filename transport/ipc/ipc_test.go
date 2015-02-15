@@ -22,18 +22,22 @@ import (
 
 var tt = test.NewTranTest(NewTransport(), "ipc:///tmp/test1234")
 
-func TestInpListenAndAccept(t *testing.T) {
+func TestIpcListenAndAccept(t *testing.T) {
 	tt.TranTestListenAndAccept(t)
 }
 
-func TestInpDuplicateListen(t *testing.T) {
+func TestIpcDuplicateListen(t *testing.T) {
 	tt.TranTestDuplicateListen(t)
 }
 
-func TestInpConnRefused(t *testing.T) {
+func TestIpcConnRefused(t *testing.T) {
 	tt.TranTestConnRefused(t)
 }
 
-func TestInpSendRecv(t *testing.T) {
+func TestIpcSendRecv(t *testing.T) {
 	tt.TranTestSendRecv(t)
+}
+
+func TestIpcAll(t *testing.T) {
+	tt.TranTestAll(t)
 }

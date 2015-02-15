@@ -37,3 +37,11 @@ func TestInpConnRefused(t *testing.T) {
 func TestInpSendRecv(t *testing.T) {
 	tt.TranTestSendRecv(t)
 }
+
+func TestInpSchem(t *testing.T) {
+	tt.TranTestScheme(t)
+}
+
+func TestInp(t *testing.T) {
+	tt.TranTestAll(t)
+}
