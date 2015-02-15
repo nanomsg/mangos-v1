@@ -82,6 +82,22 @@ type wsPipe struct {
 	iswss bool
 }
 
+type Transport interface {
+	mangos.Transport
+
+	Listener(addr string, proto mangos.Protocol) (Listener, error)
+}
+
+type Listener interface {
+	http.Handler
+	mangos.PipeListener
+
+	// Handle registers a handler to serve at a specific pattern.
+	Handle(string, http.Handler)
+	// HandleFunc registers a function to serve at a specific pattern.
+	HandleFunc(string, http.HandlerFunc)
+}
+
 type wsTran int
 
 func (w *wsPipe) Recv() (*mangos.Message, error) {
@@ -248,6 +264,7 @@ type listener struct {
 	addr     string
 	wssvr    websocket.Server
 	htsvr    *http.Server
+	mux      *http.ServeMux
 	url_     *url.URL
 	listener net.Listener
 	proto    mangos.Protocol
@@ -297,9 +314,7 @@ func (l *listener) Listen() error {
 	l.pending = nil
 	l.running = true
 
-	l.wssvr.Handler = l.handler
-	l.wssvr.Handshake = l.handshake
-	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.wssvr}
+	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.mux}
 
 	go l.htsvr.Serve(l.listener)
 
@@ -371,13 +386,23 @@ func (l *listener) handshake(c *websocket.Config, _ *http.Request) error {
 	return websocket.ErrBadWebSocketProtocol
 }
 
+func (l *listener) Handle(pattern string, handler http.Handler) {
+	l.mux.Handle(pattern, handler)
+}
+
+func (l *listener) HandleFunc(pattern string, handler http.HandlerFunc) {
+	l.mux.HandleFunc(pattern, handler)
+}
+
 func (l *listener) Close() error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 	if !l.running {
 		return mangos.ErrClosed
 	}
-	l.listener.Close()
+	if l.listener != nil {
+		l.listener.Close()
+	}
 	l.running = false
 	l.cv.Broadcast()
 	for _, ws := range l.pending {
@@ -405,10 +430,28 @@ func (wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, 
 	return &dialer{addr: addr, proto: proto, iswss: iswss, opts: opts}, nil
 }
 
-func (wsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+func (t wsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+	l, e := t.listener(addr, proto)
+	if e == nil {
+		l.mux.Handle(l.url_.Path, l.wssvr)
+	}
+	return l, e
+}
+
+func (t wsTran) Listener(addr string, proto mangos.Protocol) (Listener, error) {
+	l, e := t.listener(addr, proto)
+	if e == nil && l != nil {
+		l.running = true
+	}
+	return l, e
+}
+
+func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 	var err error
 	l := &listener{proto: proto, opts: make(map[string]interface{})}
 	l.cv.L = &l.lock
+	l.wssvr.Handler = l.handler
+	l.wssvr.Handshake = l.handshake
 
 	if strings.HasPrefix(addr, "wss://") {
 		l.iswss = true
@@ -417,11 +460,17 @@ func (wsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListen
 	if err != nil {
 		return nil, err
 	}
+	if len(l.url_.Path) == 0 {
+		l.url_.Path = "/"
+	}
+	l.mux = http.NewServeMux()
+
+	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.mux}
 
 	return l, nil
 }
 
 // NewTransport allocates a new inproc:// transport.
-func NewTransport() mangos.Transport {
+func NewTransport() Transport {
 	return wsTran(0)
 }
