@@ -22,18 +22,18 @@ import (
 
 var tt = test.NewTranTest(NewTransport(), "ws://127.0.0.1:3335/mysock")
 
-func TestWSListenAndAccept(t *testing.T) {
+func TestWebsockListenAndAccept(t *testing.T) {
 	tt.TranTestListenAndAccept(t)
 }
 
-func TestWSDuplicateListen(t *testing.T) {
+func TestWebsockDuplicateListen(t *testing.T) {
 	tt.TranTestDuplicateListen(t)
 }
 
-func TestWSConnRefused(t *testing.T) {
+func TestWebsockConnRefused(t *testing.T) {
 	tt.TranTestConnRefused(t)
 }
 
-func TestWSSendRecv(t *testing.T) {
+func TestWebsockSendRecv(t *testing.T) {
 	tt.TranTestSendRecv(t)
 }
