@@ -61,14 +61,89 @@ func bogusHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, bogusstr)
 }
 
-func TestWebsockHandler(t *testing.T) {
+func TestWebsockMux(t *testing.T) {
 	tran := NewTransport()
-	l, e := tran.Listener("ws://127.0.0.1:3335/mysock", req.NewProtocol())
+	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", req.NewProtocol())
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
 		return
 	}
-	l.HandleFunc("/bogus", bogusHandler)
+	muxi, e := l.GetOption(OptionWebSocketMux)
+	if e != nil {
+		t.Errorf("Failed get mux: %v", e)
+	}
+	mux := muxi.(*http.ServeMux)
+	mux.HandleFunc("/bogus", bogusHandler)
+	d, e := tran.NewDialer("ws://127.0.0.1:3335/bogus", rep.NewProtocol())
+	if e != nil {
+		t.Errorf("Failed new Dialer: %v", e)
+		return
+	}
+
+	if e = l.Listen(); e != nil {
+		t.Errorf("Listen failed")
+		return
+	}
+	defer l.Close()
+
+	p, e := d.Dial()
+	if p != nil {
+		defer p.Close()
+	}
+	if e == nil {
+		t.Errorf("Dial passed, when should not have!")
+		return
+	}
+	t.Logf("Got expected error %v", e)
+
+	// Now let's try to use http client.
+	resp, err := http.Get("http://127.0.0.1:3335/bogus")
+
+	if err != nil {
+		t.Errorf("Get of boguspath failed: %v", err)
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Response code wrong: %d", resp.StatusCode)
+		return
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("ReadAll Failed: %v", err)
+		return
+	}
+	if string(body) != bogusstr {
+		t.Errorf("Results mismatch: %s != %s", string(body), bogusstr)
+	}
+	t.Logf("Got body: %s", string(body))
+}
+
+// This test verifies that we can use stock http server instances with
+// our own websocket handler.
+func TestWebsockHandler(t *testing.T) {
+	tran := NewTransport()
+	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", req.NewProtocol())
+	if e != nil {
+		t.Errorf("Failed new Listener: %v", e)
+		return
+	}
+	hi, e := l.GetOption(OptionWebSocketHandler)
+	if e != nil {
+		t.Errorf("Failed get WebSocketHandler: %v", e)
+	}
+	handler := hi.(http.Handler)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/bogus", bogusHandler)
+	mux.Handle("/mysock", handler)
+
+	// Note that we are *counting* on this to die gracefully when our
+	// program exits. There appears to be no way to shutdown http
+	// instances gracefully.
+	go http.ListenAndServe("127.0.0.1:3335", mux)
+
 	d, e := tran.NewDialer("ws://127.0.0.1:3335/bogus", rep.NewProtocol())
 	if e != nil {
 		t.Errorf("Failed new Dialer: %v", e)

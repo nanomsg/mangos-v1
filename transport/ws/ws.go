@@ -28,6 +28,26 @@ import (
 	"sync"
 )
 
+// Some special options
+const (
+	// OptionWebSocketMux is a retrieve-only property used to obtain
+	// the *http.ServeMux instance associated with the server.  This
+	// can be used to subsequently register additional handlers for
+	// different URIs.  This option is only valid on a Listener.
+	// Generally you use this option when you want to use the standard
+	// mangos Listen() method to start up the server.
+	OptionWebSocketMux = "WEBSOCKET-MUX"
+
+	// OptionWebSocketHandler is used to obtain the underlying
+	// http.Handler (websocket.Server) object, so you can use this
+	// on your own http.Server instances.  It is a gross error to use
+	// the value returned by this method on an http server if the
+	// server is also started with mangos Listen().  This means that you
+	// will use at most either this option, or OptionWebSocketMux, but
+	// never both.  This option is only valid on a listener.
+	OptionWebSocketHandler = "WEBSOCKET-HANDLER"
+)
+
 type options map[string]interface{}
 
 // GetOption retrieves an option value.
@@ -80,22 +100,6 @@ type wsPipe struct {
 	wg    sync.WaitGroup
 	props map[string]interface{}
 	iswss bool
-}
-
-type Transport interface {
-	mangos.Transport
-
-	Listener(addr string, proto mangos.Protocol) (Listener, error)
-}
-
-type Listener interface {
-	http.Handler
-	mangos.PipeListener
-
-	// Handle registers a handler to serve at a specific pattern.
-	Handle(string, http.Handler)
-	// HandleFunc registers a function to serve at a specific pattern.
-	HandleFunc(string, http.HandlerFunc)
 }
 
 type wsTran int
@@ -277,6 +281,17 @@ func (l *listener) SetOption(n string, v interface{}) error {
 }
 
 func (l *listener) GetOption(n string) (interface{}, error) {
+	switch n {
+	case OptionWebSocketMux:
+		return l.mux, nil
+	case OptionWebSocketHandler:
+		// Caller intends to use use in his own server, so mark
+		// us running.  If he didn't mean this, the side effect is
+		// that Accept() will appear to hang, even though Listen()
+		// is not called yet.
+		l.running = true
+		return l.wssvr, nil
+	}
 	return l.opts.get(n)
 }
 
@@ -438,14 +453,6 @@ func (t wsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeList
 	return l, e
 }
 
-func (t wsTran) Listener(addr string, proto mangos.Protocol) (Listener, error) {
-	l, e := t.listener(addr, proto)
-	if e == nil && l != nil {
-		l.running = true
-	}
-	return l, e
-}
-
 func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 	var err error
 	l := &listener{proto: proto, opts: make(map[string]interface{})}
@@ -471,6 +478,6 @@ func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 }
 
 // NewTransport allocates a new inproc:// transport.
-func NewTransport() Transport {
+func NewTransport() mangos.Transport {
 	return wsTran(0)
 }
