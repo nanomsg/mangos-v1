@@ -109,4 +109,11 @@ const (
 	// will return as soon as all data is delivered to the transport.
 	// Value is a time.Duration.  Default is one second.
 	OptionLinger = "LINGER"
+
+	// OptionTTL is used to set the maximum time-to-live for messages.
+	// Note that not all protocols can honor this at this time, but for
+	// those that do, if a message traverses more than this many devices,
+	// it will be dropped.  This is used to provide protection against
+	// loops in the topology.  The default is protocol specific.
+	OptionTtl = "TTL"
 )

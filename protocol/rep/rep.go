@@ -39,6 +39,7 @@ type rep struct {
 	backtrace    []byte
 	backtraceL   sync.Mutex
 	raw          bool
+	ttl          int
 	w            mangos.Waiter
 
 	sync.Mutex
@@ -48,6 +49,7 @@ func (r *rep) Init(sock mangos.ProtocolSocket) {
 	r.sock = sock
 	r.eps = make(map[uint32]*repEp)
 	r.backtracebuf = make([]byte, 64)
+	r.ttl = 8	// defauilt specified in the RFC
 	r.w.Init()
 	r.w.Add()
 	go r.sender()
@@ -95,8 +97,15 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 		v := ep.GetID()
 		m.Header = append(m.Header,
 			byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+
+		hops := 0
 		// Move backtrace from body to header.
 		for {
+			if hops >= r.ttl {
+				m.Free() // ErrTooManyHops
+				return
+			}
+			hops++
 			if len(m.Body) < 4 {
 				m.Free() // ErrGarbled
 				return
@@ -225,9 +234,21 @@ func (r *rep) SendHook(m *mangos.Message) bool {
 }
 
 func (r *rep) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		r.raw = v.(bool)
+		if r.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		return nil
+	case mangos.OptionTtl:
+		if ttl, ok := v.(int); !ok {
+			return mangos.ErrBadValue
+		} else if ttl < 1 || ttl > 255 {
+			return mangos.ErrBadValue
+		} else {
+			r.ttl = ttl
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption
@@ -238,6 +259,8 @@ func (r *rep) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
 		return r.raw, nil
+	case mangos.OptionTtl:
+		return r.ttl, nil
 	default:
 		return nil, mangos.ErrBadOption
 	}
