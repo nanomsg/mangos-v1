@@ -533,7 +533,7 @@ func main() {
 		if len(subscriptions) > 0 {
 			for i := range subscriptions {
 				err := sock.SetOption(mangos.OptionSubscribe,
-					subscriptions[i])
+					[]byte(subscriptions[i]))
 				if err != nil {
 					fatalf("Can't subscribe: %v", err)
 				}
