@@ -430,9 +430,6 @@ func recvLoop(sock mangos.Socket, done chan struct{}) {
 		}
 		printMsg(msg)
 		msg.Free()
-		if sendInterval == 0 {
-			return
-		}
 	}
 }
 
