@@ -45,6 +45,7 @@ func (p *pub) Init(sock mangos.ProtocolSocket) {
 	p.eps = make(map[uint32]*pubEp)
 	p.w.Init()
 	p.w.Add()
+	p.sock.SetRecvError(mangos.ErrProtoOp)
 	go p.sender()
 }
 

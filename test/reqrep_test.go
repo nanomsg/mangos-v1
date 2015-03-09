@@ -61,12 +61,8 @@ func (rt *reqTest) RecvHook(m *mangos.Message) bool {
 		rt.Errorf("Wrong message: %d != %d", m.Body[0], byte(rt.GetRecv()))
 		return false
 	}
-	// After one reply received, send the next
-	newm := rt.NewMessage()
 	rt.tot++
 	rt.cur++
-	newm.Body = append(newm.Body, byte(rt.tot))
-	rt.SendMsg(newm)
 	rt.T.RecvHook(m)
 	return rt.cur == rt.tot
 }
@@ -120,9 +116,11 @@ func reqRepCases() []TestCase {
 	reqc.debug = true
 	reqc.ID = 1
 	reqc.MsgSize = 1
-	reqc.WantTx = 1
+	reqc.WantTx = nresp
 	reqc.WantRx = nresp
 	reqc.tot = nresp
+	reqc.Synch = true
+	reqc.NReply = 1
 
 	return []TestCase{repc, reqc}
 }

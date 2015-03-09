@@ -49,9 +49,10 @@ func (r *rep) Init(sock mangos.ProtocolSocket) {
 	r.sock = sock
 	r.eps = make(map[uint32]*repEp)
 	r.backtracebuf = make([]byte, 64)
-	r.ttl = 8	// defauilt specified in the RFC
+	r.ttl = 8 // defauilt specified in the RFC
 	r.w.Init()
 	r.w.Add()
+	r.sock.SetSendError(mangos.ErrProtoState)
 	go r.sender()
 }
 
@@ -209,6 +210,7 @@ func (r *rep) RecvHook(m *mangos.Message) bool {
 	if r.raw {
 		return true
 	}
+	r.sock.SetSendError(nil)
 	r.backtraceL.Lock()
 	r.backtrace = append(r.backtracebuf[0:0], m.Header...)
 	r.backtraceL.Unlock()
@@ -223,6 +225,7 @@ func (r *rep) SendHook(m *mangos.Message) bool {
 	if r.raw {
 		return true
 	}
+	r.sock.SetSendError(mangos.ErrProtoState)
 	r.backtraceL.Lock()
 	m.Header = append(m.Header[0:0], r.backtrace...)
 	r.backtrace = nil
@@ -239,6 +242,11 @@ func (r *rep) SetOption(name string, v interface{}) error {
 	case mangos.OptionRaw:
 		if r.raw, ok = v.(bool); !ok {
 			return mangos.ErrBadValue
+		}
+		if r.raw {
+			r.sock.SetSendError(nil)
+		} else {
+			r.sock.SetSendError(mangos.ErrProtoState)
 		}
 		return nil
 	case mangos.OptionTtl:

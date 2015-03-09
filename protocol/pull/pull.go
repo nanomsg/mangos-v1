@@ -29,8 +29,7 @@ type pull struct {
 
 func (x *pull) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
-
-	go x.sender()
+	x.sock.SetSendError(mangos.ErrProtoOp)
 }
 
 func (x *pull) Shutdown(time.Duration) {} // No sender to drain
@@ -49,17 +48,6 @@ func (x *pull) receiver(ep mangos.Endpoint) {
 		case rq <- m:
 		case <-cq:
 			return
-		}
-	}
-}
-
-func (x *pull) sender() {
-	sq := x.sock.SendChannel()
-	for {
-		if m := <-sq; m == nil {
-			break
-		} else {
-			m.Free()
 		}
 	}
 }

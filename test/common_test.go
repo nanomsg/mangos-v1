@@ -47,6 +47,8 @@ type T struct {
 	txdelay time.Duration
 	WantTx  int32
 	WantRx  int32
+	Synch   bool
+	NReply  int
 	numtx   int32
 	numrx   int32
 	timeout time.Duration
@@ -96,6 +98,8 @@ type TestCase interface {
 	WantSendStart() bool
 	WantRecvStart() bool
 	SetReady()
+	IsSynch() bool
+	NumReply() int
 }
 
 func (c *T) Init(t *testing.T, addr string) bool {
@@ -331,6 +335,14 @@ func (c *T) WantRecvStart() bool {
 	return c.WantRx > 0
 }
 
+func (c *T) IsSynch() bool {
+	return c.Synch
+}
+
+func (c *T) NumReply() int {
+	return c.NReply
+}
+
 // MakeStart makes a start message, storing a 32-bit ID in the body.
 func MakeStart(v uint32) *mangos.Message {
 	m := mangos.NewMessage(10)
@@ -393,6 +405,47 @@ func recvTester(c TestCase) bool {
 	return true
 }
 
+func sendRecvTester(c TestCase) bool {
+
+	time.Sleep(c.SendDelay())
+	defer c.SendDone()
+	defer c.RecvDone()
+	for c.GetSend() < c.WantSend() {
+		msg := c.NewMessage()
+		if !c.SendHook(msg) {
+			c.Errorf("SendHook failed")
+			return false
+		}
+		if err := c.SendMsg(msg); err != nil {
+			c.Errorf("SendMsg failed: %v", err)
+			return false
+		}
+		c.Debugf("Good send (%d/%d)", c.GetSend(), c.WantSend())
+
+		for i := 0; i < c.NumReply(); i++ {
+			msg, err := c.RecvMsg()
+			if err != nil {
+				c.Errorf("RecvMsg (reply) failed: %v", err)
+				return false
+			}
+			if bytes.HasPrefix(msg.Body, []byte("START")) {
+				c.Debugf("Extra start message")
+				// left over slow start message, toss it
+				msg.Free()
+				continue
+			}
+			if !c.RecvHook(msg) {
+				c.Errorf("RecvHook failed")
+				return false
+			}
+			c.Debugf("Good recv (%d/%d)", c.GetRecv(), c.WantRecv())
+			msg.Free()
+		}
+	}
+	c.Logf("Sent all %d messages", c.GetSend())
+	return true
+}
+
 func waitTest(c TestCase) {
 	if !c.WaitSend() {
 		c.Errorf("Timeout waiting for send")
@@ -427,8 +480,12 @@ func startListenTest(c TestCase) {
 }
 
 func startSendRecv(c TestCase) {
-	go recvTester(c)
-	go sendTester(c)
+	if c.IsSynch() {
+		go sendRecvTester(c)
+	} else {
+		go recvTester(c)
+		go sendTester(c)
+	}
 }
 
 func slowStartSender(c TestCase, exitq chan bool) {

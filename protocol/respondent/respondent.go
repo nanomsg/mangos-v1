@@ -43,6 +43,7 @@ type respPeer struct {
 func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.senders.Init()
+	x.sock.SetSendError(mangos.ErrProtoState)
 	go x.sender()
 }
 
@@ -149,6 +150,7 @@ func (x *resp) RecvHook(m *mangos.Message) bool {
 	}
 	x.surveyID = binary.BigEndian.Uint32(m.Header)
 	x.surveyOk = true
+	x.sock.SetSendError(nil)
 	return true
 }
 
@@ -166,6 +168,7 @@ func (x *resp) SendHook(m *mangos.Message) bool {
 	m.Header = append(m.Header,
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 	x.surveyOk = false
+	x.sock.SetSendError(mangos.ErrProtoState)
 	return true
 }
 
@@ -213,6 +216,11 @@ func (x *resp) SetOption(name string, v interface{}) error {
 	switch name {
 	case mangos.OptionRaw:
 		x.raw = v.(bool)
+		if x.raw {
+			x.sock.SetSendError(nil)
+		} else {
+			x.sock.SetSendError(mangos.ErrProtoState)
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -28,6 +28,8 @@ var (
 	ErrConnRefused = errors.New("connection refused")
 	ErrSendTimeout = errors.New("send time out")
 	ErrRecvTimeout = errors.New("receive time out")
+	ErrProtoState  = errors.New("incorrect protocol state")
+	ErrProtoOp     = errors.New("invalid operation for protocol")
 	ErrBadTran     = errors.New("invalid or unsupported transport")
 	ErrBadProto    = errors.New("invalid or unsupported protocol")
 	ErrPipeFull    = errors.New("pipe full")

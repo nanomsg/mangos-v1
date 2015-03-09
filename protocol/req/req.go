@@ -51,6 +51,7 @@ func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.retry = time.Minute * 1                // retry after a minute
 	r.waker = time.NewTimer(r.retry)
 	r.waker.Stop()
+	r.sock.SetRecvError(mangos.ErrProtoState)
 }
 
 func (r *req) Shutdown(linger time.Duration) {
@@ -196,6 +197,8 @@ func (r *req) SendHook(m *mangos.Message) bool {
 		r.waker.Stop()
 	}
 
+	r.sock.SetRecvError(nil)
+
 	return true
 }
 
@@ -218,13 +221,19 @@ func (r *req) RecvHook(m *mangos.Message) bool {
 	r.waker.Stop()
 	r.reqmsg.Free()
 	r.reqmsg = nil
+	r.sock.SetRecvError(mangos.ErrProtoState)
 	return true
 }
 
 func (r *req) SetOption(option string, value interface{}) error {
 	switch option {
 	case mangos.OptionRaw:
-		r.raw = true
+		r.raw = value.(bool)
+		if r.raw {
+			r.sock.SetRecvError(nil)
+		} else {
+			r.sock.SetRecvError(mangos.ErrProtoState)
+		}
 		return nil
 	case mangos.OptionRetryTime:
 		r.Lock()

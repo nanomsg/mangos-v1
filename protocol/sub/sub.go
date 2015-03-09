@@ -36,22 +36,10 @@ type sub struct {
 func (s *sub) Init(sock mangos.ProtocolSocket) {
 	s.sock = sock
 	s.subs = [][]byte{}
-
-	go s.sender()
+	s.sock.SetSendError(mangos.ErrProtoOp)
 }
 
 func (*sub) Shutdown(time.Duration) {} // No sender to drain.
-
-func (s *sub) sender() {
-	sq := s.sock.SendChannel()
-	for {
-		if m := <-sq; m == nil {
-			break
-		} else {
-			m.Free()
-		}
-	}
-}
 
 func (s *sub) receiver(ep mangos.Endpoint) {
 	for {

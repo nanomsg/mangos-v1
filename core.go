@@ -35,8 +35,10 @@ type socket struct {
 	urqLen int           // upper read queue buffer length
 	closeq chan struct{} // closed when user requests close
 
-	closing bool // true if Socket was closed at API level
-	active  bool // true if either Dial or Listen has been successfully called
+	closing bool  // true if Socket was closed at API level
+	active  bool  // true if either Dial or Listen has been successfully called
+	recverr error // error to return on attempts to Recv()
+	senderr error // error to return on attempts to Send()
 
 	rdeadline  time.Duration
 	wdeadline  time.Duration
@@ -147,6 +149,18 @@ func (sock *socket) CloseChannel() <-chan struct{} {
 	return sock.closeq
 }
 
+func (sock *socket) SetSendError(err error) {
+	sock.Lock()
+	sock.senderr = err
+	sock.Unlock()
+}
+
+func (sock *socket) SetRecvError(err error) {
+	sock.Lock()
+	sock.recverr = err
+	sock.Unlock()
+}
+
 //
 // Implementation of Socket bits on socket.  This is the upper API
 // presented to applications.
@@ -183,6 +197,13 @@ func (sock *socket) Close() error {
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
+	sock.Lock()
+	e := sock.senderr
+	if e != nil {
+		sock.Unlock()
+		return e
+	}
+	sock.Unlock()
 	if sock.sendhook != nil {
 		if ok := sock.sendhook.SendHook(msg); !ok {
 			// just drop it silently
@@ -211,7 +232,12 @@ func (sock *socket) Send(b []byte) error {
 func (sock *socket) RecvMsg() (*Message, error) {
 	sock.Lock()
 	timeout := mkTimer(sock.rdeadline)
+	e := sock.recverr
 	sock.Unlock()
+
+	if e != nil {
+		return nil, e
+	}
 
 	for {
 		select {

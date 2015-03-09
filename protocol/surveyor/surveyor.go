@@ -34,6 +34,7 @@ type surveyor struct {
 	surveyID uint32
 	duration time.Duration
 	timeout  time.Time
+	timer    *time.Timer
 
 	sync.Mutex
 }
@@ -47,6 +48,10 @@ type surveyorP struct {
 func (x *surveyor) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.peers = make(map[uint32]*surveyorP)
+	x.sock.SetRecvError(mangos.ErrProtoState)
+	x.timer = time.AfterFunc(x.duration,
+		func() { x.sock.SetRecvError(mangos.ErrProtoState) })
+	x.timer.Stop()
 	go x.sender()
 }
 
@@ -161,14 +166,16 @@ func (x *surveyor) SendHook(m *mangos.Message) bool {
 	x.Lock()
 	x.surveyID = x.nextID
 	x.nextID++
+	x.sock.SetRecvError(nil)
 	v := x.surveyID
 	m.Header = append(m.Header,
 		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 
+	if x.duration > 0 {
+		x.timer.Reset(x.duration)
+	}
 	x.Unlock()
 
-	// We cheat and grab the recv deadline.
-	x.sock.SetOption(mangos.OptionRecvDeadline, x.duration)
 	return true
 }
 
@@ -187,12 +194,6 @@ func (x *surveyor) RecvHook(m *mangos.Message) bool {
 		return false
 	}
 	m.Header = m.Header[4:]
-	if x.timeout.IsZero() {
-		return true
-	}
-	if time.Now().After(x.timeout) {
-		return false
-	}
 	return true
 }
 
@@ -200,6 +201,12 @@ func (x *surveyor) SetOption(name string, val interface{}) error {
 	switch name {
 	case mangos.OptionRaw:
 		x.raw = val.(bool)
+		if x.raw {
+			x.timer.Stop()
+			x.sock.SetRecvError(nil)
+		} else {
+			x.sock.SetRecvError(mangos.ErrProtoState)
+		}
 		return nil
 	case mangos.OptionSurveyTime:
 		x.Lock()

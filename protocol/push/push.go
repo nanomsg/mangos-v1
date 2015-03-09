@@ -31,6 +31,7 @@ type push struct {
 func (x *push) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.senders.Init()
+	x.sock.SetRecvError(mangos.ErrProtoOp)
 }
 
 func (x *push) Shutdown(linger time.Duration) {

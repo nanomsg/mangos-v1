@@ -139,6 +139,18 @@ type ProtocolSocket interface {
 	// Note that this may set transport options, or even call back down
 	// into the protocol's own SetOption interface!
 	SetOption(string, interface{}) error
+
+	// SetRecvError is used to cause socket RX callers to report an
+	// error.  This can be used to force an error return rather than
+	// waiting for a message that will never arrive (e.g. due to state).
+	// If set to nil, then RX works normally.
+	SetRecvError(error)
+
+	// SetSendError is used to cause socket TX callers to report an
+	// error.  This can be used to force an error return rather than
+	// waiting to send a message that will never be delivered (e.g. due
+	// to incorrect state.)  If set to nil, then TX works normally.
+	SetSendError(error)
 }
 
 // Useful constants for protocol numbers.  Note that the major protocol number

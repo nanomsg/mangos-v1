@@ -25,10 +25,8 @@ import (
 )
 
 type surveyTest struct {
-	nresp  int32
-	nstart int32
-	resp   map[uint32]bool
-	start  map[uint32]bool
+	nresp int32
+	resp  map[uint32]bool
 	T
 }
 
@@ -39,13 +37,15 @@ type responderTest struct {
 func (st *surveyTest) Init(t *testing.T, addr string) bool {
 	var err error
 	st.resp = make(map[uint32]bool)
-	st.start = make(map[uint32]bool)
-	st.nstart = 0
 	if st.Sock, err = surveyor.NewSocket(); err != nil {
 		st.Errorf("NewSocket(): %v", err)
 		return false
 	}
 	return st.T.Init(t, addr)
+}
+
+func (st *surveyTest) WantRecvStart() bool {
+	return false
 }
 
 func (st *surveyTest) SendHook(m *mangos.Message) bool {
@@ -68,28 +68,6 @@ func (st *surveyTest) RecvHook(m *mangos.Message) bool {
 		st.BumpRecv()
 	}
 	return true
-}
-
-func (st *surveyTest) RecvStart() bool {
-	m, err := st.RecvMsg()
-	if err != nil {
-		st.Errorf("RecvMsg failed: %v", err)
-		return false
-	}
-	defer m.Free()
-	v, ok := ParseStart(m)
-	if !ok {
-		st.Errorf("Bad START message received: %v", m)
-		return false
-	}
-	if yes, ok := st.start[v]; ok && yes {
-		st.Debugf("Got dup START from %d", v)
-		return false
-	}
-	st.Debugf("Got START from %d", v)
-	st.start[v] = true
-	st.nstart++
-	return st.nstart == st.nresp
 }
 
 func (rt *responderTest) Init(t *testing.T, addr string) bool {
@@ -144,7 +122,9 @@ func surveyCases() []TestCase {
 	surv.MsgSize = 8
 	surv.WantTx = 1
 	surv.WantRx = int32(nresp)
-	surv.txdelay = 20 * time.Millisecond
+	surv.txdelay = 1000 * time.Millisecond
+	surv.Synch = true
+	surv.NReply = int(nresp)
 	cases[0] = surv
 
 	for i := 0; i < int(nresp); i++ {
