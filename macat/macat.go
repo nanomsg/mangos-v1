@@ -52,9 +52,9 @@ var proto string
 var dialAddrs []string
 var listenAddrs []string
 var subscriptions []string
-var recvTimeout int
-var sendTimeout int
-var sendInterval int
+var recvTimeout int = -1
+var sendTimeout int = -1
+var sendInterval int = -1
 var sendDelay int
 var sendData []byte
 var printFormat string
@@ -417,11 +417,12 @@ func printMsg(msg *mangos.Message) {
 	bw.Flush()
 }
 
-func recvLoop(sock mangos.Socket, done chan struct{}) {
-	defer close(done)
+func recvLoop(sock mangos.Socket) {
 	for {
 		msg, err := sock.RecvMsg()
 		switch err {
+		case mangos.ErrProtoState:
+			return
 		case mangos.ErrRecvTimeout:
 			return
 		case nil:
@@ -430,14 +431,10 @@ func recvLoop(sock mangos.Socket, done chan struct{}) {
 		}
 		printMsg(msg)
 		msg.Free()
-		if sendInterval == 0 {
-			return
-		}
 	}
 }
 
-func sendLoop(sock mangos.Socket, done chan struct{}) {
-	defer close(done)
+func sendLoop(sock mangos.Socket) {
 	if sendData == nil {
 		fatalf("No data to send!")
 	}
@@ -450,7 +447,7 @@ func sendLoop(sock mangos.Socket, done chan struct{}) {
 			fatalf("SendMsg failed: %v", err)
 		}
 
-		if sendInterval > 0 {
+		if sendInterval >= 0 {
 			time.Sleep(time.Duration(sendInterval) * time.Second)
 		} else {
 			break
@@ -458,8 +455,45 @@ func sendLoop(sock mangos.Socket, done chan struct{}) {
 	}
 }
 
-func replyLoop(sock mangos.Socket, done chan struct{}) {
-	defer close(done)
+func sendRecvLoop(sock mangos.Socket) {
+	for {
+		msg := mangos.NewMessage(len(sendData))
+		msg.Body = append(msg.Body, sendData...)
+		err := sock.SendMsg(msg)
+
+		if err != nil {
+			fatalf("SendMsg failed: %v", err)
+		}
+
+		if sendInterval < 0 {
+			recvLoop(sock)
+			return
+		}
+
+		now := time.Now()
+
+		// maximum wait time is upper bound of recvTimeout and
+		// sendInterval
+
+		if recvTimeout < 0 || recvTimeout > sendInterval {
+			sock.SetOption(mangos.OptionRecvDeadline,
+				time.Second*time.Duration(sendInterval))
+		}
+		msg, err = sock.RecvMsg()
+		switch err {
+		case mangos.ErrRecvTimeout:
+		case nil:
+			printMsg(msg)
+			msg.Free()
+		default:
+			fatalf("RecvMsg failed: %v", err)
+		}
+		time.Sleep((time.Second * time.Duration(sendInterval)) -
+			time.Now().Sub(now))
+	}
+}
+
+func replyLoop(sock mangos.Socket) {
 	if sendData == nil {
 		fatalf("No data to send!")
 	}
@@ -574,58 +608,49 @@ func main() {
 		}
 	}
 
+	// XXX: fugly hack - work around TCP slow start
+	time.Sleep(time.Millisecond * 20)
 	time.Sleep(time.Second * time.Duration(sendDelay))
-
-	rxdone := make(chan struct{})
-	txdone := make(chan struct{})
 
 	// Start main processing
 	switch sock.GetProtocol().Number() {
+
 	case mangos.ProtoPull:
 		fallthrough
 	case mangos.ProtoSub:
-		go recvLoop(sock, rxdone)
-		close(txdone)
+		recvLoop(sock)
+
 	case mangos.ProtoPush:
 		fallthrough
 	case mangos.ProtoPub:
-		go sendLoop(sock, txdone)
-		close(rxdone)
+		sendLoop(sock)
+
 	case mangos.ProtoPair:
 		fallthrough
 	case mangos.ProtoStar:
 		fallthrough
 	case mangos.ProtoBus:
 		if sendData != nil {
-			go sendLoop(sock, txdone)
+			sendRecvLoop(sock)
 		} else {
-			close(txdone)
+			recvLoop(sock)
 		}
-		go recvLoop(sock, rxdone)
+
 	case mangos.ProtoSurveyor:
 		fallthrough
 	case mangos.ProtoReq:
-		go sendLoop(sock, txdone)
-		go recvLoop(sock, rxdone)
+		sendRecvLoop(sock)
+
 	case mangos.ProtoRep:
 		fallthrough
 	case mangos.ProtoRespondent:
 		if sendData != nil {
-			go replyLoop(sock, rxdone)
+			replyLoop(sock)
 		} else {
-			go recvLoop(sock, rxdone)
-			close(txdone)
+			recvLoop(sock)
 		}
+
 	default:
 		fatalf("Unknown protocol!")
-	}
-
-	// Wait for threads to exit
-	select {
-	case <-rxdone:
-	}
-
-	select {
-	case <-txdone:
 	}
 }
