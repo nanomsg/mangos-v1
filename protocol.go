@@ -164,8 +164,8 @@ const (
 	ProtoRep        = (3 * 16) + 1
 	ProtoPush       = (5 * 16)
 	ProtoPull       = (5 * 16) + 1
-	ProtoSurveyor   = (6 * 16)
-	ProtoRespondent = (6 * 16) + 1
+	ProtoSurveyor   = (6 * 16) + 2
+	ProtoRespondent = (6 * 16) + 3
 	ProtoBus        = (7 * 16)
 
 	// Experimental Protocols - Use at Risk

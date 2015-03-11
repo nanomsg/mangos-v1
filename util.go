@@ -51,3 +51,26 @@ func debugf(format string, args ...interface{}) {
 			time.Now().String(), fmt.Sprintf(format, args...))
 	}
 }
+
+func DrainChannel(ch chan<- *Message, expire time.Time) bool {
+	var dur time.Duration = time.Millisecond * 10
+
+	for {
+		if len(ch) == 0 {
+			return true
+		}
+		now := time.Now()
+		if now.After(expire) {
+			return false
+		}
+		// We sleep the lesser of the remaining time, or
+		// 10 milliseconds.  This polling is kind of suboptimal for
+		// draining, but its far far less complicated than trying to
+		// arrange special messages to force notification, etc.
+		dur = expire.Sub(now)
+		if dur > time.Millisecond*10 {
+			dur = time.Millisecond * 10
+		}
+		time.Sleep(dur)
+	}
+}

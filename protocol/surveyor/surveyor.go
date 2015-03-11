@@ -164,7 +164,7 @@ func (x *surveyor) SendHook(m *mangos.Message) bool {
 	}
 
 	x.Lock()
-	x.surveyID = x.nextID
+	x.surveyID = x.nextID | 0x80000000
 	x.nextID++
 	x.sock.SetRecvError(nil)
 	v := x.surveyID
