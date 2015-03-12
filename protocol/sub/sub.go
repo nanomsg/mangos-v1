@@ -39,9 +39,13 @@ func (s *sub) Init(sock mangos.ProtocolSocket) {
 	s.sock.SetSendError(mangos.ErrProtoOp)
 }
 
-func (*sub) Shutdown(time.Duration) {} // No sender to drain.
+func (*sub) Shutdown(time.Time) {} // No sender to drain.
 
 func (s *sub) receiver(ep mangos.Endpoint) {
+
+	rq := s.sock.RecvChannel()
+	cq := s.sock.CloseChannel()
+
 	for {
 		var matched = false
 
@@ -66,8 +70,8 @@ func (s *sub) receiver(ep mangos.Endpoint) {
 		}
 
 		select {
-		case s.sock.RecvChannel() <- m:
-		case <-s.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
 			m.Free()
 			return
 		default: // no room, drop it
@@ -103,12 +107,15 @@ func (s *sub) SetOption(name string, value interface{}) error {
 	defer s.Unlock()
 
 	var vb []byte
+	var ok bool
 
 	// Check names first, because type check below is only valid for
 	// subscription options.
 	switch name {
 	case mangos.OptionRaw:
-		s.raw = value.(bool)
+		if s.raw, ok = value.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	case mangos.OptionSubscribe:
 	case mangos.OptionUnsubscribe:
@@ -116,9 +123,11 @@ func (s *sub) SetOption(name string, value interface{}) error {
 		return mangos.ErrBadOption
 	}
 
-	switch value.(type) {
+	switch v := value.(type) {
 	case []byte:
-		vb = value.([]byte)
+		vb = v
+	case string:
+		vb = []byte(v)
 	default:
 		return mangos.ErrBadValue
 	}

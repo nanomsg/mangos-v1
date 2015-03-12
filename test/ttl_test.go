@@ -36,11 +36,11 @@ func TestTtlInvalidZero(t *testing.T) {
 
 	err = srep.SetOption(mangos.OptionTtl, 0)
 	switch err {
-	case mangos.ErrBadValue:	// expected result
+	case mangos.ErrBadValue: // expected result
 	case nil:
 		t.Errorf("Negative test fail, permitted zero TTL")
 	default:
-		t.Errorf("Negative test fail (0), wrong error %v") 
+		t.Errorf("Negative test fail (0), wrong error %v")
 	}
 }
 
@@ -54,11 +54,11 @@ func TestTtlInvalidNegative(t *testing.T) {
 
 	err = srep.SetOption(mangos.OptionTtl, 0)
 	switch err {
-	case mangos.ErrBadValue:	// expected result
+	case mangos.ErrBadValue: // expected result
 	case nil:
 		t.Errorf("Negative test fail, permitted negative TTL")
 	default:
-		t.Errorf("Negative test fail (-1), wrong error %v") 
+		t.Errorf("Negative test fail (-1), wrong error %v")
 	}
 }
 
@@ -72,11 +72,11 @@ func TestTtlInvalidTooBig(t *testing.T) {
 
 	err = srep.SetOption(mangos.OptionTtl, 256)
 	switch err {
-	case mangos.ErrBadValue:	// expected result
+	case mangos.ErrBadValue: // expected result
 	case nil:
 		t.Errorf("Negative test fail, permitted too large TTL")
 	default:
-		t.Errorf("Negative test fail (256), wrong error %v") 
+		t.Errorf("Negative test fail (256), wrong error %v")
 	}
 }
 
@@ -90,11 +90,11 @@ func TestTtlInvalidNotInt(t *testing.T) {
 
 	err = srep.SetOption(mangos.OptionTtl, "garbage")
 	switch err {
-	case mangos.ErrBadValue:	// expected result
+	case mangos.ErrBadValue: // expected result
 	case nil:
 		t.Errorf("Negative test fail, permitted non-int value")
 	default:
-		t.Errorf("Negative test fail (garbage), wrong error %v") 
+		t.Errorf("Negative test fail (garbage), wrong error %v")
 	}
 }
 
@@ -189,7 +189,7 @@ func TestTtlDrop(t *testing.T) {
 	rq := sreq[0]
 	rp := srep[nhop-1]
 
-	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond * 20)
+	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond*20)
 	if err != nil {
 		t.Errorf("Failed set recv deadline")
 		return
@@ -224,7 +224,7 @@ func TestTtlDrop(t *testing.T) {
 
 	v, err = rp.Recv()
 	switch err {
-	case mangos.ErrRecvTimeout:	// expected
+	case mangos.ErrRecvTimeout: // expected
 		t.Logf("TTL honored")
 	case nil:
 		t.Errorf("Message not dropped: %v", v)

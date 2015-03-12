@@ -170,7 +170,7 @@ func TestStar(t *testing.T) {
 		go starTestSender(t, bts[id], pkts)
 	}
 
-	tmout := time.After(30 * time.Second)
+	tmout := time.After(5 * time.Second)
 
 	for id := 0; id < num; id++ {
 		select {

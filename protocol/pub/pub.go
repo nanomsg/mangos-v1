@@ -36,6 +36,7 @@ type pub struct {
 	eps  map[uint32]*pubEp
 	raw  bool
 	w    mangos.Waiter
+	init sync.Once
 
 	sync.Mutex
 }
@@ -43,33 +44,28 @@ type pub struct {
 func (p *pub) Init(sock mangos.ProtocolSocket) {
 	p.sock = sock
 	p.eps = make(map[uint32]*pubEp)
-	p.w.Init()
-	p.w.Add()
 	p.sock.SetRecvError(mangos.ErrProtoOp)
-	go p.sender()
+	p.w.Init()
 }
 
-func (p *pub) Shutdown(linger time.Duration) {
+func (p *pub) Shutdown(expire time.Time) {
 
-	when := time.Now().Add(linger)
-	tq := time.After(linger)
-
-	p.w.WaitAbsTimeout(when)
+	p.w.WaitAbsTimeout(expire)
 
 	p.Lock()
-	for _, pe := range p.eps {
-		select {
-		case pe.q <- nil:
-		case <-tq:
-			tq = time.After(0)
-		}
-		pe.w.WaitAbsTimeout(when)
-	}
+	peers := p.eps
+	p.eps = make(map[uint32]*pubEp)
 	p.Unlock()
+
+	for id, peer := range peers {
+		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
+		delete(peers, id)
+	}
 }
 
 // Bottom sender.
-func (pe *pubEp) sender() {
+func (pe *pubEp) peerSender() {
 
 	for {
 		m := <-pe.q
@@ -82,43 +78,41 @@ func (pe *pubEp) sender() {
 			break
 		}
 	}
-
-	pe.w.Done()
 }
 
 // Top sender.
 func (p *pub) sender() {
+	defer p.w.Done()
+
 	sq := p.sock.SendChannel()
+	cq := p.sock.CloseChannel()
 
 	for {
-		m := <-sq
-		if m == nil {
-			break
-		}
+		select {
+		case <-cq:
+			return
 
-		p.Lock()
-		for _, pe := range p.eps {
-			m := m.Dup()
-			select {
-			case pe.q <- m:
-			default:
-				m.Free()
+		case m := <-sq:
+
+			p.Lock()
+			for _, peer := range p.eps {
+				m := m.Dup()
+				select {
+				case peer.q <- m:
+				default:
+					m.Free()
+				}
 			}
+			p.Unlock()
 		}
-		p.Unlock()
 	}
-	p.w.Done()
-}
-
-func (pe *pubEp) receiver() {
-	// In order for us to detect a dropped connection, we need to poll
-	// on the socket.  We don't care about the results and discard them,
-	// but this allows the disconnect to be noticed.  Note that we will
-	// be blocked in this call forever, until the connection is dropped.
-	pe.ep.RecvMsg()
 }
 
 func (p *pub) AddEndpoint(ep mangos.Endpoint) {
+	p.init.Do(func() {
+		p.w.Add()
+		go p.sender()
+	})
 	depth := 16
 	if i, err := p.sock.GetOption(mangos.OptionWriteQLen); err == nil {
 		depth = i.(int)
@@ -130,8 +124,8 @@ func (p *pub) AddEndpoint(ep mangos.Endpoint) {
 	p.Unlock()
 
 	pe.w.Add()
-	go pe.sender()
-	go pe.receiver()
+	go pe.peerSender()
+	go mangos.NullRecv(ep)
 }
 
 func (p *pub) RemoveEndpoint(ep mangos.Endpoint) {
@@ -157,9 +151,12 @@ func (*pub) PeerName() string {
 }
 
 func (p *pub) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		p.raw = v.(bool)
+		if p.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

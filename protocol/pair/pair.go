@@ -24,41 +24,41 @@ import (
 )
 
 type pair struct {
-	sock    mangos.ProtocolSocket
-	peer    mangos.Endpoint
-	raw     bool
-	senders mangos.Waiter
+	sock mangos.ProtocolSocket
+	peer mangos.Endpoint
+	raw  bool
+	w    mangos.Waiter
 	sync.Mutex
 }
 
 func (x *pair) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
-	x.senders.Init()
+	x.w.Init()
 }
 
-func (x *pair) Shutdown(linger time.Duration) {
-	x.senders.WaitRelTimeout(linger)
+func (x *pair) Shutdown(expire time.Time) {
+	x.w.WaitAbsTimeout(expire)
 }
 
 func (x *pair) sender(ep mangos.Endpoint) {
 
+	defer x.w.Done()
 	sq := x.sock.SendChannel()
+	cq := x.sock.CloseChannel()
 
 	// This is pretty easy because we have only one peer at a time.
 	// If the peer goes away, we'll just drop the message on the floor.
 	for {
-		m := <-sq
-		if m == nil {
-			break
-		}
-
-		if ep.SendMsg(m) != nil {
-			m.Free()
-			break
+		select {
+		case m := <-sq:
+			if ep.SendMsg(m) != nil {
+				m.Free()
+				return
+			}
+		case <-cq:
+			return
 		}
 	}
-
-	x.senders.Done()
 }
 
 func (x *pair) receiver(ep mangos.Endpoint) {
@@ -90,7 +90,7 @@ func (x *pair) AddEndpoint(ep mangos.Endpoint) {
 	x.peer = ep
 	x.Unlock()
 
-	x.senders.Add()
+	x.w.Add()
 	go x.receiver(ep)
 	go x.sender(ep)
 }
@@ -120,9 +120,12 @@ func (*pair) PeerName() string {
 }
 
 func (x *pair) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = v.(bool)
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption
