@@ -27,14 +27,15 @@ import (
 // req is an implementation of the req protocol.
 type req struct {
 	sync.Mutex
-	sock    mangos.ProtocolSocket
-	eps     map[uint32]mangos.Endpoint
-	resend  chan *mangos.Message
-	raw     bool
-	retry   time.Duration
-	nextid  uint32
-	waker   *time.Timer
-	senders mangos.Waiter
+	sock   mangos.ProtocolSocket
+	eps    map[uint32]mangos.Endpoint
+	resend chan *mangos.Message
+	raw    bool
+	retry  time.Duration
+	nextid uint32
+	waker  *time.Timer
+	w      mangos.Waiter
+	init   sync.Once
 
 	// fields describing the outstanding request
 	reqmsg *mangos.Message
@@ -45,7 +46,7 @@ func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.sock = socket
 	r.eps = make(map[uint32]mangos.Endpoint)
 	r.resend = make(chan *mangos.Message)
-	r.senders.Init()
+	r.w.Init()
 
 	r.nextid = uint32(time.Now().UnixNano()) // quasi-random
 	r.retry = time.Minute * 1                // retry after a minute
@@ -54,8 +55,8 @@ func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.sock.SetRecvError(mangos.ErrProtoState)
 }
 
-func (r *req) Shutdown(linger time.Duration) {
-	r.senders.WaitRelTimeout(linger)
+func (r *req) Shutdown(expire time.Time) {
+	r.w.WaitAbsTimeout(expire)
 }
 
 // nextID returns the next request ID.
@@ -70,9 +71,14 @@ func (r *req) nextID() uint32 {
 // resend sends the request message again, after a timer has expired.
 func (r *req) resender() {
 
+	defer r.w.Done()
+	cq := r.sock.CloseChannel()
+
 	for {
 		select {
 		case <-r.waker.C:
+		case <-cq:
+			return
 		}
 
 		r.Lock()
@@ -123,17 +129,23 @@ func (r *req) receiver(ep mangos.Endpoint) {
 
 func (r *req) sender(ep mangos.Endpoint) {
 
+	// NB: Because this function is only called when an endpoint is
+	// added, we can reasonably safely cache the channels -- they won't
+	// be changing after this point.
+
+	defer r.w.Done()
 	sq := r.sock.SendChannel()
+	cq := r.sock.CloseChannel()
+	rq := r.resend
 
 	for {
 		var m *mangos.Message
 
 		select {
-		case m = <-r.resend:
+		case m = <-rq:
 		case m = <-sq:
-		}
-		if m == nil {
-			break
+		case <-cq:
+			return
 		}
 
 		if ep.SendMsg(m) != nil {
@@ -141,8 +153,6 @@ func (r *req) sender(ep mangos.Endpoint) {
 			break
 		}
 	}
-
-	r.senders.Done()
 }
 
 func (*req) Number() uint16 {
@@ -162,11 +172,17 @@ func (*req) PeerName() string {
 }
 
 func (r *req) AddEndpoint(ep mangos.Endpoint) {
+
+	r.init.Do(func() {
+		r.w.Add()
+		go r.resender()
+	})
+
 	r.Lock()
 	r.eps[ep.GetID()] = ep
 	r.Unlock()
-	r.senders.Add()
 	go r.receiver(ep)
+	r.w.Add()
 	go r.sender(ep)
 }
 
@@ -226,9 +242,12 @@ func (r *req) RecvHook(m *mangos.Message) bool {
 }
 
 func (r *req) SetOption(option string, value interface{}) error {
+	var ok bool
 	switch option {
 	case mangos.OptionRaw:
-		r.raw = value.(bool)
+		if r.raw, ok = value.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		if r.raw {
 			r.sock.SetRecvError(nil)
 		} else {
@@ -237,8 +256,11 @@ func (r *req) SetOption(option string, value interface{}) error {
 		return nil
 	case mangos.OptionRetryTime:
 		r.Lock()
-		r.retry = value.(time.Duration)
+		r.retry, ok = value.(time.Duration)
 		r.Unlock()
+		if !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

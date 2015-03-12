@@ -326,7 +326,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 func (tt *TranTest) TranTestScheme(t *testing.T) {
 	scheme := tt.tran.Scheme()
 	t.Log("Checking scheme")
-	if !strings.HasPrefix(tt.addr, scheme + "://") {
+	if !strings.HasPrefix(tt.addr, scheme+"://") {
 		t.Errorf("Wrong scheme: addr %s, scheme %s", tt.addr, scheme)
 		return
 	}

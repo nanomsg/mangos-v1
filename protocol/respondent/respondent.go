@@ -32,6 +32,7 @@ type resp struct {
 	backbuf   []byte
 	backtrace []byte
 	w         mangos.Waiter
+	init      sync.Once
 	sync.Mutex
 }
 
@@ -48,18 +49,22 @@ func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.w.Init()
 	x.backbuf = make([]byte, 0, 64)
 	x.sock.SetSendError(mangos.ErrProtoState)
-	x.w.Add()
-	go x.sender()
 }
 
-// Shutdown just returns.  There is no point in draining a survey --
-// we're going to close before we can receive any responses anyway.
-func (x *resp) Shutdown(linger time.Duration) {
-	expire := time.Now().Add(linger)
+func (x *resp) Shutdown(expire time.Time) {
+	peers := make(map[uint32]*respPeer)
+	x.w.WaitAbsTimeout(expire)
+	x.Lock()
+	for id, peer := range x.peers {
+		delete(x.peers, id)
+		peers[id] = peer
+	}
+	x.Unlock()
 
-	x.w.WaitRelTimeout(linger)
-	for _, peer := range x.peers {
+	for id, peer := range peers {
+		delete(peers, id)
 		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
 	}
 }
 
@@ -67,11 +72,15 @@ func (x *resp) sender() {
 	// This is pretty easy because we have only one peer at a time.
 	// If the peer goes away, we'll just drop the message on the floor.
 
+	defer x.w.Done()
+	cq := x.sock.CloseChannel()
 	sq := x.sock.SendChannel()
 	for {
-		m := <-sq
-		if m == nil {
-			break
+		var m *mangos.Message
+		select {
+		case m = <-sq:
+		case <-cq:
+			return
 		}
 
 		// Lop off the 32-bit peer/pipe ID.  If absent, drop.
@@ -100,7 +109,6 @@ func (x *resp) sender() {
 			m.Free()
 		}
 	}
-	x.w.Done()
 }
 
 // When sending, we should have the survey ID in the header.
@@ -194,6 +202,10 @@ func (x *resp) SendHook(m *mangos.Message) bool {
 }
 
 func (x *resp) AddEndpoint(ep mangos.Endpoint) {
+	x.init.Do(func() {
+		x.w.Add()
+		go x.sender()
+	})
 	peer := &respPeer{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
 
 	x.Lock()
