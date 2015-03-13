@@ -25,12 +25,14 @@ import (
 )
 
 type resp struct {
-	sock     mangos.ProtocolSocket
-	peer     *respPeer
-	raw      bool
-	surveyID uint32
-	surveyOk bool
-	senders  mangos.Waiter
+	sock      mangos.ProtocolSocket
+	peers     map[uint32]*respPeer
+	raw       bool
+	ttl       int
+	backbuf   []byte
+	backtrace []byte
+	w         mangos.Waiter
+	init      sync.Once
 	sync.Mutex
 }
 
@@ -42,40 +44,56 @@ type respPeer struct {
 
 func (x *resp) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
-	x.senders.Init()
+	x.ttl = 8
+	x.peers = make(map[uint32]*respPeer)
+	x.w.Init()
+	x.backbuf = make([]byte, 0, 64)
 	x.sock.SetSendError(mangos.ErrProtoState)
-	go x.sender()
 }
 
-// Shutdown just returns.  There is no point in draining a survey --
-// we're going to close before we can receive any responses anyway.
-func (x *resp) Shutdown(linger time.Duration) {
-	x.senders.WaitRelTimeout(linger)
+func (x *resp) Shutdown(expire time.Time) {
+	peers := make(map[uint32]*respPeer)
+	x.w.WaitAbsTimeout(expire)
+	x.Lock()
+	for id, peer := range x.peers {
+		delete(x.peers, id)
+		peers[id] = peer
+	}
+	x.Unlock()
+
+	for id, peer := range peers {
+		delete(peers, id)
+		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
+	}
 }
 
 func (x *resp) sender() {
 	// This is pretty easy because we have only one peer at a time.
 	// If the peer goes away, we'll just drop the message on the floor.
 
+	defer x.w.Done()
+	cq := x.sock.CloseChannel()
 	sq := x.sock.SendChannel()
 	for {
-		m := <-sq
-		if m == nil {
-			// We want to send the nil down to the peer to alert it
-			// to drain.
-			x.Lock()
-			if peer := x.peer; peer != nil {
-				select {
-				case peer.q <- nil:
-				default:
-				}
-			}
-			x.Unlock()
-			break
+		var m *mangos.Message
+		select {
+		case m = <-sq:
+		case <-cq:
+			return
 		}
 
+		// Lop off the 32-bit peer/pipe ID.  If absent, drop.
+		if len(m.Header) < 4 {
+			m.Free()
+			continue
+		}
+
+		id := binary.BigEndian.Uint32(m.Header)
+		m.Header = m.Header[4:]
+
 		x.Lock()
-		peer := x.peer
+		peer := x.peers[id]
 		x.Unlock()
 
 		if peer == nil {
@@ -105,28 +123,40 @@ func (peer *respPeer) sender() {
 			break
 		}
 	}
-	peer.x.senders.Done()
 }
 
-func (peer *respPeer) receiver() {
+func (x *resp) receiver(ep mangos.Endpoint) {
 
-	rq := peer.x.sock.RecvChannel()
-	cq := peer.x.sock.CloseChannel()
+	rq := x.sock.RecvChannel()
+	cq := x.sock.CloseChannel()
 
 	for {
-		m := peer.ep.RecvMsg()
+		m := ep.RecvMsg()
 		if m == nil {
 			return
 		}
-		if len(m.Body) < 4 {
-			m.Free()
-			continue
-		}
 
-		// Get survery ID -- this will be passed in the header up
-		// to the application.  It should include that in the response.
-		m.Header = append(m.Header, m.Body[:4]...)
-		m.Body = m.Body[4:]
+		v := ep.GetID()
+		m.Header = append(m.Header,
+			byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+		hops := 0
+
+		for {
+			if hops >= x.ttl {
+				m.Free() // ErrTooManyHops
+				return
+			}
+			hops++
+			if len(m.Body) < 4 {
+				m.Free()
+				continue
+			}
+			m.Header = append(m.Header, m.Body[:4]...)
+			m.Body = m.Body[4:]
+			if m.Header[len(m.Header)-4]&0x80 != 0 {
+				break
+			}
+		}
 
 		select {
 		case rq <- m:
@@ -142,14 +172,15 @@ func (x *resp) RecvHook(m *mangos.Message) bool {
 		// Raw mode receivers get the message unadulterated.
 		return true
 	}
-	x.Lock()
-	defer x.Unlock()
 
 	if len(m.Header) < 4 {
 		return false
 	}
-	x.surveyID = binary.BigEndian.Uint32(m.Header)
-	x.surveyOk = true
+
+	x.Lock()
+	x.backbuf = x.backbuf[0:0] // avoid allocations
+	x.backtrace = append(x.backbuf, m.Header...)
+	x.Unlock()
 	x.sock.SetSendError(nil)
 	return true
 }
@@ -159,40 +190,35 @@ func (x *resp) SendHook(m *mangos.Message) bool {
 		// Raw mode senders expected to have prepared header already.
 		return true
 	}
+	x.sock.SetSendError(mangos.ErrProtoState)
 	x.Lock()
-	defer x.Unlock()
-	if !x.surveyOk {
+	m.Header = append(m.Header[0:0], x.backtrace...)
+	x.backtrace = nil
+	x.Unlock()
+	if len(m.Header) == 0 {
 		return false
 	}
-	v := x.surveyID
-	m.Header = append(m.Header,
-		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
-	x.surveyOk = false
-	x.sock.SetSendError(mangos.ErrProtoState)
 	return true
 }
 
 func (x *resp) AddEndpoint(ep mangos.Endpoint) {
-	x.Lock()
-	if x.peer != nil {
-		x.Unlock()
-		ep.Close()
-		return
-	}
+	x.init.Do(func() {
+		x.w.Add()
+		go x.sender()
+	})
 	peer := &respPeer{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
-	x.peer = peer
+
+	x.Lock()
+	x.peers[ep.GetID()] = peer
 	x.Unlock()
 
-	x.senders.Add()
-	go peer.receiver()
+	go x.receiver(ep)
 	go peer.sender()
 }
 
 func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
-	if x.peer.ep == ep {
-		x.peer = nil
-	}
+	delete(x.peers, ep.GetID())
 	x.Unlock()
 }
 
@@ -213,13 +239,25 @@ func (*resp) PeerName() string {
 }
 
 func (x *resp) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = v.(bool)
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		if x.raw {
 			x.sock.SetSendError(nil)
 		} else {
 			x.sock.SetSendError(mangos.ErrProtoState)
+		}
+		return nil
+	case mangos.OptionTtl:
+		if ttl, ok := v.(int); !ok {
+			return mangos.ErrBadValue
+		} else if ttl < 1 || ttl > 255 {
+			return mangos.ErrBadValue
+		} else {
+			x.ttl = ttl
 		}
 		return nil
 	default:

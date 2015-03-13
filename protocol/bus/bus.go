@@ -31,10 +31,11 @@ type busEp struct {
 }
 
 type bus struct {
-	sock    mangos.ProtocolSocket
-	eps     map[uint32]*busEp
-	raw     bool
-	senders mangos.Waiter
+	sock  mangos.ProtocolSocket
+	peers map[uint32]*busEp
+	raw   bool
+	w     mangos.Waiter
+	init  sync.Once
 
 	sync.Mutex
 }
@@ -42,41 +43,49 @@ type bus struct {
 // Init implements the Protocol Init method.
 func (x *bus) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
-	x.eps = make(map[uint32]*busEp)
-	x.senders.Init()
-	go x.sender()
+	x.peers = make(map[uint32]*busEp)
+	x.w.Init()
 }
 
-func (x *bus) Shutdown(linger time.Duration) {
-	x.senders.WaitRelTimeout(linger)
+func (x *bus) Shutdown(expire time.Time) {
+
+	x.w.WaitAbsTimeout(expire)
+
+	x.Lock()
+	peers := x.peers
+	x.peers = make(map[uint32]*busEp)
+	x.Unlock()
+
+	for id, peer := range peers {
+		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
+		delete(peers, id)
+	}
 }
 
 // Bottom sender.
-func (pe *busEp) sender() {
+func (pe *busEp) peerSender() {
 	for {
 		m := <-pe.q
 		if m == nil {
-			break
+			return
 		}
-
 		if pe.ep.SendMsg(m) != nil {
 			m.Free()
-			break
+			return
 		}
 	}
-	pe.x.senders.Done()
 }
 
 func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 
 	x.Lock()
-	for id, pe := range x.eps {
-		if m != nil {
-			if sender == id {
-				continue
-			}
-			m = m.Dup()
+	for id, pe := range x.peers {
+		if sender == id {
+			continue
 		}
+		m = m.Dup()
+
 		select {
 		case pe.q <- m:
 		default:
@@ -86,9 +95,7 @@ func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 			// full, it means we will wind up waiting the full
 			// linger time in the lower sender.  Its correct, if
 			// suboptimal, behavior.
-			if m != nil {
-				m.Free()
-			}
+			m.Free()
 		}
 	}
 	x.Unlock()
@@ -96,23 +103,23 @@ func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 
 func (x *bus) sender() {
 	sq := x.sock.SendChannel()
+	cq := x.sock.CloseChannel()
+	defer x.w.Done()
 	for {
 		var id uint32
-		m := <-sq
-		if m == nil {
-			// Forward on the close / drain notification
+		select {
+		case <-cq:
+			return
+		case m := <-sq:
+			// If a header was present, it means this message is
+			// being rebroadcast.  It should be a pipe ID.
+			if len(m.Header) >= 4 {
+				id = binary.BigEndian.Uint32(m.Header)
+				m.Header = m.Header[4:]
+			}
 			x.broadcast(m, id)
-			break
+			m.Free()
 		}
-
-		// If a header was present, it means this message is being
-		// rebroadcast.  It should be a pipe ID.
-		if len(m.Header) >= 4 {
-			id = binary.BigEndian.Uint32(m.Header)
-			m.Header = m.Header[4:]
-		}
-		x.broadcast(m, id)
-		m.Free()
 	}
 }
 
@@ -143,6 +150,10 @@ func (pe *busEp) receiver() {
 }
 
 func (x *bus) AddEndpoint(ep mangos.Endpoint) {
+	x.init.Do(func() {
+		x.w.Add()
+		go x.sender()
+	})
 	// Set our broadcast depth to match upper depth -- this should
 	// help avoid dropping when bursting, if we burst before we
 	// context switch.
@@ -152,16 +163,18 @@ func (x *bus) AddEndpoint(ep mangos.Endpoint) {
 	}
 	pe := &busEp{ep: ep, x: x, q: make(chan *mangos.Message, depth)}
 	x.Lock()
-	x.eps[ep.GetID()] = pe
+	x.peers[ep.GetID()] = pe
 	x.Unlock()
-	x.senders.Add()
-	go pe.sender()
+	go pe.peerSender()
 	go pe.receiver()
 }
 
 func (x *bus) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
-	delete(x.eps, ep.GetID())
+	if peer := x.peers[ep.GetID()]; peer != nil {
+		close(peer.q)
+		delete(x.peers, ep.GetID())
+	}
 	x.Unlock()
 }
 
@@ -189,9 +202,12 @@ func (x *bus) RecvHook(m *mangos.Message) bool {
 }
 
 func (x *bus) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = v.(bool)
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

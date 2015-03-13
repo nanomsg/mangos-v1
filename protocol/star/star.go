@@ -36,10 +36,11 @@ type starEp struct {
 }
 
 type star struct {
-	sock    mangos.ProtocolSocket
-	eps     map[uint32]*starEp
-	raw     bool
-	senders mangos.Waiter
+	sock mangos.ProtocolSocket
+	eps  map[uint32]*starEp
+	raw  bool
+	w    mangos.Waiter
+	init sync.Once
 
 	sync.Mutex
 }
@@ -47,12 +48,23 @@ type star struct {
 func (x *star) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*starEp)
-	x.senders.Init()
-	go x.sender()
+	x.w.Init()
 }
 
-func (x *star) Shutdown(linger time.Duration) {
-	x.senders.WaitRelTimeout(linger)
+func (x *star) Shutdown(expire time.Time) {
+
+	x.w.WaitAbsTimeout(expire)
+
+	x.Lock()
+	peers := x.eps
+	x.eps = make(map[uint32]*starEp)
+	x.Unlock()
+
+	for id, peer := range peers {
+		delete(peers, id)
+		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
+	}
 }
 
 // Bottom sender.
@@ -68,57 +80,57 @@ func (pe *starEp) sender() {
 			break
 		}
 	}
-	pe.x.senders.Done()
 }
 
 func (x *star) broadcast(m *mangos.Message, sender *starEp) {
 
 	x.Lock()
-	for _, pe := range x.eps {
-		if sender == pe {
-			continue
-		}
-		if m != nil {
+	if sender == nil || !x.raw {
+		for _, pe := range x.eps {
+			if sender == pe {
+				continue
+			}
 			m = m.Dup()
-		}
-		select {
-		case pe.q <- m:
-		default:
-			// No room on outbound queue, drop it.
-			if m != nil {
-				m.Free()
+			select {
+			case pe.q <- m:
+			default:
+				// No room on outbound queue, drop it.
+				if m != nil {
+					m.Free()
+				}
 			}
 		}
 	}
 	x.Unlock()
 
 	// Grab a local copy and send it up if we aren't originator
-	if m != nil {
-		if sender != nil {
-			select {
-			case x.sock.RecvChannel() <- m:
-			case <-x.sock.CloseChannel():
-				m.Free()
-				return
-			default:
-				// No room, so we just drop it.
-				m.Free()
-			}
-		} else {
-			// Not sending it up, so we need to release it.
+	if sender != nil {
+		select {
+		case x.sock.RecvChannel() <- m:
+		case <-x.sock.CloseChannel():
+			m.Free()
+			return
+		default:
+			// No room, so we just drop it.
 			m.Free()
 		}
+	} else {
+		// Not sending it up, so we need to release it.
+		m.Free()
 	}
 }
 
 func (x *star) sender() {
+	defer x.w.Done()
 	sq := x.sock.SendChannel()
+	cq := x.sock.CloseChannel()
 
 	for {
-		m := <-sq
-		x.broadcast(m, nil)
-		if m == nil {
-			break
+		select {
+		case <-cq:
+			return
+		case m := <-sq:
+			x.broadcast(m, nil)
 		}
 	}
 }
@@ -130,13 +142,17 @@ func (pe *starEp) receiver() {
 			return
 		}
 
-		if !pe.x.raw {
-			pe.x.broadcast(msg, pe)
-		}
+		// if we're in raw mode, this does only a sendup, otherwise
+		// it does both a retransmit + sendup
+		pe.x.broadcast(msg, pe)
 	}
 }
 
 func (x *star) AddEndpoint(ep mangos.Endpoint) {
+	x.init.Do(func() {
+		x.w.Add()
+		go x.sender()
+	})
 	depth := 16
 	if i, err := x.sock.GetOption(mangos.OptionWriteQLen); err == nil {
 		depth = i.(int)
@@ -145,14 +161,16 @@ func (x *star) AddEndpoint(ep mangos.Endpoint) {
 	x.Lock()
 	x.eps[ep.GetID()] = pe
 	x.Unlock()
-	x.senders.Add()
 	go pe.sender()
 	go pe.receiver()
 }
 
 func (x *star) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
-	delete(x.eps, ep.GetID())
+	if peer := x.eps[ep.GetID()]; peer != nil {
+		delete(x.eps, ep.GetID())
+		close(peer.q)
+	}
 	x.Unlock()
 }
 
@@ -173,9 +191,12 @@ func (*star) PeerName() string {
 }
 
 func (x *star) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = v.(bool)
+		if x.raw = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

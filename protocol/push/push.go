@@ -23,49 +23,38 @@ import (
 )
 
 type push struct {
-	sock    mangos.ProtocolSocket
-	raw     bool
-	senders mangos.Waiter
+	sock mangos.ProtocolSocket
+	raw  bool
+	w    mangos.Waiter
 }
 
 func (x *push) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
-	x.senders.Init()
+	x.w.Init()
 	x.sock.SetRecvError(mangos.ErrProtoOp)
 }
 
-func (x *push) Shutdown(linger time.Duration) {
-	x.senders.WaitRelTimeout(linger)
+func (x *push) Shutdown(expire time.Time) {
+	x.w.WaitAbsTimeout(expire)
 }
 
 func (x *push) sender(ep mangos.Endpoint) {
+	defer x.w.Done()
 	sq := x.sock.SendChannel()
+	cq := x.sock.CloseChannel()
 
 	for {
-		m := <-sq
-		if m == nil {
-			break
-		}
-
-		if ep.SendMsg(m) != nil {
-			m.Free()
-			break
+		select {
+		case <-cq:
+			return
+		case m := <-sq:
+			if ep.SendMsg(m) != nil {
+				m.Free()
+				return
+			}
 		}
 	}
 
-	x.senders.Done()
-}
-
-func (x *push) receiver(ep mangos.Endpoint) {
-	// In order for us to detect a dropped connection, we need to poll
-	// on the socket.  We don't care about the results and discard them,
-	// but this allows the disconnect to be noticed.  Note that we will
-	// be blocked in this call forever, until the connection is dropped.
-	for {
-		if m := ep.RecvMsg(); m == nil {
-			break
-		}
-	}
 }
 
 func (*push) Number() uint16 {
@@ -85,17 +74,20 @@ func (*push) PeerName() string {
 }
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {
-	x.senders.Add()
+	x.w.Add()
 	go x.sender(ep)
-	go x.receiver(ep)
+	go mangos.NullRecv(ep)
 }
 
 func (x *push) RemoveEndpoint(ep mangos.Endpoint) {}
 
 func (x *push) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = v.(bool)
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

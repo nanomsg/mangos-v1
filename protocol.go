@@ -51,9 +51,7 @@ type Protocol interface {
 	// Shutdown is used to drain the send side.  It is only ever called
 	// when the socket is being shutdown cleanly. Protocols should use
 	// the linger time, and wait up to that time for sockets to drain.
-	// If the linger time is zero, then they should just cease all
-	// send/receive activity.
-	Shutdown(time.Duration)
+	Shutdown(time.Time)
 
 	// AddEndpoint is called when a new Endpoint is added to the socket.
 	// Typically this is as a result of connect or accept completing.
@@ -164,8 +162,8 @@ const (
 	ProtoRep        = (3 * 16) + 1
 	ProtoPush       = (5 * 16)
 	ProtoPull       = (5 * 16) + 1
-	ProtoSurveyor   = (6 * 16)
-	ProtoRespondent = (6 * 16) + 1
+	ProtoSurveyor   = (6 * 16) + 2
+	ProtoRespondent = (6 * 16) + 3
 	ProtoBus        = (7 * 16)
 
 	// Experimental Protocols - Use at Risk
@@ -199,4 +197,19 @@ func ValidPeers(p1, p2 Protocol) bool {
 		return false
 	}
 	return true
+}
+
+// NullRecv simply loops, receiving and discarding messages, until the
+// Endpoint returns back a nil message.  This allows the Endpoint to notice
+// a dropped connection.  It is intended for use by Protocols that are write
+// only -- it lets them become aware of a loss of connectivity even when they
+// have no data to send.
+func NullRecv(ep Endpoint) {
+	for {
+		if m := ep.RecvMsg(); m == nil {
+			return
+		} else {
+			m.Free()
+		}
+	}
 }

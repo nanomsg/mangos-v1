@@ -35,6 +35,8 @@ type surveyor struct {
 	duration time.Duration
 	timeout  time.Time
 	timer    *time.Timer
+	w        mangos.Waiter
+	init     sync.Once
 
 	sync.Mutex
 }
@@ -52,19 +54,34 @@ func (x *surveyor) Init(sock mangos.ProtocolSocket) {
 	x.timer = time.AfterFunc(x.duration,
 		func() { x.sock.SetRecvError(mangos.ErrProtoState) })
 	x.timer.Stop()
-	go x.sender()
+	x.w.Init()
 }
 
-// Shutdown does nothing. Since we're not going to be able to receive
-// any responses; there is no point in draining.
-func (x *surveyor) Shutdown(time.Duration) {}
+func (x *surveyor) Shutdown(expire time.Time) {
+
+	x.w.WaitAbsTimeout(expire)
+	x.Lock()
+	peers := x.peers
+	x.peers = make(map[uint32]*surveyorP)
+	x.Unlock()
+
+	for id, peer := range peers {
+		delete(peers, id)
+		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
+	}
+}
 
 func (x *surveyor) sender() {
+	defer x.w.Done()
 	sq := x.sock.SendChannel()
+	cq := x.sock.CloseChannel()
 	for {
-		m := <-sq
-		if m == nil {
-			break
+		var m *mangos.Message
+		select {
+		case m = <-sq:
+		case <-cq:
+			return
 		}
 
 		x.Lock()
@@ -124,6 +141,10 @@ func (peer *surveyorP) receiver() {
 
 func (x *surveyor) AddEndpoint(ep mangos.Endpoint) {
 	peer := &surveyorP{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
+	x.init.Do(func() {
+		x.w.Add()
+		go x.sender()
+	})
 	x.Lock()
 	x.peers[ep.GetID()] = peer
 	go peer.receiver()
@@ -164,7 +185,7 @@ func (x *surveyor) SendHook(m *mangos.Message) bool {
 	}
 
 	x.Lock()
-	x.surveyID = x.nextID
+	x.surveyID = x.nextID | 0x80000000
 	x.nextID++
 	x.sock.SetRecvError(nil)
 	v := x.surveyID
@@ -198,9 +219,12 @@ func (x *surveyor) RecvHook(m *mangos.Message) bool {
 }
 
 func (x *surveyor) SetOption(name string, val interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = val.(bool)
+		if x.raw, ok = val.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		if x.raw {
 			x.timer.Stop()
 			x.sock.SetRecvError(nil)
@@ -210,8 +234,11 @@ func (x *surveyor) SetOption(name string, val interface{}) error {
 		return nil
 	case mangos.OptionSurveyTime:
 		x.Lock()
-		x.duration = val.(time.Duration)
+		x.duration, ok = val.(time.Duration)
 		x.Unlock()
+		if !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

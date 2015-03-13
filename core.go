@@ -167,6 +167,11 @@ func (sock *socket) SetRecvError(err error) {
 //
 
 func (sock *socket) Close() error {
+
+	fin := time.Now().Add(sock.linger)
+
+	DrainChannel(sock.uwq, fin)
+
 	sock.Lock()
 	if sock.closing {
 		sock.Unlock()
@@ -178,17 +183,25 @@ func (sock *socket) Close() error {
 	for _, l := range sock.listeners {
 		l.l.Close()
 	}
-
 	pipes := append([]*pipe{}, sock.pipes...)
 	sock.Unlock()
 
-	fin := time.After(sock.linger)
-	select {
-	// send a nil to drain the socket
-	case sock.uwq <- nil:
-	case <-fin:
-	}
-	sock.proto.Shutdown(sock.linger)
+	// We cannot safely close the upper writeq, because another thread
+	// might wind up trying to do send on it.  (We would need to add a
+	// reference count, and frankly the locking associated to get that
+	// hold logic is more expensive than its worth.  So we pass down a nil
+	// to give protocols a chance to learn that they should exit.
+	//go func() {
+	//	sock.uwq <- nil
+	//}()
+
+	// A second drain, just to be sure.  (We could have had device or
+	// forwarded messages arrive since the last one.)
+	DrainChannel(sock.uwq, fin)
+
+	// And tell the protocol to shutdown and drain its pipes too.
+	sock.proto.Shutdown(fin)
+
 	for _, p := range pipes {
 		p.Close()
 	}

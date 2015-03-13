@@ -32,7 +32,7 @@ func (x *pull) Init(sock mangos.ProtocolSocket) {
 	x.sock.SetSendError(mangos.ErrProtoOp)
 }
 
-func (x *pull) Shutdown(time.Duration) {} // No sender to drain
+func (x *pull) Shutdown(time.Time) {} // No sender to drain
 
 func (x *pull) receiver(ep mangos.Endpoint) {
 	rq := x.sock.RecvChannel()
@@ -79,9 +79,12 @@ func (*pull) SendHook(msg *mangos.Message) bool {
 }
 
 func (x *pull) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		x.raw = v.(bool)
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
 		return nil
 	default:
 		return mangos.ErrBadOption

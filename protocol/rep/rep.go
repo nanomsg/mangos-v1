@@ -41,6 +41,7 @@ type rep struct {
 	raw          bool
 	ttl          int
 	w            mangos.Waiter
+	init         sync.Once
 
 	sync.Mutex
 }
@@ -49,27 +50,25 @@ func (r *rep) Init(sock mangos.ProtocolSocket) {
 	r.sock = sock
 	r.eps = make(map[uint32]*repEp)
 	r.backtracebuf = make([]byte, 64)
-	r.ttl = 8 // defauilt specified in the RFC
+	r.ttl = 8 // default specified in the RFC
 	r.w.Init()
-	r.w.Add()
 	r.sock.SetSendError(mangos.ErrProtoState)
-	go r.sender()
 }
 
-func (r *rep) Shutdown(linger time.Duration) {
-	when := time.Now().Add(linger)
-	tq := time.After(linger)
-	r.w.WaitAbsTimeout(when)
+func (r *rep) Shutdown(expire time.Time) {
+
+	r.w.WaitAbsTimeout(expire)
+
 	r.Lock()
-	for _, pe := range r.eps {
-		select {
-		case pe.q <- nil:
-		case <-tq:
-			tq = time.After(0)
-		}
-		pe.w.WaitAbsTimeout(when)
-	}
+	peers := r.eps
+	r.eps = make(map[uint32]*repEp)
 	r.Unlock()
+
+	for id, peer := range peers {
+		delete(peers, id)
+		mangos.DrainChannel(peer.q, expire)
+		close(peer.q)
+	}
 }
 
 func (pe *repEp) sender() {
@@ -84,10 +83,13 @@ func (pe *repEp) sender() {
 			break
 		}
 	}
-	pe.w.Done()
 }
 
 func (r *rep) receiver(ep mangos.Endpoint) {
+
+	rq := r.sock.RecvChannel()
+	cq := r.sock.CloseChannel()
+
 	for {
 
 		m := ep.RecvMsg()
@@ -120,8 +122,8 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 		}
 
 		select {
-		case r.sock.RecvChannel() <- m:
-		case <-r.sock.CloseChannel():
+		case rq <- m:
+		case <-cq:
 			m.Free()
 			return
 		}
@@ -129,12 +131,17 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 }
 
 func (r *rep) sender() {
+	defer r.w.Done()
 	sq := r.sock.SendChannel()
+	cq := r.sock.CloseChannel()
 
 	for {
-		m := <-sq
-		if m == nil {
-			break
+		var m *mangos.Message
+
+		select {
+		case m = <-sq:
+		case <-cq:
+			return
 		}
 
 		// Lop off the 32-bit peer/pipe ID.  If absent, drop.
@@ -165,8 +172,6 @@ func (r *rep) sender() {
 			m.Free()
 		}
 	}
-
-	r.w.Done()
 }
 
 func (*rep) Number() uint16 {
@@ -189,9 +194,12 @@ func (r *rep) AddEndpoint(ep mangos.Endpoint) {
 	pe := &repEp{ep: ep, r: r, q: make(chan *mangos.Message, 2)}
 	pe.w.Init()
 	r.Lock()
+	r.init.Do(func() {
+		r.w.Add()
+		go r.sender()
+	})
 	r.eps[ep.GetID()] = pe
 	r.Unlock()
-	pe.w.Add()
 	go r.receiver(ep)
 	go pe.sender()
 }
