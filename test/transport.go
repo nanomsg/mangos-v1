@@ -134,6 +134,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 
 func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	var err error
+	time.Sleep(100 * time.Millisecond)
 	t.Logf("Testing Duplicate Listen on %s", tt.addr)
 	l1, err := tt.tran.NewListener(tt.addr, tt.protoRep)
 	if err != nil {

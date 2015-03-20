@@ -20,7 +20,7 @@ import (
 	"github.com/gdamore/mangos/test"
 )
 
-var tt = test.NewTranTest(NewTransport(), "wss://127.0.0.1:3336/mysock")
+var tt = test.NewTranTest(NewTransport(), "wss://127.0.0.1:3346/mysock")
 
 func TestWSSListenAndAccept(t *testing.T) {
 	tt.TranTestListenAndAccept(t)

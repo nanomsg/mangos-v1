@@ -103,6 +103,7 @@ type TestCase interface {
 }
 
 func (c *T) Init(t *testing.T, addr string) bool {
+	time.Sleep(100 * time.Millisecond)
 	// Initial defaults
 	c.Lock()
 	defer c.Unlock()
@@ -610,7 +611,7 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 // We have to expose these, so that device tests can use them.
 
 // AddrTestTCP is a suitable TCP address for testing.
-var AddrTestTCP = "tcp://127.0.0.1:39093"
+var AddrTestTCP = "tcp://127.0.0.1:59093"
 
 // AddrTestIPC is a suitable IPC address for testing.
 var AddrTestIPC = "ipc:///tmp/MYTEST_IPC"
@@ -619,13 +620,13 @@ var AddrTestIPC = "ipc:///tmp/MYTEST_IPC"
 var AddrTestInp = "inproc://MYTEST_INPROC"
 
 // AddrTestTLS is a suitable TLS address for testing.
-var AddrTestTLS = "tls+tcp://127.0.0.1:43934"
+var AddrTestTLS = "tls+tcp://127.0.0.1:63934"
 
 // AddrTestWS is a suitable websocket address for testing.
-var AddrTestWS = "ws://127.0.0.1:53935"
+var AddrTestWS = "ws://127.0.0.1:63935"
 
 // AddrTestWSS is a suitable secure websocket address for testing.
-var AddrTestWSS = "wss://127.0.0.1:53936"
+var AddrTestWSS = "wss://127.0.0.1:63936"
 
 // RunTestsTCP runs the TCP tests.
 func RunTestsTCP(t *testing.T, cases []TestCase) {

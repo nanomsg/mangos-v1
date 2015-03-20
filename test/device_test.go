@@ -15,8 +15,10 @@
 package test
 
 import (
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/pair"
@@ -200,8 +202,8 @@ func testDevLoop(t *testing.T, addr string) {
 	}
 	defer s1.Close()
 	s1.AddTransport(tcp.NewTransport())
-	s1.AddTransport(ipc.NewTransport())
 	s1.AddTransport(inproc.NewTransport())
+	s1.AddTransport(ipc.NewTransport())
 	s1.AddTransport(tlstcp.NewTransport())
 	s1.AddTransport(ws.NewTransport())
 	s1.AddTransport(wss.NewTransport())
@@ -236,9 +238,10 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 		}
 		defer s[i].Close()
 		s[i].AddTransport(tcp.NewTransport())
-		s[i].AddTransport(ipc.NewTransport())
 		s[i].AddTransport(inproc.NewTransport())
 		s[i].AddTransport(tlstcp.NewTransport())
+		s[i].AddTransport(ipc.NewTransport())
+		s[i].AddTransport(ws.NewTransport())
 	}
 
 	if err = s[0].Listen(addr1); err != nil {
@@ -277,7 +280,9 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 }
 
 func TestDeviceChain(t *testing.T) {
-	testDevChain(t, AddrTestTCP, AddrTestIPC, AddrTestInp)
+	testDevChain(t, AddrTestTCP, AddrTestWS, AddrTestInp)
+	// Some platforms (windows) need a little time to wind up the close
+	time.Sleep(100 * time.Millisecond)
 }
 
 func TestDeviceLoopTCP(t *testing.T) {
@@ -289,7 +294,11 @@ func TestDeviceLoopInp(t *testing.T) {
 }
 
 func TestDeviceLoopIPC(t *testing.T) {
-	testDevLoop(t, AddrTestIPC)
+	if runtime.GOOS == "windows" {
+		t.Skip("IPC not supported on Windows")
+	} else {
+		testDevLoop(t, AddrTestIPC)
+	}
 }
 
 func TestDeviceLoopTLS(t *testing.T) {

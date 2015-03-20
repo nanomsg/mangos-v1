@@ -15,6 +15,7 @@
 package ipc
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/gdamore/mangos/test"
@@ -23,21 +24,56 @@ import (
 var tt = test.NewTranTest(NewTransport(), "ipc:///tmp/test1234")
 
 func TestIpcListenAndAccept(t *testing.T) {
-	tt.TranTestListenAndAccept(t)
+	switch runtime.GOOS {
+	case "windows":
+		t.Skip("IPC not supported on Windows")
+	case "plan9":
+		t.Skip("IPC not supported on Plan9")
+	default:
+		tt.TranTestListenAndAccept(t)
+	}
 }
 
 func TestIpcDuplicateListen(t *testing.T) {
-	tt.TranTestDuplicateListen(t)
+	switch runtime.GOOS {
+	case "windows":
+		t.Skip("IPC not supported on Windows")
+	case "plan9":
+		t.Skip("IPC not supported on Plan9")
+	default:
+		tt.TranTestDuplicateListen(t)
+	}
 }
 
 func TestIpcConnRefused(t *testing.T) {
-	tt.TranTestConnRefused(t)
+	switch runtime.GOOS {
+	case "windows":
+		t.Skip("IPC not supported on Windows")
+	case "plan9":
+		t.Skip("IPC not supported on Plan9")
+	default:
+		tt.TranTestConnRefused(t)
+	}
 }
 
 func TestIpcSendRecv(t *testing.T) {
-	tt.TranTestSendRecv(t)
+	switch runtime.GOOS {
+	case "windows":
+		t.Skip("IPC not supported on Windows")
+	case "plan9":
+		t.Skip("IPC not supported on Plan9")
+	default:
+		tt.TranTestSendRecv(t)
+	}
 }
 
 func TestIpcAll(t *testing.T) {
-	tt.TranTestAll(t)
+	switch runtime.GOOS {
+	case "windows":
+		t.Skip("IPC not supported on Windows")
+	case "plan9":
+		t.Skip("IPC not supported on Plan9")
+	default:
+		tt.TranTestAll(t)
+	}
 }

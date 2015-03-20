@@ -63,7 +63,7 @@ func bogusHandler(w http.ResponseWriter, r *http.Request) {
 
 func TestWebsockMux(t *testing.T) {
 	tran := NewTransport()
-	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", req.NewProtocol())
+	l, e := tran.NewListener("ws://127.0.0.1:3336/mysock", req.NewProtocol())
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
 		return
@@ -74,7 +74,7 @@ func TestWebsockMux(t *testing.T) {
 	}
 	mux := muxi.(*http.ServeMux)
 	mux.HandleFunc("/bogus", bogusHandler)
-	d, e := tran.NewDialer("ws://127.0.0.1:3335/bogus", rep.NewProtocol())
+	d, e := tran.NewDialer("ws://127.0.0.1:3336/bogus", rep.NewProtocol())
 	if e != nil {
 		t.Errorf("Failed new Dialer: %v", e)
 		return
@@ -97,7 +97,7 @@ func TestWebsockMux(t *testing.T) {
 	t.Logf("Got expected error %v", e)
 
 	// Now let's try to use http client.
-	resp, err := http.Get("http://127.0.0.1:3335/bogus")
+	resp, err := http.Get("http://127.0.0.1:3336/bogus")
 
 	if err != nil {
 		t.Errorf("Get of boguspath failed: %v", err)
@@ -124,7 +124,7 @@ func TestWebsockMux(t *testing.T) {
 // our own websocket handler.
 func TestWebsockHandler(t *testing.T) {
 	tran := NewTransport()
-	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", req.NewProtocol())
+	l, e := tran.NewListener("ws://127.0.0.1:3337/mysock", req.NewProtocol())
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
 		return
@@ -142,18 +142,14 @@ func TestWebsockHandler(t *testing.T) {
 	// Note that we are *counting* on this to die gracefully when our
 	// program exits. There appears to be no way to shutdown http
 	// instances gracefully.
-	go http.ListenAndServe("127.0.0.1:3335", mux)
+	go http.ListenAndServe("127.0.0.1:3337", mux)
 
-	d, e := tran.NewDialer("ws://127.0.0.1:3335/bogus", rep.NewProtocol())
+	d, e := tran.NewDialer("ws://127.0.0.1:3337/bogus", rep.NewProtocol())
 	if e != nil {
 		t.Errorf("Failed new Dialer: %v", e)
 		return
 	}
 
-	if e = l.Listen(); e != nil {
-		t.Errorf("Listen failed")
-		return
-	}
 	defer l.Close()
 
 	p, e := d.Dial()
@@ -167,7 +163,7 @@ func TestWebsockHandler(t *testing.T) {
 	t.Logf("Got expected error %v", e)
 
 	// Now let's try to use http client.
-	resp, err := http.Get("http://127.0.0.1:3335/bogus")
+	resp, err := http.Get("http://127.0.0.1:3337/bogus")
 
 	if err != nil {
 		t.Errorf("Get of boguspath failed: %v", err)
