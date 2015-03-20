@@ -1,6 +1,6 @@
-## mangos
+## mangos <img src=mangos.jpg align=right>
 
-[![Build Status](https://travis-ci.org/gdamore/mangos.svg?branch=master)](https://travis-ci.org/gdamore/mangos) [![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Linux Build Status](https://travis-ci.org/gdamore/mangos.svg?branch=master)](https://travis-ci.org/gdamore/mangos) [![Windows Build Status](https://ci.appveyor.com/api/projects/status/le5wiiqrg6f2si8e?svg=true)](https://ci.appveyor.com/project/gdamore/mangos) [![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
@@ -21,8 +21,8 @@ immediate peers, but to all members of the topology.  Developers must be careful
 not to create cycles in their network when using this pattern, otherwise
 infinite loops can occur.
 
-Supported transports include TCP, inproc, IPC, and TLS.  TLS support is
-experimental.  Use addresses of the form "tls+tcp://<host>:<port>" to access it.
+Supported transports include TCP, inproc, IPC, Websocket, Websocket/TLS and TLS.
+Use addresses of the form "tls+tcp://<host>:<port>" to access TLS.
 Note that ipc:// is not supported on Windows (by either this or the reference
 implementation.)  Forcing the local TCP port in Dial is not supported yet (this
 is rarely useful).
