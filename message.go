@@ -26,6 +26,7 @@ import (
 type Message struct {
 	Header []byte
 	Body   []byte
+	Port   Port
 	bbuf   []byte
 	hbuf   []byte
 	bsize  int
@@ -62,6 +63,7 @@ func (m *Message) Free() {
 			break
 		}
 	}
+	m.Port = nil
 	select {
 	case ch <- m:
 	default:

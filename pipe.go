@@ -113,6 +113,7 @@ func (p *pipe) RecvMsg() *Message {
 		p.Close()
 		return nil
 	}
+	msg.Port = p
 	return msg
 }
 

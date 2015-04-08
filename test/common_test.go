@@ -319,6 +319,18 @@ func (c *T) RecvStart() bool {
 		return false
 	}
 	defer m.Free()
+	if addr := m.Port.Address(); addr != c.addr {
+		c.Errorf("Got unexpected message port address: %s", addr)
+		return false
+	}
+	if c.IsServer() && !m.Port.IsServer() {
+		c.Errorf("Expected message port server")
+		return false
+	}
+	if !c.IsServer() && !m.Port.IsClient() {
+		c.Errorf("Expected message port client")
+		return false
+	}
 
 	if v, ok := ParseStart(m); ok {
 		c.Debugf("Got START from %d", v)
