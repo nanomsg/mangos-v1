@@ -78,12 +78,6 @@ const (
 	// The parameter is a tls.Config pointer.
 	OptionTlsConfig = "TLS-CONFIG"
 
-	// OptionLocalAddress is used to get the local address an accepter is
-	// listening on in string form. Generally this is known when Listen is
-	// called because it is provided, but this option is useful in the
-	// event that the port is assigned by the OS (i.e. port "0").
-	OptionLocalAddress = "LOCAL-ADDRESS"
-
 	// OptionWriteQLen is used to set the size, in messages, of the write
 	// queue channel. By default, it's 128. This option cannot be set if
 	// Dial or Listen has been called on the socket.
