@@ -229,7 +229,8 @@ func (sock *socket) SendMsg(msg *Message) error {
 }
 
 func (sock *socket) Send(b []byte) error {
-	msg := &Message{Body: b, Header: nil, refcnt: 1}
+	msg := NewMessage(0)
+	msg.Body = b
 	return sock.SendMsg(msg)
 }
 
