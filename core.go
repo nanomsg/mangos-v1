@@ -274,13 +274,14 @@ func (sock *socket) Recv() ([]byte, error) {
 func (sock *socket) getTransport(addr string) Transport {
 	var i int
 
-	sock.Lock()
-	defer sock.Unlock()
-
 	if i = strings.Index(addr, "://"); i < 0 {
 		return nil
 	}
 	scheme := addr[:i]
+
+	sock.Lock()
+	defer sock.Unlock()
+
 	t, ok := sock.transports[scheme]
 	if t != nil && ok {
 		return t
