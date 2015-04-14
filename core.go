@@ -92,14 +92,14 @@ func (sock *socket) remPipe(p *pipe) {
 
 	sock.proto.RemoveEndpoint(p)
 
-	sock.Lock()
 	if p.index >= 0 {
+		sock.Lock()
 		sock.pipes[p.index] = sock.pipes[len(sock.pipes)-1]
 		sock.pipes[p.index].index = p.index
 		sock.pipes = sock.pipes[:len(sock.pipes)-1]
 		p.index = -1
+		sock.Unlock()
 	}
-	sock.Unlock()
 }
 
 func newSocket(proto Protocol) *socket {
@@ -274,13 +274,14 @@ func (sock *socket) Recv() ([]byte, error) {
 func (sock *socket) getTransport(addr string) Transport {
 	var i int
 
-	sock.Lock()
-	defer sock.Unlock()
-
 	if i = strings.Index(addr, "://"); i < 0 {
 		return nil
 	}
 	scheme := addr[:i]
+
+	sock.Lock()
+	defer sock.Unlock()
+
 	t, ok := sock.transports[scheme]
 	if t != nil && ok {
 		return t
