@@ -79,6 +79,59 @@ func TestTCPListenAndAccept(t *testing.T) {
 	}
 }
 
+func TestTCPAnonymousPort(t *testing.T) {
+	addr := "tcp://127.0.0.1:0"
+	t.Logf("Establishing accepter")
+	l, err := tran.NewListener(addr, protoRep)
+	if err != nil {
+		t.Errorf("NewListener failed: %v", err)
+		return
+	}
+	defer l.Close()
+	if err = l.Listen(); err != nil {
+		t.Errorf("Listen failed: %v", err)
+		return
+	}
+	baddr := l.Address()
+	t.Logf("Bound to %s", baddr)
+
+	go func() {
+		d, err := tran.NewDialer(baddr, protoReq)
+		if err != nil {
+			t.Errorf("NewDialier failed: %v", err)
+			return
+		}
+		t.Logf("Connecting")
+		client, err := d.Dial()
+		if err != nil {
+			t.Errorf("Dial failed: %v", err)
+			return
+		}
+		t.Logf("Connected client: %d (server %d)",
+			client.LocalProtocol(), client.RemoteProtocol())
+		t.Logf("Client open: %t", client.IsOpen())
+		if !client.IsOpen() {
+			t.Error("Client is closed")
+			return
+		}
+	}()
+
+	server, err := l.Accept()
+	if err != nil {
+		t.Errorf("Accept failed: %v", err)
+		return
+	}
+	defer server.Close()
+
+	t.Logf("Connected server: %d (client %d)",
+		server.LocalProtocol(), server.RemoteProtocol())
+	t.Logf("Server open: %t", server.IsOpen())
+	if !server.IsOpen() {
+		t.Error("Server is closed")
+		return
+	}
+}
+
 func TestTCPDuplicateListen(t *testing.T) {
 	addr := "tcp://127.0.0.1:3333"
 	var err error

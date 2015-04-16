@@ -100,6 +100,7 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 
 type listener struct {
 	addr     *net.TCPAddr
+	bound    net.Addr
 	proto    mangos.Protocol
 	listener *net.TCPListener
 	opts     options
@@ -123,7 +124,17 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 
 func (l *listener) Listen() (err error) {
 	l.listener, err = net.ListenTCP("tcp", l.addr)
+	if err == nil {
+		l.bound = l.listener.Addr()
+	}
 	return
+}
+
+func (l *listener) Address() string {
+	if b := l.bound; b != nil {
+		return "tcp://" + b.String()
+	}
+	return "tcp://" + l.addr.String()
 }
 
 func (l *listener) Close() error {

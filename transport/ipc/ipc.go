@@ -84,6 +84,10 @@ func (l *listener) Listen() error {
 	return nil
 }
 
+func (l *listener) Address() string {
+	return "ipc://" + l.addr.String()
+}
+
 // Accept implements the the PipeListener Accept method.
 func (l *listener) Accept() (mangos.Pipe, error) {
 

@@ -608,7 +608,7 @@ func (l *listener) Listen() error {
 }
 
 func (l *listener) Address() string {
-	return l.addr
+	return l.l.Address()
 }
 
 func (l *listener) Close() error {

@@ -212,6 +212,10 @@ func (l *listener) Listen() error {
 	return nil
 }
 
+func (l *listener) Address() string {
+	return l.addr
+}
+
 func (l *listener) Accept() (mangos.Pipe, error) {
 	server := &inproc{proto: l.proto, addr: addr(l.addr)}
 	server.readyq = make(chan struct{})

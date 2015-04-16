@@ -118,6 +118,10 @@ type PipeListener interface {
 	// GetOption gets a local option from the listener.
 	// ErrBadOption can be returned for unrecognized options.
 	GetOption(name string) (value interface{}, err error)
+
+	// Address gets the local address.  The value may not be meaningful
+	// until Listen() has been called.
+	Address() string
 }
 
 // Transport is the interface for transport suppliers to implement.

@@ -635,10 +635,10 @@ var AddrTestInp = "inproc://MYTEST_INPROC"
 var AddrTestTLS = "tls+tcp://127.0.0.1:63934"
 
 // AddrTestWS is a suitable websocket address for testing.
-var AddrTestWS = "ws://127.0.0.1:63935"
+var AddrTestWS = "ws://127.0.0.1:63935/"
 
 // AddrTestWSS is a suitable secure websocket address for testing.
-var AddrTestWSS = "wss://127.0.0.1:63936"
+var AddrTestWSS = "wss://127.0.0.1:63936/"
 
 // RunTestsTCP runs the TCP tests.
 func RunTestsTCP(t *testing.T, cases []TestCase) {

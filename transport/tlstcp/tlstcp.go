@@ -134,6 +134,10 @@ func (l *listener) Listen() error {
 	return nil
 }
 
+func (l *listener) Address() string {
+	return "tls+tcp://" + l.addr.String()
+}
+
 func (l *listener) Accept() (mangos.Pipe, error) {
 
 	conn, err := l.listener.AcceptTCP()

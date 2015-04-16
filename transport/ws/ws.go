@@ -431,6 +431,10 @@ func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	l.wssvr.ServeHTTP(w, r)
 }
 
+func (l *listener) Address() string {
+	return l.url_.String()
+}
+
 func (wsTran) Scheme() string {
 	return "ws"
 }
