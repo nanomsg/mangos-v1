@@ -65,8 +65,6 @@ func newPipe(tranpipe Pipe) *pipe {
 }
 
 func (p *pipe) GetID() uint32 {
-	pipes.Lock()
-	defer pipes.Unlock()
 	return p.id
 }
 
@@ -78,6 +76,7 @@ func (p *pipe) Close() error {
 		hook = sock.porthook
 	}
 	if p.closing {
+		p.Unlock()
 		return nil
 	}
 	p.closing = true
@@ -89,7 +88,6 @@ func (p *pipe) Close() error {
 	p.pipe.Close()
 	pipes.Lock()
 	delete(pipes.byid, p.id)
-	p.id = 0 // safety
 	pipes.Unlock()
 	if hook != nil {
 		hook(PortActionRemove, p)

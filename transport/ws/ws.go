@@ -92,8 +92,6 @@ func (o options) set(name string, val interface{}) error {
 // wsPipe implements the Pipe interface on a websocket
 type wsPipe struct {
 	ws    *websocket.Conn
-	rlock sync.Mutex
-	wlock sync.Mutex
 	proto mangos.Protocol
 	addr  string
 	open  bool
@@ -108,10 +106,6 @@ func (w *wsPipe) Recv() (*mangos.Message, error) {
 
 	var buf []byte
 
-	// prevent interleaved reads
-	w.rlock.Lock()
-	defer w.rlock.Unlock()
-
 	if err := websocket.Message.Receive(w.ws, &buf); err != nil {
 		return nil, err
 	}
@@ -125,9 +119,6 @@ func (w *wsPipe) Recv() (*mangos.Message, error) {
 func (w *wsPipe) Send(m *mangos.Message) error {
 
 	var buf []byte
-
-	w.wlock.Lock()
-	defer w.wlock.Unlock()
 
 	if len(m.Header) > 0 {
 		buf = make([]byte, 0, len(m.Header)+len(m.Body))

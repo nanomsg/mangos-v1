@@ -18,7 +18,6 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
-	"sync"
 )
 
 // conn implements the Pipe interface on top of net.Conn.  The
@@ -26,8 +25,6 @@ import (
 // and conn is meant to be used as a building block.
 type conn struct {
 	c     net.Conn
-	rlock sync.Mutex
-	wlock sync.Mutex
 	proto Protocol
 	open  bool
 	props map[string]interface{}
@@ -47,10 +44,6 @@ func (p *conn) Recv() (*Message, error) {
 	var sz int64
 	var err error
 	var msg *Message
-
-	// prevent interleaved reads
-	p.rlock.Lock()
-	defer p.rlock.Unlock()
 
 	if err = binary.Read(p.c, binary.BigEndian, &sz); err != nil {
 		return nil, err
@@ -80,10 +73,6 @@ func (p *conn) Recv() (*Message, error) {
 func (p *conn) Send(msg *Message) error {
 
 	l := uint64(len(msg.Header) + len(msg.Body))
-
-	// prevent interleaved writes
-	p.wlock.Lock()
-	defer p.wlock.Unlock()
 
 	// send length header
 	if err := binary.Write(p.c, binary.BigEndian, l); err != nil {
@@ -178,10 +167,6 @@ func (p *connipc) Send(msg *Message) error {
 	one := [1]byte{1}
 	var err error
 
-	// prevent interleaved writes
-	p.wlock.Lock()
-	defer p.wlock.Unlock()
-
 	// send length header
 	if _, err = p.c.Write(one[:]); err != nil {
 		return err
@@ -206,10 +191,6 @@ func (p *connipc) Recv() (*Message, error) {
 	var err error
 	var msg *Message
 	var one [1]byte
-
-	// prevent interleaved reads
-	p.rlock.Lock()
-	defer p.rlock.Unlock()
 
 	if _, err = p.c.Read(one[:]); err != nil {
 		return nil, err
