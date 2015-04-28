@@ -85,7 +85,7 @@ func (pe *repEp) sender() {
 	}
 }
 
-func (r *rep) receiver(ep mangos.Endpoint) {
+func (r *rep) receiver(ep mangos.Endpoint, pe *repEp) {
 
 	rq := r.sock.RecvChannel()
 	cq := r.sock.CloseChannel()
@@ -94,6 +94,9 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 
 		m := ep.RecvMsg()
 		if m == nil {
+			// Connection closed...time to clean up.
+			close(pe.q)
+			r.RemoveEndpoint(ep)
 			return
 		}
 
@@ -200,7 +203,7 @@ func (r *rep) AddEndpoint(ep mangos.Endpoint) {
 	})
 	r.eps[ep.GetID()] = pe
 	r.Unlock()
-	go r.receiver(ep)
+	go r.receiver(ep, pe)
 	go pe.sender()
 }
 
