@@ -28,7 +28,7 @@ import (
 type req struct {
 	sync.Mutex
 	sock   mangos.ProtocolSocket
-	eps    map[uint32]mangos.Endpoint
+	eps    map[uint32]*reqEp
 	resend chan *mangos.Message
 	raw    bool
 	retry  time.Duration
@@ -42,9 +42,14 @@ type req struct {
 	reqid  uint32
 }
 
+type reqEp struct {
+	ep mangos.Endpoint
+	cq chan struct{}
+}
+
 func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.sock = socket
-	r.eps = make(map[uint32]mangos.Endpoint)
+	r.eps = make(map[uint32]*reqEp)
 	r.resend = make(chan *mangos.Message)
 	r.w.Init()
 
@@ -127,7 +132,7 @@ func (r *req) receiver(ep mangos.Endpoint) {
 	}
 }
 
-func (r *req) sender(ep mangos.Endpoint) {
+func (r *req) sender(pe *reqEp) {
 
 	// NB: Because this function is only called when an endpoint is
 	// added, we can reasonably safely cache the channels -- they won't
@@ -146,9 +151,11 @@ func (r *req) sender(ep mangos.Endpoint) {
 		case m = <-sq:
 		case <-cq:
 			return
+		case <-pe.cq:
+			return
 		}
 
-		if ep.SendMsg(m) != nil {
+		if pe.ep.SendMsg(m) != nil {
 			r.resend <- m
 			break
 		}
@@ -178,15 +185,25 @@ func (r *req) AddEndpoint(ep mangos.Endpoint) {
 		go r.resender()
 	})
 
+	pe := &reqEp{cq: make(chan struct{}), ep: ep}
 	r.Lock()
-	r.eps[ep.GetID()] = ep
+	r.eps[ep.GetID()] = pe
 	r.Unlock()
 	go r.receiver(ep)
 	r.w.Add()
-	go r.sender(ep)
+	go r.sender(pe)
 }
 
-func (*req) RemoveEndpoint(mangos.Endpoint) {}
+func (r *req) RemoveEndpoint(ep mangos.Endpoint) {
+	id := ep.GetID()
+	r.Lock()
+	pe := r.eps[id]
+	delete(r.eps, id)
+	r.Unlock()
+	if pe != nil {
+		close(pe.cq)
+	}
+}
 
 func (r *req) SendHook(m *mangos.Message) bool {
 

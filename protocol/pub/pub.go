@@ -129,9 +129,14 @@ func (p *pub) AddEndpoint(ep mangos.Endpoint) {
 }
 
 func (p *pub) RemoveEndpoint(ep mangos.Endpoint) {
+	id := ep.GetID()
 	p.Lock()
-	delete(p.eps, ep.GetID())
+	pe := p.eps[id]
+	delete(p.eps, id)
 	p.Unlock()
+	if pe != nil {
+		close(pe.q)
+	}
 }
 
 func (*pub) Number() uint16 {

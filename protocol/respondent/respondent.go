@@ -217,9 +217,16 @@ func (x *resp) AddEndpoint(ep mangos.Endpoint) {
 }
 
 func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
+	id := ep.GetID()
+
 	x.Lock()
-	delete(x.peers, ep.GetID())
+	peer := x.peers[id]
+	delete(x.peers, id)
 	x.Unlock()
+
+	if peer != nil {
+		close(peer.q)
+	}
 }
 
 func (*resp) Number() uint16 {

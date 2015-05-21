@@ -17,6 +17,7 @@
 package push
 
 import (
+	"sync"
 	"time"
 
 	"github.com/gdamore/mangos"
@@ -26,19 +27,27 @@ type push struct {
 	sock mangos.ProtocolSocket
 	raw  bool
 	w    mangos.Waiter
+	eps  map[uint32]*pushEp
+	sync.Mutex
+}
+
+type pushEp struct {
+	ep mangos.Endpoint
+	cq chan struct{}
 }
 
 func (x *push) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.w.Init()
 	x.sock.SetRecvError(mangos.ErrProtoOp)
+	x.eps = make(map[uint32]*pushEp)
 }
 
 func (x *push) Shutdown(expire time.Time) {
 	x.w.WaitAbsTimeout(expire)
 }
 
-func (x *push) sender(ep mangos.Endpoint) {
+func (x *push) sender(ep *pushEp) {
 	defer x.w.Done()
 	sq := x.sock.SendChannel()
 	cq := x.sock.CloseChannel()
@@ -47,14 +56,15 @@ func (x *push) sender(ep mangos.Endpoint) {
 		select {
 		case <-cq:
 			return
+		case <-ep.cq:
+			return
 		case m := <-sq:
-			if ep.SendMsg(m) != nil {
+			if ep.ep.SendMsg(m) != nil {
 				m.Free()
 				return
 			}
 		}
 	}
-
 }
 
 func (*push) Number() uint16 {
@@ -74,12 +84,25 @@ func (*push) PeerName() string {
 }
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {
+	pe := &pushEp{ep: ep, cq: make(chan struct{})}
+	x.Lock()
+	x.eps[ep.GetID()] = pe
+	x.Unlock()
 	x.w.Add()
-	go x.sender(ep)
+	go x.sender(pe)
 	go mangos.NullRecv(ep)
 }
 
-func (x *push) RemoveEndpoint(ep mangos.Endpoint) {}
+func (x *push) RemoveEndpoint(ep mangos.Endpoint) {
+	id := ep.GetID()
+	x.Lock()
+	pe := x.eps[id]
+	delete(x.eps, id)
+	x.Unlock()
+	if pe != nil {
+		close(pe.cq)
+	}
+}
 
 func (x *push) SetOption(name string, v interface{}) error {
 	var ok bool

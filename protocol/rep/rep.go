@@ -205,9 +205,16 @@ func (r *rep) AddEndpoint(ep mangos.Endpoint) {
 }
 
 func (r *rep) RemoveEndpoint(ep mangos.Endpoint) {
+	id := ep.GetID()
+
 	r.Lock()
-	delete(r.eps, ep.GetID())
+	pe := r.eps[id]
+	delete(r.eps, id)
 	r.Unlock()
+
+	if pe != nil {
+		close(pe.q)
+	}
 }
 
 // We save the backtrace from this message.  This means that if the app calls

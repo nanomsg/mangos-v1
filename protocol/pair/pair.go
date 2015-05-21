@@ -25,10 +25,15 @@ import (
 
 type pair struct {
 	sock mangos.ProtocolSocket
-	peer mangos.Endpoint
+	peer *pairEp
 	raw  bool
 	w    mangos.Waiter
 	sync.Mutex
+}
+
+type pairEp struct {
+	ep mangos.Endpoint
+	cq chan struct{}
 }
 
 func (x *pair) Init(sock mangos.ProtocolSocket) {
@@ -40,7 +45,7 @@ func (x *pair) Shutdown(expire time.Time) {
 	x.w.WaitAbsTimeout(expire)
 }
 
-func (x *pair) sender(ep mangos.Endpoint) {
+func (x *pair) sender(ep *pairEp) {
 
 	defer x.w.Done()
 	sq := x.sock.SendChannel()
@@ -51,23 +56,25 @@ func (x *pair) sender(ep mangos.Endpoint) {
 	for {
 		select {
 		case m := <-sq:
-			if ep.SendMsg(m) != nil {
+			if ep.ep.SendMsg(m) != nil {
 				m.Free()
 				return
 			}
+		case <-ep.cq:
+			return
 		case <-cq:
 			return
 		}
 	}
 }
 
-func (x *pair) receiver(ep mangos.Endpoint) {
+func (x *pair) receiver(ep *pairEp) {
 
 	rq := x.sock.RecvChannel()
 	cq := x.sock.CloseChannel()
 
 	for {
-		m := ep.RecvMsg()
+		m := ep.ep.RecvMsg()
 		if m == nil {
 			return
 		}
@@ -81,24 +88,27 @@ func (x *pair) receiver(ep mangos.Endpoint) {
 }
 
 func (x *pair) AddEndpoint(ep mangos.Endpoint) {
+	peer := &pairEp{cq: make(chan struct{}), ep: ep}
 	x.Lock()
 	if x.peer != nil {
+		// We already have a connection, reject this one.
 		x.Unlock()
 		ep.Close()
 		return
 	}
-	x.peer = ep
+	x.peer = peer
 	x.Unlock()
 
 	x.w.Add()
-	go x.receiver(ep)
-	go x.sender(ep)
+	go x.receiver(peer)
+	go x.sender(peer)
 }
 
 func (x *pair) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Lock()
-	if x.peer == ep {
+	if peer := x.peer; peer != nil && peer.ep == ep {
 		x.peer = nil
+		close(peer.cq)
 	}
 	x.Unlock()
 }

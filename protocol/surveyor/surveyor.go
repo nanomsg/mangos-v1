@@ -153,13 +153,16 @@ func (x *surveyor) AddEndpoint(ep mangos.Endpoint) {
 }
 
 func (x *surveyor) RemoveEndpoint(ep mangos.Endpoint) {
+	id := ep.GetID()
+
 	x.Lock()
-	defer x.Unlock()
-	peer := x.peers[ep.GetID()]
-	if peer == nil {
-		return
+	peer := x.peers[id]
+	delete(x.peers, id)
+	x.Unlock()
+
+	if peer != nil {
+		close(peer.q)
 	}
-	delete(x.peers, ep.GetID())
 }
 
 func (*surveyor) Number() uint16 {
