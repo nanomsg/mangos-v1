@@ -229,8 +229,8 @@ func (sock *socket) SendMsg(msg *Message) error {
 }
 
 func (sock *socket) Send(b []byte) error {
-	msg := NewMessage(0)
-	msg.Body = b
+	msg := NewMessage(len(b))
+	msg.Body = append(msg.Body, b...)
 	return sock.SendMsg(msg)
 }
 
@@ -268,7 +268,10 @@ func (sock *socket) Recv() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return msg.Body, nil
+	b := make([]byte, 0, len(msg.Body))
+	b = append(b, msg.Body...)
+	msg.Free()
+	return b, nil
 }
 
 func (sock *socket) getTransport(addr string) Transport {
