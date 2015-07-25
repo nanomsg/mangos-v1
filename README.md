@@ -1,6 +1,13 @@
 ## mangos <img src=mangos.jpg align=right>
 
-[![Linux Build Status](https://travis-ci.org/gdamore/mangos.svg?branch=master)](https://travis-ci.org/gdamore/mangos) [![Windows Build Status](https://ci.appveyor.com/api/projects/status/le5wiiqrg6f2si8e?svg=true)](https://ci.appveyor.com/project/gdamore/mangos) [![GoDoc](https://godoc.org/github.com/gdamore/mangos?status.png)](https://godoc.org/github.com/gdamore/mangos) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gdamore/mangos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+[![Linux Status](https://img.shields.io/travis/gdamore/mangos.svg?label=linux)](https://travis-ci.org/gdamore/mangos)
+[![Windows Status](https://img.shields.io/appveyor/ci/gdamore/mangos.svg?label=windows)](https://ci.appveyor.com/project/gdamore/mangos)
+[![GitHub License](https://img.shields.io/github/license/gdamore/mangos.svg)](https://github.com/gdamore/mangos/blob/master/LICENSE)
+[![Issues](https://img.shields.io/github/issues/gdamore/mangos.svg)](https://github.com/gdamore/mangos/issues)
+[![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/gdamore/mangos)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/gdamore/mangos)
+
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
@@ -38,7 +45,7 @@ via my email address, garrett -at- damore -dot- org
 
 ### Using *go get*
 
-    $ go get github.com/gdamore/mangos
+    $ go get -u github.com/gdamore/mangos
 
 After this command *mangos* is ready to use. Its source will be in:
 
