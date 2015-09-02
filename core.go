@@ -66,7 +66,7 @@ func (sock *socket) addPipe(tranpipe Pipe, d *dialer, l *listener) *pipe {
 	p.l = l
 
 	// Either listener or dialer is non-nil -- this could be an assert
-	if l == nil && p == nil {
+	if l == nil && d == nil {
 		p.Close()
 		return nil
 	}
