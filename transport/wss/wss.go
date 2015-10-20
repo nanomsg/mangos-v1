@@ -29,12 +29,12 @@ func (wssTran) Scheme() string {
 	return "wss"
 }
 
-func (w *wssTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
-	return w.w.NewDialer(addr, proto)
+func (w *wssTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+	return w.w.NewDialer(addr, sock)
 }
 
-func (w *wssTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
-	return w.w.NewListener(addr, proto)
+func (w *wssTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+	return w.w.NewListener(addr, sock)
 }
 
 // NewTransport allocates a new wss:// transport.

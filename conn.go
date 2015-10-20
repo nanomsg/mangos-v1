@@ -26,8 +26,10 @@ import (
 type conn struct {
 	c     net.Conn
 	proto Protocol
+	sock  Socket
 	open  bool
 	props map[string]interface{}
+	maxrx int64
 }
 
 // connipc is *almost* like a regular conn, but the IPC protocol insists
@@ -49,14 +51,9 @@ func (p *conn) Recv() (*Message, error) {
 		return nil, err
 	}
 
-	// TBD: This fixed limit is kind of silly, but it keeps
-	// a bogus peer from causing us to try to allocate ridiculous
-	// amounts of memory.  If you don't like it, then prealloc
-	// a buffer.  But for protocols that only use small messages
-	// this can actually be more efficient since we don't allocate
-	// any more space than our peer says we need to.
-	if sz > 1024*1024 || sz < 0 {
-		p.c.Close()
+	// Limit messages to the maximum receive value, if not
+	// unlimited.  This avoids a potential denaial of service.
+	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
 		return nil, ErrTooLong
 	}
 	msg = NewMessage(int(sz))
@@ -126,17 +123,10 @@ func (p *conn) GetProp(n string) (interface{}, error) {
 // and the Transport enclosing structure.   Using this layered interface,
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
-func NewConnPipe(c net.Conn, proto Protocol, props ...interface{}) (Pipe, error) {
-	p := &conn{c: c, proto: proto}
+func NewConnPipe(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
+	p := &conn{c: c, proto: sock.GetProtocol(), sock: sock}
 
-	p.props = make(map[string]interface{})
-	p.props[PropLocalAddr] = c.LocalAddr()
-	p.props[PropRemoteAddr] = c.RemoteAddr()
-
-	for i := 0; i+1 < len(props); i++ {
-		p.props[props[i].(string)] = props[i+1]
-	}
-	if err := p.handshake(); err != nil {
+	if err := p.handshake(props); err != nil {
 		return nil, err
 	}
 
@@ -144,17 +134,10 @@ func NewConnPipe(c net.Conn, proto Protocol, props ...interface{}) (Pipe, error)
 }
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, proto Protocol, props ...interface{}) (Pipe, error) {
-	p := &connipc{conn: conn{c: c, proto: proto}}
+func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
+	p := &connipc{conn: conn{c: c, proto: sock.GetProtocol(), sock: sock}}
 
-	p.props = make(map[string]interface{})
-	p.props[PropLocalAddr] = c.LocalAddr()
-	p.props[PropRemoteAddr] = c.RemoteAddr()
-
-	for i := 0; i+1 < len(props); i++ {
-		p.props[props[i].(string)] = props[i+1]
-	}
-	if err := p.handshake(); err != nil {
+	if err := p.handshake(props); err != nil {
 		return nil, err
 	}
 
@@ -199,14 +182,9 @@ func (p *connipc) Recv() (*Message, error) {
 		return nil, err
 	}
 
-	// TBD: This fixed limit is kind of silly, but it keeps
-	// a bogus peer from causing us to try to allocate ridiculous
-	// amounts of memory.  If you don't like it, then prealloc
-	// a buffer.  But for protocols that only use small messages
-	// this can actually be more efficient since we don't allocate
-	// any more space than our peer says we need to.
-	if sz > 1024*1024 || sz < 0 {
-		p.c.Close()
+	// Limit messages to the maximum receive value, if not
+	// unlimited.  This avoids a potential denaial of service.
+	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
 		return nil, ErrTooLong
 	}
 	msg = NewMessage(int(sz))
@@ -231,8 +209,28 @@ type connHeader struct {
 // handshake establishes an SP connection between peers.  Both sides must
 // send the header, then both sides must wait for the peer's header.
 // As a side effect, the peer's protocol number is stored in the conn.
-func (p *conn) handshake() error {
+// Also, various properties are initialized.
+func (p *conn) handshake(props []interface{}) error {
 	var err error
+
+	p.props = make(map[string]interface{})
+	p.props[PropLocalAddr] = p.c.LocalAddr()
+	p.props[PropRemoteAddr] = p.c.RemoteAddr()
+
+	for len(props) > 2 {
+		switch name := props[0].(type) {
+		case string:
+			p.props[name] = props[1]
+		default:
+			return ErrBadProperty
+		}
+		props = props[2:]
+	}
+
+	if v, e := p.sock.GetOption(OptionMaxRecvSize); e == nil {
+		// socket guarantees this is an integer
+		p.maxrx = int64(v.(int))
+	}
 
 	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Number()}
 	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {

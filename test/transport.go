@@ -29,12 +29,12 @@ import (
 )
 
 type TranTest struct {
-	addr     string
-	tran     mangos.Transport
-	cliCfg   *tls.Config
-	srvCfg   *tls.Config
-	protoRep mangos.Protocol
-	protoReq mangos.Protocol
+	addr    string
+	tran    mangos.Transport
+	cliCfg  *tls.Config
+	srvCfg  *tls.Config
+	sockRep mangos.Socket
+	sockReq mangos.Socket
 }
 
 func NewTranTest(tran mangos.Transport, addr string) *TranTest {
@@ -43,14 +43,14 @@ func NewTranTest(tran mangos.Transport, addr string) *TranTest {
 		tt.cliCfg, _ = GetTlsConfig(false)
 		tt.srvCfg, _ = GetTlsConfig(true)
 	}
-	tt.protoRep = rep.NewProtocol()
-	tt.protoReq = req.NewProtocol()
+	tt.sockRep, _ = rep.NewSocket()
+	tt.sockReq, _ = req.NewSocket()
 	return tt
 }
 
 func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 	t.Logf("Establishing listener for %s", tt.addr)
-	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -73,7 +73,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		t.Logf("Connecting on %s", tt.addr)
-		d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
+		d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
 		if err != nil {
 			t.Errorf("NewDialer failed: %v", err)
 			return
@@ -136,7 +136,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	var err error
 	time.Sleep(100 * time.Millisecond)
 	t.Logf("Testing Duplicate Listen on %s", tt.addr)
-	l1, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	l1, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -153,7 +153,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 		return
 	}
 
-	l2, err := tt.tran.NewListener(tt.addr, tt.protoReq)
+	l2, err := tt.tran.NewListener(tt.addr, tt.sockReq)
 	if err != nil {
 		t.Errorf("NewListener faield: %v", err)
 		return
@@ -173,7 +173,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 }
 
 func (tt *TranTest) TranTestConnRefused(t *testing.T) {
-	d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
+	d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
@@ -198,7 +198,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing REP listener on %s", tt.addr)
-	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -220,7 +220,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting REQ on %s", tt.addr)
-		d, err := tt.tran.NewDialer(tt.addr, tt.protoReq)
+		d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
 		if tt.cliCfg != nil {
 			if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)
@@ -336,7 +336,7 @@ func (tt *TranTest) TranTestScheme(t *testing.T) {
 
 func (tt *TranTest) TranTestListenerSetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid listener SetOption")
-	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("Unable to create listener")
 		return
@@ -354,7 +354,7 @@ func (tt *TranTest) TranTestListenerSetOptionInvalid(t *testing.T) {
 
 func (tt *TranTest) TranTestListenerGetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid listener GetOption")
-	l, err := tt.tran.NewListener(tt.addr, tt.protoRep)
+	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("Unable to create listener")
 		return
@@ -372,7 +372,7 @@ func (tt *TranTest) TranTestListenerGetOptionInvalid(t *testing.T) {
 
 func (tt *TranTest) TranTestDialerSetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid dialer SetOption")
-	d, err := tt.tran.NewDialer(tt.addr, tt.protoRep)
+	d, err := tt.tran.NewDialer(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("Unable to create dialer")
 		return
@@ -390,7 +390,7 @@ func (tt *TranTest) TranTestDialerSetOptionInvalid(t *testing.T) {
 
 func (tt *TranTest) TranTestDialerGetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid listener GetOption")
-	d, err := tt.tran.NewDialer(tt.addr, tt.protoRep)
+	d, err := tt.tran.NewDialer(tt.addr, tt.sockRep)
 	if err != nil {
 		t.Errorf("Unable to create dialer")
 		return
@@ -408,7 +408,7 @@ func (tt *TranTest) TranTestDialerGetOptionInvalid(t *testing.T) {
 
 func (tt *TranTest) TestDialerBadScheme(t *testing.T) {
 	t.Logf("NewDialer with bogus scheme")
-	d, err := tt.tran.NewDialer("bogus://address", tt.protoRep)
+	d, err := tt.tran.NewDialer("bogus://address", tt.sockRep)
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	} else if d != nil {
@@ -420,7 +420,7 @@ func (tt *TranTest) TestDialerBadScheme(t *testing.T) {
 
 func (tt *TranTest) TestListenerBadScheme(t *testing.T) {
 	t.Logf("NewListener with bogus scheme")
-	d, err := tt.tran.NewListener("bogus://address", tt.protoRep)
+	d, err := tt.tran.NewListener("bogus://address", tt.sockRep)
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	} else if d != nil {

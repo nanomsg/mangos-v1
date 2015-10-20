@@ -263,18 +263,18 @@ func (t *inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
 	if _, err := mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
-	return &dialer{addr: addr, proto: proto}, nil
+	return &dialer{addr: addr, proto: sock.GetProtocol()}, nil
 }
 
-func (t *inprocTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	if _, err := mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
-	l := &listener{addr: addr, proto: proto}
+	l := &listener{addr: addr, proto: sock.GetProtocol()}
 	return l, nil
 }
 

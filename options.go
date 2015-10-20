@@ -110,4 +110,24 @@ const (
 	// it will be dropped.  This is used to provide protection against
 	// loops in the topology.  The default is protocol specific.
 	OptionTtl = "TTL"
+
+	// OptionMaxRecvSize supplies the maximum receive size for inbound
+	// messages.  This option exists because the wire protocol allows
+	// the sender to specify the size of the incoming message, and
+	// if the size were overly large, a bad remote actor could perform a
+	// remote Denial-Of-Service by requesting ridiculously  large message
+	// sizes and then stalling on send.  The default value is 1MB.
+	//
+	// A value of 0 removes the limit, but should not be used unless
+	// absolutely sure that the peer is trustworthy.
+	//
+	// Not all transports honor this lmit.  For example, this limit
+	// makes no sense when used with inproc.
+	//
+	// Note that the size includes any Protocol specific header.  It is
+	// better to pick a value that is a little too big, than too small.
+	//
+	// This option is only intended to prevent gross abuse  of the system,
+	// and not a substitute for proper application message verification.
+	OptionMaxRecvSize = "MAX-RCV-SIZE"
 )

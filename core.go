@@ -23,6 +23,9 @@ import (
 // defaultQLen is the default length of the upper read/write queues.
 const defaultQLen = 128
 
+// defaultMaxRxSize is the default maximum Rx size
+const defaultMaxRxSize = 1024 * 1024
+
 // socket is the meaty part of the core information.
 type socket struct {
 	proto Protocol
@@ -45,6 +48,7 @@ type socket struct {
 	reconntime time.Duration // reconnect time after error or disconnect
 	reconnmax  time.Duration // max reconnect interval
 	linger     time.Duration
+        maxRxSize  int           // max recv size
 
 	pipes []*pipe
 
@@ -114,6 +118,7 @@ func newSocket(proto Protocol) *socket {
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
 	sock.linger = time.Second
+	sock.maxRxSize = defaultMaxRxSize
 
 	// Add some conditionals now -- saves checks later
 	if i, ok := interface{}(proto).(ProtocolRecvHook); ok {
@@ -318,7 +323,7 @@ func (sock *socket) NewDialer(addr string, options map[string]interface{}) (Dial
 	if t == nil {
 		return nil, ErrBadTran
 	}
-	if d.d, err = t.NewDialer(addr, sock.proto); err != nil {
+	if d.d, err = t.NewDialer(addr, sock); err != nil {
 		return nil, err
 	}
 	for n, v := range options {
@@ -356,7 +361,7 @@ func (sock *socket) NewListener(addr string, options map[string]interface{}) (Li
 	}
 	var err error
 	l := &listener{sock: sock, addr: addr}
-	l.l, err = t.NewListener(addr, sock.proto)
+	l.l, err = t.NewListener(addr, sock)
 	if err != nil {
 		return nil, err
 	}
@@ -419,6 +424,19 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		sock.urqLen = length
 		sock.urq = make(chan *Message, sock.urqLen)
 		return nil
+	case OptionMaxRecvSize:
+		sock.Lock()
+		defer sock.Unlock()
+		switch value := value.(type) {
+		case int:
+			if value < 0 {
+				return ErrBadValue
+			}
+			sock.maxRxSize = value
+			return nil
+		default:
+			return ErrBadValue
+		}
 	}
 	if matched {
 		return nil
@@ -456,6 +474,10 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		sock.Lock()
 		defer sock.Unlock()
 		return sock.urqLen, nil
+	case OptionMaxRecvSize:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.maxRxSize, nil
 	}
 	return nil, ErrBadOption
 }
@@ -602,8 +624,8 @@ func (l *listener) Listen() error {
 	if err := l.l.Listen(); err != nil {
 		return err
 	}
-	l.sock.listeners = append(l.sock.listeners, l)
 	l.sock.Lock()
+	l.sock.listeners = append(l.sock.listeners, l)
 	l.sock.active = true
 	l.sock.Unlock()
 	go l.serve()

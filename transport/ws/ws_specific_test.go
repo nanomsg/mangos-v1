@@ -26,13 +26,15 @@ import (
 )
 
 func TestWebsockPath(t *testing.T) {
+	sockReq, _ := req.NewSocket()
+	sockRep, _ := rep.NewSocket()
 	tran := NewTransport()
-	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", req.NewProtocol())
+	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
 		return
 	}
-	d, e := tran.NewDialer("ws://127.0.0.1:3335/boguspath", rep.NewProtocol())
+	d, e := tran.NewDialer("ws://127.0.0.1:3335/boguspath", sockRep)
 	if e != nil {
 		t.Errorf("Failed new Dialer: %v", e)
 		return
@@ -62,8 +64,10 @@ func bogusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestWebsockMux(t *testing.T) {
+	sockReq, _ := req.NewSocket()
+	sockRep, _ := rep.NewSocket()
 	tran := NewTransport()
-	l, e := tran.NewListener("ws://127.0.0.1:3336/mysock", req.NewProtocol())
+	l, e := tran.NewListener("ws://127.0.0.1:3336/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
 		return
@@ -74,7 +78,7 @@ func TestWebsockMux(t *testing.T) {
 	}
 	mux := muxi.(*http.ServeMux)
 	mux.HandleFunc("/bogus", bogusHandler)
-	d, e := tran.NewDialer("ws://127.0.0.1:3336/bogus", rep.NewProtocol())
+	d, e := tran.NewDialer("ws://127.0.0.1:3336/bogus", sockRep)
 	if e != nil {
 		t.Errorf("Failed new Dialer: %v", e)
 		return
@@ -123,8 +127,10 @@ func TestWebsockMux(t *testing.T) {
 // This test verifies that we can use stock http server instances with
 // our own websocket handler.
 func TestWebsockHandler(t *testing.T) {
+	sockReq, _ := req.NewSocket()
+	sockRep, _ := rep.NewSocket()
 	tran := NewTransport()
-	l, e := tran.NewListener("ws://127.0.0.1:3337/mysock", req.NewProtocol())
+	l, e := tran.NewListener("ws://127.0.0.1:3337/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
 		return
@@ -144,7 +150,7 @@ func TestWebsockHandler(t *testing.T) {
 	// instances gracefully.
 	go http.ListenAndServe("127.0.0.1:3337", mux)
 
-	d, e := tran.NewDialer("ws://127.0.0.1:3337/bogus", rep.NewProtocol())
+	d, e := tran.NewDialer("ws://127.0.0.1:3337/bogus", sockRep)
 	if e != nil {
 		t.Errorf("Failed new Dialer: %v", e)
 		return

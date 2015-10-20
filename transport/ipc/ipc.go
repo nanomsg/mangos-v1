@@ -42,9 +42,9 @@ func (o options) set(string, interface{}) error {
 }
 
 type dialer struct {
-	addr  *net.UnixAddr
-	proto mangos.Protocol
-	opts  options
+	addr *net.UnixAddr
+	sock mangos.Socket
+	opts options
 }
 
 // Dial implements the PipeDialer Dial method
@@ -54,7 +54,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipeIPC(conn, d.proto)
+	return mangos.NewConnPipeIPC(conn, d.sock)
 }
 
 // SetOption implements a stub PipeDialer SetOption method.
@@ -69,7 +69,7 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 
 type listener struct {
 	addr     *net.UnixAddr
-	proto    mangos.Protocol
+	sock     mangos.Socket
 	listener *net.UnixListener
 	opts     options
 }
@@ -95,7 +95,7 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipeIPC(conn, l.proto)
+	return mangos.NewConnPipeIPC(conn, l.sock)
 }
 
 // Close implements the PipeListener Close method.
@@ -122,14 +122,14 @@ func (t *ipcTran) Scheme() string {
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *ipcTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
 	var err error
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	d := &dialer{proto: proto, opts: nil}
+	d := &dialer{sock: sock, opts: nil}
 	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
@@ -137,9 +137,9 @@ func (t *ipcTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 }
 
 // NewListener implements the Transport NewListener method.
-func (t *ipcTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	var err error
-	l := &listener{proto: proto}
+	l := &listener{sock: sock}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err

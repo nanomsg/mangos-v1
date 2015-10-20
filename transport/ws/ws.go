@@ -430,17 +430,19 @@ func (wsTran) Scheme() string {
 	return "ws"
 }
 
-func (wsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
 	iswss := strings.HasPrefix(addr, "wss://")
 	opts := make(map[string]interface{})
 
 	opts[mangos.OptionNoDelay] = true
 	opts[mangos.OptionKeepAlive] = true
+	proto := sock.GetProtocol()
 
 	return &dialer{addr: addr, proto: proto, iswss: iswss, opts: opts}, nil
 }
 
-func (t wsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+	proto := sock.GetProtocol()
 	l, e := t.listener(addr, proto)
 	if e == nil {
 		l.mux.Handle(l.url_.Path, l.wssvr)

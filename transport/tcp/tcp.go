@@ -73,7 +73,7 @@ func (o options) configTCP(conn *net.TCPConn) error {
 
 type dialer struct {
 	addr  *net.TCPAddr
-	proto mangos.Protocol
+	sock mangos.Socket
 	opts  options
 }
 
@@ -87,7 +87,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 		conn.Close()
 		return nil, err
 	}
-	return mangos.NewConnPipe(conn, d.proto)
+	return mangos.NewConnPipe(conn, d.sock)
 }
 
 func (d *dialer) SetOption(n string, v interface{}) error {
@@ -101,7 +101,7 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 type listener struct {
 	addr     *net.TCPAddr
 	bound    net.Addr
-	proto    mangos.Protocol
+	sock     mangos.Socket
 	listener *net.TCPListener
 	opts     options
 }
@@ -119,7 +119,7 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 		conn.Close()
 		return nil, err
 	}
-	return mangos.NewConnPipe(conn, l.proto)
+	return mangos.NewConnPipe(conn, l.sock)
 }
 
 func (l *listener) Listen() (err error) {
@@ -158,9 +158,9 @@ func (t *tcpTran) Scheme() string {
 	return "tcp"
 }
 
-func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
 	var err error
-	d := &dialer{proto: proto, opts: newOptions()}
+	d := &dialer{sock: sock, opts: newOptions()}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
@@ -172,9 +172,9 @@ func (t *tcpTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 	return d, nil
 }
 
-func (t *tcpTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	var err error
-	l := &listener{proto: proto, opts: newOptions()}
+	l := &listener{sock: sock, opts: newOptions()}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err

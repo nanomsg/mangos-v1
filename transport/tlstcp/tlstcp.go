@@ -74,7 +74,7 @@ func newOptions(t *tlsTran) options {
 
 type dialer struct {
 	addr  *net.TCPAddr
-	proto mangos.Protocol
+	sock  mangos.Socket
 	opts  options
 }
 
@@ -93,7 +93,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 		config = v.(*tls.Config)
 	}
 	conn := tls.Client(tconn, config)
-	return mangos.NewConnPipe(conn, d.proto,
+	return mangos.NewConnPipe(conn, d.sock,
 		mangos.PropTlsConnState, conn.ConnectionState())
 }
 
@@ -106,7 +106,7 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 }
 
 type listener struct {
-	proto    mangos.Protocol
+	sock     mangos.Socket
 	addr     *net.TCPAddr
 	listener *net.TCPListener
 	opts     options
@@ -150,7 +150,7 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 		return nil, err
 	}
 
-	return mangos.NewConnPipe(tls.Server(conn, l.config), l.proto)
+	return mangos.NewConnPipe(tls.Server(conn, l.config), l.sock)
 }
 
 func (l *listener) Close() error {
@@ -175,14 +175,14 @@ func (t *tlsTran) Scheme() string {
 	return "tls+tcp"
 }
 
-func (t *tlsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDialer, error) {
+func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
 	var err error
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	d := &dialer{proto: proto, opts: newOptions(t)}
+	d := &dialer{sock: sock, opts: newOptions(t)}
 	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
 		return nil, err
 	}
@@ -190,9 +190,9 @@ func (t *tlsTran) NewDialer(addr string, proto mangos.Protocol) (mangos.PipeDial
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *tlsTran) NewListener(addr string, proto mangos.Protocol) (mangos.PipeListener, error) {
+func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	var err error
-	l := &listener{proto: proto, opts: newOptions(t)}
+	l := &listener{sock: sock, opts: newOptions(t)}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err

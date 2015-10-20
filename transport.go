@@ -132,13 +132,13 @@ type Transport interface {
 	Scheme() string
 
 	// NewDialer creates a new Dialer for this Transport.
-	NewDialer(url string, protocol Protocol) (PipeDialer, error)
+	NewDialer(url string, sock Socket) (PipeDialer, error)
 
 	// NewListener creates a new PipeListener for this Transport.
 	// This generally also arranges for an OS-level file descriptor to be
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
-	NewListener(url string, protocol Protocol) (PipeListener, error)
+	NewListener(url string, sock Socket) (PipeListener, error)
 }
 
 func StripScheme(t Transport, addr string) (string, error) {

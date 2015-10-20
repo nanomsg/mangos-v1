@@ -25,13 +25,13 @@ import (
 )
 
 var tran = NewTransport()
-var protoRep = rep.NewProtocol()
-var protoReq = req.NewProtocol()
+var sockRep, _ = rep.NewSocket()
+var sockReq, _ = req.NewSocket()
 
 func TestTCPListenAndAccept(t *testing.T) {
 	addr := "tcp://127.0.0.1:3333"
 	t.Logf("Establishing accepter")
-	l, err := tran.NewListener(addr, protoRep)
+	l, err := tran.NewListener(addr, sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -43,7 +43,7 @@ func TestTCPListenAndAccept(t *testing.T) {
 	}
 
 	go func() {
-		d, err := tran.NewDialer(addr, protoReq)
+		d, err := tran.NewDialer(addr, sockReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 			return
@@ -82,7 +82,7 @@ func TestTCPListenAndAccept(t *testing.T) {
 func TestTCPAnonymousPort(t *testing.T) {
 	addr := "tcp://127.0.0.1:0"
 	t.Logf("Establishing accepter")
-	l, err := tran.NewListener(addr, protoRep)
+	l, err := tran.NewListener(addr, sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -96,7 +96,7 @@ func TestTCPAnonymousPort(t *testing.T) {
 	t.Logf("Bound to %s", baddr)
 
 	go func() {
-		d, err := tran.NewDialer(baddr, protoReq)
+		d, err := tran.NewDialer(baddr, sockReq)
 		if err != nil {
 			t.Errorf("NewDialier failed: %v", err)
 			return
@@ -135,7 +135,7 @@ func TestTCPAnonymousPort(t *testing.T) {
 func TestTCPDuplicateListen(t *testing.T) {
 	addr := "tcp://127.0.0.1:3333"
 	var err error
-	l1, err := tran.NewListener(addr, protoRep)
+	l1, err := tran.NewListener(addr, sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -146,7 +146,7 @@ func TestTCPDuplicateListen(t *testing.T) {
 		return
 	}
 
-	l2, err := tran.NewListener(addr, protoReq)
+	l2, err := tran.NewListener(addr, sockReq)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -162,7 +162,7 @@ func TestTCPDuplicateListen(t *testing.T) {
 func TestTCPConnRefused(t *testing.T) {
 	addr := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := tran.NewDialer(addr, protoReq)
+	d, err := tran.NewDialer(addr, sockReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 		return
@@ -183,7 +183,7 @@ func TestTCPSendRecv(t *testing.T) {
 	ch := make(chan *mangos.Message)
 
 	t.Logf("Establishing listener")
-	l, err := tran.NewListener(addr, protoRep)
+	l, err := tran.NewListener(addr, sockRep)
 	if err != nil {
 		t.Errorf("NewListener failed: %v", err)
 		return
@@ -199,7 +199,7 @@ func TestTCPSendRecv(t *testing.T) {
 
 		// Client side
 		t.Logf("Connecting")
-		d, err := tran.NewDialer(addr, protoReq)
+		d, err := tran.NewDialer(addr, sockReq)
 
 		client, err := d.Dial()
 		if err != nil {
@@ -300,7 +300,7 @@ func TestTCPSendRecv(t *testing.T) {
 func TestTCPOptions(t *testing.T) {
 	addr := "tcp://127.0.0.1:19" // Port 19 is chargen, rarely in use
 	var err error
-	d, err := tran.NewDialer(addr, protoReq)
+	d, err := tran.NewDialer(addr, sockReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 		return

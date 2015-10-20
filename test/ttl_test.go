@@ -52,7 +52,7 @@ func TestTtlInvalidNegative(t *testing.T) {
 	}
 	defer srep.Close()
 
-	err = srep.SetOption(mangos.OptionTtl, 0)
+	err = srep.SetOption(mangos.OptionTtl, -1)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
