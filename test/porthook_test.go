@@ -161,6 +161,8 @@ func TestPortHook(t *testing.T) {
 	sockrep.Close()
 	sockreq.Close()
 
+	time.Sleep(100 * time.Millisecond)
+
 	clitest.Lock()
 	defer clitest.Unlock()
 
