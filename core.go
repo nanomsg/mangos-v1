@@ -48,7 +48,7 @@ type socket struct {
 	reconntime time.Duration // reconnect time after error or disconnect
 	reconnmax  time.Duration // max reconnect interval
 	linger     time.Duration
-        maxRxSize  int           // max recv size
+	maxRxSize  int // max recv size
 
 	pipes []*pipe
 

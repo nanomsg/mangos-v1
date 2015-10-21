@@ -72,9 +72,9 @@ func (o options) configTCP(conn *net.TCPConn) error {
 }
 
 type dialer struct {
-	addr  *net.TCPAddr
+	addr *net.TCPAddr
 	sock mangos.Socket
-	opts  options
+	opts options
 }
 
 func (d *dialer) Dial() (mangos.Pipe, error) {

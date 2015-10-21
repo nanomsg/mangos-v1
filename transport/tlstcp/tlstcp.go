@@ -73,9 +73,9 @@ func newOptions(t *tlsTran) options {
 }
 
 type dialer struct {
-	addr  *net.TCPAddr
-	sock  mangos.Socket
-	opts  options
+	addr *net.TCPAddr
+	sock mangos.Socket
+	opts options
 }
 
 func (d *dialer) Dial() (mangos.Pipe, error) {

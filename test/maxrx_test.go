@@ -23,6 +23,7 @@ import (
 	"github.com/gdamore/mangos/protocol/rep"
 	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/tcp"
+	"github.com/gdamore/mangos/transport/ws"
 )
 
 func TestMaxRxSizeInvalidNegative(t *testing.T) {
@@ -190,4 +191,8 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 
 func TestMaxRxTCP(t *testing.T) {
 	testMaxRx(t, AddrTestTCP, tcp.NewTransport())
+}
+
+func TestMaxRxWS(t *testing.T) {
+	testMaxRx(t, AddrTestWS, ws.NewTransport())
 }

@@ -18,7 +18,7 @@ package ws
 
 import (
 	"crypto/tls"
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"net/url"
@@ -98,22 +98,21 @@ type wsPipe struct {
 	wg    sync.WaitGroup
 	props map[string]interface{}
 	iswss bool
+	dtype int
 }
 
 type wsTran int
 
 func (w *wsPipe) Recv() (*mangos.Message, error) {
 
-	var buf []byte
-
-	if err := websocket.Message.Receive(w.ws, &buf); err != nil {
+	// We ignore the message type for receive.
+	if _, body, err := w.ws.ReadMessage(); err != nil {
 		return nil, err
+	} else {
+		msg := mangos.NewMessage(0)
+		msg.Body = body
+		return msg, nil
 	}
-	msg := mangos.NewMessage(len(buf))
-
-	// This is kind of suboptimal copying...
-	msg.Body = append(msg.Body, buf...)
-	return msg, nil
 }
 
 func (w *wsPipe) Send(m *mangos.Message) error {
@@ -127,7 +126,7 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 	} else {
 		buf = m.Body
 	}
-	if err := websocket.Message.Send(w.ws, buf); err != nil {
+	if err := w.ws.WriteMessage(w.dtype, buf); err != nil {
 		return err
 	}
 	m.Free()
@@ -161,82 +160,33 @@ func (w *wsPipe) GetProp(name string) (interface{}, error) {
 }
 
 type dialer struct {
-	addr   string // url
-	proto  mangos.Protocol
-	origin string
-	opts   options
-	iswss  bool
+	addr  string // url
+	proto mangos.Protocol
+	opts  options
+	iswss bool
+	maxrx int
 }
 
 func (d *dialer) Dial() (mangos.Pipe, error) {
 	var w *wsPipe
 
-	pname := d.proto.PeerName() + ".sp.nanomsg.org"
-	// We have to supply an origin because Go's websocket
-	// implementation seems to require it.  We fake a garbage one.
-	// Perhaps we should allow applications to fake this out.
-	d.origin = "x://"
+	wd := &websocket.Dialer{}
 
-	config, err := websocket.NewConfig(d.addr, d.origin)
-	if err != nil {
-		return nil, err
-	}
-	config.Protocol = append([]string{}, pname)
-
+	wd.Subprotocols = []string{d.proto.PeerName() + ".sp.nanomsg.org"}
 	if v, ok := d.opts[mangos.OptionTlsConfig]; ok {
-		config.TlsConfig = v.(*tls.Config)
-	}
-
-	host := config.Location.Host
-	if strings.Index(host, ":") < 0 {
-		if d.iswss {
-			host = host + ":443"
-		} else {
-			host = host + ":80"
-		}
-	}
-	taddr, err := net.ResolveTCPAddr("tcp", host)
-	if err != nil {
-		return nil, err
-	}
-	tconn, err := net.DialTCP("tcp", nil, taddr)
-	if err != nil {
-		return nil, err
-	}
-	laddr := tconn.LocalAddr()
-
-	if v, ok := d.opts[mangos.OptionNoDelay]; ok {
-		if err := tconn.SetNoDelay(v.(bool)); err != nil {
-			tconn.Close()
-			return nil, err
-		}
-	}
-	if v, ok := d.opts[mangos.OptionKeepAlive]; ok {
-		if err := tconn.SetKeepAlive(v.(bool)); err != nil {
-			tconn.Close()
-			return nil, err
-		}
+		wd.TLSClientConfig = v.(*tls.Config)
 	}
 
 	w = &wsPipe{proto: d.proto, addr: d.addr, open: true}
+	w.dtype = websocket.BinaryMessage
 	w.props = make(map[string]interface{})
 
-	var conn net.Conn
-	if d.iswss {
-		tlsconn := tls.Client(tconn, config.TlsConfig)
-		w.props[mangos.PropTlsConnState] = tlsconn.ConnectionState()
-		w.iswss = true
-		conn = tlsconn
-	} else {
-		conn = tconn
-	}
-
-	if w.ws, err = websocket.NewClient(config, conn); err != nil {
-		conn.Close()
+	var err error
+	if w.ws, _, err = wd.Dial(d.addr, nil); err != nil {
 		return nil, err
 	}
-
-	w.props[mangos.PropLocalAddr] = laddr
+	w.ws.SetReadLimit(int64(d.maxrx))
+	w.props[mangos.PropLocalAddr] = w.ws.LocalAddr()
 	w.props[mangos.PropRemoteAddr] = w.ws.RemoteAddr()
 
 	w.wg.Add(1)
@@ -257,7 +207,7 @@ type listener struct {
 	cv       sync.Cond
 	running  bool
 	addr     string
-	wssvr    websocket.Server
+	ug       websocket.Upgrader
 	htsvr    *http.Server
 	mux      *http.ServeMux
 	url_     *url.URL
@@ -265,6 +215,7 @@ type listener struct {
 	proto    mangos.Protocol
 	opts     options
 	iswss    bool
+	maxrx    int
 }
 
 func (l *listener) SetOption(n string, v interface{}) error {
@@ -281,7 +232,7 @@ func (l *listener) GetOption(n string) (interface{}, error) {
 		// that Accept() will appear to hang, even though Listen()
 		// is not called yet.
 		l.running = true
-		return l.wssvr, nil
+		return l, nil
 	}
 	return l.opts.get(n)
 }
@@ -349,7 +300,7 @@ func (l *listener) Accept() (mangos.Pipe, error) {
 	return w, nil
 }
 
-func (l *listener) handler(ws *websocket.Conn) {
+func (l *listener) handler(ws *websocket.Conn, req *http.Request) {
 	l.lock.Lock()
 
 	if !l.running {
@@ -358,16 +309,22 @@ func (l *listener) handler(ws *websocket.Conn) {
 		return
 	}
 
-	w := &wsPipe{ws: ws, addr: l.addr, proto: l.proto, open: true}
-	w.iswss = l.iswss
+	if ws.Subprotocol() != l.proto.Name()+".sp.nanomsg.org" {
+		ws.Close()
+		l.lock.Unlock()
+		return
+	}
 
-	req := ws.Request()
+	w := &wsPipe{ws: ws, addr: l.addr, proto: l.proto, open: true}
+	w.dtype = websocket.BinaryMessage
+	w.iswss = l.iswss
+	w.ws.SetReadLimit(int64(l.maxrx))
 
 	w.props = make(map[string]interface{})
 	w.props[mangos.PropLocalAddr] = ws.LocalAddr()
-	w.props[mangos.PropRemoteAddr], _ = net.ResolveTCPAddr("tcp", req.RemoteAddr)
+	w.props[mangos.PropRemoteAddr] = ws.RemoteAddr()
 
-	if l.iswss {
+	if req.TLS != nil {
 		w.props[mangos.PropTlsConnState] = *req.TLS
 	}
 
@@ -379,17 +336,6 @@ func (l *listener) handler(ws *websocket.Conn) {
 	// We must not return before the socket is closed, because
 	// our caller will close the websocket on our return.
 	w.wg.Wait()
-}
-
-func (l *listener) handshake(c *websocket.Config, _ *http.Request) error {
-	pname := l.proto.Name() + ".sp.nanomsg.org"
-	for _, p := range c.Protocol {
-		if p == pname {
-			c.Protocol = append([]string{}, p)
-			return nil
-		}
-	}
-	return websocket.ErrBadWebSocketProtocol
 }
 
 func (l *listener) Handle(pattern string, handler http.Handler) {
@@ -419,7 +365,11 @@ func (l *listener) Close() error {
 }
 
 func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	l.wssvr.ServeHTTP(w, r)
+	ws, err := l.ug.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	l.handler(ws, r)
 }
 
 func (l *listener) Address() string {
@@ -437,15 +387,22 @@ func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, err
 	opts[mangos.OptionNoDelay] = true
 	opts[mangos.OptionKeepAlive] = true
 	proto := sock.GetProtocol()
+	maxrx := 0
+	if v, e := sock.GetOption(mangos.OptionMaxRecvSize); e == nil {
+		maxrx = v.(int)
+	}
 
-	return &dialer{addr: addr, proto: proto, iswss: iswss, opts: opts}, nil
+	return &dialer{addr: addr, proto: proto, iswss: iswss, opts: opts, maxrx: maxrx}, nil
 }
 
 func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	proto := sock.GetProtocol()
 	l, e := t.listener(addr, proto)
 	if e == nil {
-		l.mux.Handle(l.url_.Path, l.wssvr)
+		if v, e := sock.GetOption(mangos.OptionMaxRecvSize); e == nil {
+			l.maxrx = v.(int)
+		}
+		l.mux.Handle(l.url_.Path, l)
 	}
 	return l, e
 }
@@ -454,8 +411,7 @@ func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 	var err error
 	l := &listener{proto: proto, opts: make(map[string]interface{})}
 	l.cv.L = &l.lock
-	l.wssvr.Handler = l.handler
-	l.wssvr.Handshake = l.handshake
+	l.ug.Subprotocols = []string{proto.Name() + ".sp.nanomsg.org"}
 
 	if strings.HasPrefix(addr, "wss://") {
 		l.iswss = true
