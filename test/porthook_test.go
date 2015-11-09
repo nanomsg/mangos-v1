@@ -183,22 +183,28 @@ func TestPortHook(t *testing.T) {
 	}
 
 	if len(srvtest.calls) != len(srvtest.expect) {
-		t.Errorf("Server got wrong # calls, %d != %d", len(srvtest.calls), len(srvtest.expect))
+		t.Errorf("Server got wrong # calls, %d != %d",
+			len(srvtest.calls), len(srvtest.expect))
 		return
 	}
 	for i := range srvtest.calls {
 		if srvtest.calls[i].String() != srvtest.expect[i].String() {
-			t.Errorf("Server hook %d wrong: %s != %s", i)
+			t.Errorf("Server hook %d wrong: %s != %s", i,
+				srvtest.calls[i].String(),
+				srvtest.expect[i].String())
 		}
 	}
 
 	if len(clitest.calls) != len(clitest.expect) {
-		t.Errorf("Client got wrong # calls, %d != %d", len(clitest.calls), len(clitest.expect))
+		t.Errorf("Client got wrong # calls, %d != %d",
+			len(clitest.calls), len(clitest.expect))
 		return
 	}
 	for i := range clitest.calls {
 		if clitest.calls[i].String() != clitest.expect[i].String() {
-			t.Errorf("Server hook %d wrong: %s != %s", i)
+			t.Errorf("Server hook %d wrong: %s != %s", i,
+				clitest.calls[i].String(),
+				clitest.expect[i].String())
 		}
 	}
 }

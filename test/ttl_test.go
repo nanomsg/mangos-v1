@@ -40,7 +40,7 @@ func TestTtlInvalidZero(t *testing.T) {
 	case nil:
 		t.Errorf("Negative test fail, permitted zero TTL")
 	default:
-		t.Errorf("Negative test fail (0), wrong error %v")
+		t.Errorf("Negative test fail (0), wrong error %v", err)
 	}
 }
 
@@ -58,7 +58,7 @@ func TestTtlInvalidNegative(t *testing.T) {
 	case nil:
 		t.Errorf("Negative test fail, permitted negative TTL")
 	default:
-		t.Errorf("Negative test fail (-1), wrong error %v")
+		t.Errorf("Negative test fail (-1), wrong error %v", err)
 	}
 }
 
@@ -76,7 +76,7 @@ func TestTtlInvalidTooBig(t *testing.T) {
 	case nil:
 		t.Errorf("Negative test fail, permitted too large TTL")
 	default:
-		t.Errorf("Negative test fail (256), wrong error %v")
+		t.Errorf("Negative test fail (256), wrong error %v", err)
 	}
 }
 
@@ -94,7 +94,7 @@ func TestTtlInvalidNotInt(t *testing.T) {
 	case nil:
 		t.Errorf("Negative test fail, permitted non-int value")
 	default:
-		t.Errorf("Negative test fail (garbage), wrong error %v")
+		t.Errorf("Negative test fail (garbage), wrong error %v", err)
 	}
 }
 

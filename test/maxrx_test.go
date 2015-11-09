@@ -40,7 +40,7 @@ func TestMaxRxSizeInvalidNegative(t *testing.T) {
 	case nil:
 		t.Errorf("Negative test fail, permitted negative max recv size")
 	default:
-		t.Errorf("Negative test fail (-1), wrong error %v")
+		t.Errorf("Negative test fail (-1), wrong error %v", err)
 	}
 }
 
@@ -58,7 +58,7 @@ func TestMaxRxSizeInvalidNotInt(t *testing.T) {
 	case nil:
 		t.Errorf("Negative test fail, permitted non-int value")
 	default:
-		t.Errorf("Negative test fail (garbage), wrong error %v")
+		t.Errorf("Negative test fail (garbage), wrong error %v", err)
 	}
 }
 

@@ -93,7 +93,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 			addr := v.(net.Addr)
 			t.Logf("Dialed on local net %s addr %s", addr.Network(), addr.String())
 		} else {
-			t.Logf("err is ", err.Error())
+			t.Logf("err is %v", err.Error())
 		}
 		if v, err := client.GetProp(mangos.PropRemoteAddr); err == nil {
 			addr := v.(net.Addr)
