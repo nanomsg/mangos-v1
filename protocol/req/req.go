@@ -298,7 +298,7 @@ func (r *req) GetOption(option string) (interface{}, error) {
 	}
 }
 
-// NewReq returns a new REQ protocol object.
+// NewProtocol returns a new REQ protocol object.
 func NewProtocol() mangos.Protocol {
 	return &req{}
 }

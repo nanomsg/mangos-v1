@@ -29,11 +29,11 @@ func (o options) get(name string) (interface{}, error) {
 	if o == nil {
 		return nil, mangos.ErrBadOption
 	}
-	if v, ok := o[name]; !ok {
+	v, ok := o[name]
+	if !ok {
 		return nil, mangos.ErrBadOption
-	} else {
-		return v, nil
 	}
+	return v, nil
 }
 
 // SetOption sets an option.  We have none, so just ErrBadOption.
@@ -76,11 +76,11 @@ type listener struct {
 
 // Listen implements the PipeListener Listen method.
 func (l *listener) Listen() error {
-	if listener, err := net.ListenUnix("unix", l.addr); err != nil {
+	listener, err := net.ListenUnix("unix", l.addr)
+	if err != nil {
 		return err
-	} else {
-		l.listener = listener
 	}
+	l.listener = listener
 	return nil
 }
 

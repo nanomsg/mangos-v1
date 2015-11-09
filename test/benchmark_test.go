@@ -38,8 +38,8 @@ func benchmarkReq(t *testing.B, url string, size int) {
 	cliopts := make(map[string]interface{})
 
 	if strings.HasPrefix(url, "wss://") || strings.HasPrefix(url, "tls+tcp://") {
-		srvopts[mangos.OptionTlsConfig] = srvCfg
-		cliopts[mangos.OptionTlsConfig] = cliCfg
+		srvopts[mangos.OptionTLSConfig] = srvCfg
+		cliopts[mangos.OptionTLSConfig] = cliCfg
 	}
 	srvrdy := make(chan struct{})
 	srvsock, err := rep.NewSocket()
@@ -120,8 +120,8 @@ func benchmarkPair(t *testing.B, url string, size int) {
 	cliopts := make(map[string]interface{})
 
 	if strings.HasPrefix(url, "wss://") || strings.HasPrefix(url, "tls+tcp://") {
-		srvopts[mangos.OptionTlsConfig] = srvCfg
-		cliopts[mangos.OptionTlsConfig] = cliCfg
+		srvopts[mangos.OptionTLSConfig] = srvCfg
+		cliopts[mangos.OptionTLSConfig] = cliCfg
 	}
 
 	finish := make(chan struct{})

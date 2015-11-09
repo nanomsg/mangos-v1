@@ -52,8 +52,11 @@ func debugf(format string, args ...interface{}) {
 	}
 }
 
+// DrainChannel waits for the channel of Messages to finish
+// emptying (draining) for up to the expiration.  It returns
+// true if the drain completed (the channel is empty), false otherwise.
 func DrainChannel(ch chan<- *Message, expire time.Time) bool {
-	var dur time.Duration = time.Millisecond * 10
+	var dur = time.Millisecond * 10
 
 	for {
 		if len(ch) == 0 {

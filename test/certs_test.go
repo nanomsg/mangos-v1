@@ -54,7 +54,7 @@ func TestNewKeys(t *testing.T) {
 
 func TestNewTLSConfig(t *testing.T) {
 	t.Logf("Creating TLS config")
-	cfg, err := NewTlsConfig(true)
+	cfg, err := NewTLSConfig(true)
 	if err != nil {
 		t.Errorf("Failed generation: %v", err)
 		return

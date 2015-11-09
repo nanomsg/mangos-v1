@@ -141,6 +141,8 @@ type Transport interface {
 	NewListener(url string, sock Socket) (PipeListener, error)
 }
 
+// StripScheme removes the leading scheme (such as "http://") from an address
+// string.  This is mostly a utility for benefit of transport providers.
 func StripScheme(t Transport, addr string) (string, error) {
 	if !strings.HasPrefix(addr, t.Scheme()+"://") {
 		return addr, ErrBadTran

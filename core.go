@@ -135,7 +135,7 @@ func newSocket(proto Protocol) *socket {
 
 // MakeSocket is intended for use by Protocol implementations.  The intention
 // is that they can wrap this to provide a "proto.NewSocket()" implementation.
-func MakeSocket(proto Protocol) *socket {
+func MakeSocket(proto Protocol) Socket {
 	return newSocket(proto)
 }
 

@@ -33,7 +33,7 @@ func (o options) get(name string) (interface{}, error) {
 
 func (o options) set(name string, val interface{}) error {
 	switch name {
-	case mangos.OptionTlsConfig:
+	case mangos.OptionTLSConfig:
 		switch v := val.(type) {
 		case *tls.Config:
 			// Make a private copy
@@ -68,7 +68,7 @@ func (o options) configTCP(conn *net.TCPConn) error {
 
 func newOptions(t *tlsTran) options {
 	o := make(map[string]interface{})
-	o[mangos.OptionTlsConfig] = t.config
+	o[mangos.OptionTLSConfig] = t.config
 	return options(o)
 }
 
@@ -89,12 +89,12 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 		tconn.Close()
 		return nil, err
 	}
-	if v, ok := d.opts[mangos.OptionTlsConfig]; ok {
+	if v, ok := d.opts[mangos.OptionTLSConfig]; ok {
 		config = v.(*tls.Config)
 	}
 	conn := tls.Client(tconn, config)
 	return mangos.NewConnPipe(conn, d.sock,
-		mangos.PropTlsConnState, conn.ConnectionState())
+		mangos.PropTLSConnState, conn.ConnectionState())
 }
 
 func (d *dialer) SetOption(n string, v interface{}) error {
@@ -116,16 +116,16 @@ type listener struct {
 func (l *listener) Listen() error {
 
 	var err error
-	if v, ok := l.opts[mangos.OptionTlsConfig]; !ok {
-		return mangos.ErrTlsNoConfig
-	} else {
-		l.config = v.(*tls.Config)
+	v, ok := l.opts[mangos.OptionTLSConfig]
+	if !ok {
+		return mangos.ErrTLSNoConfig
 	}
+	l.config = v.(*tls.Config)
 	if l.config == nil {
-		return mangos.ErrTlsNoConfig
+		return mangos.ErrTLSNoConfig
 	}
 	if l.config.Certificates == nil || len(l.config.Certificates) == 0 {
-		return mangos.ErrTlsNoCert
+		return mangos.ErrTLSNoCert
 	}
 
 	if l.listener, err = net.ListenTCP("tcp", l.addr); err != nil {

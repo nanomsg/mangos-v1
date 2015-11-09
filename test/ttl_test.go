@@ -26,7 +26,7 @@ import (
 	"github.com/gdamore/mangos/transport/inproc"
 )
 
-func TestTtlInvalidZero(t *testing.T) {
+func TestTTLInvalidZero(t *testing.T) {
 	srep, err := rep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to make REP: %v", err)
@@ -34,7 +34,7 @@ func TestTtlInvalidZero(t *testing.T) {
 	}
 	defer srep.Close()
 
-	err = srep.SetOption(mangos.OptionTtl, 0)
+	err = srep.SetOption(mangos.OptionTTL, 0)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -44,7 +44,7 @@ func TestTtlInvalidZero(t *testing.T) {
 	}
 }
 
-func TestTtlInvalidNegative(t *testing.T) {
+func TestTTLInvalidNegative(t *testing.T) {
 	srep, err := rep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to make REP: %v", err)
@@ -52,7 +52,7 @@ func TestTtlInvalidNegative(t *testing.T) {
 	}
 	defer srep.Close()
 
-	err = srep.SetOption(mangos.OptionTtl, -1)
+	err = srep.SetOption(mangos.OptionTTL, -1)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -62,7 +62,7 @@ func TestTtlInvalidNegative(t *testing.T) {
 	}
 }
 
-func TestTtlInvalidTooBig(t *testing.T) {
+func TestTTLInvalidTooBig(t *testing.T) {
 	srep, err := rep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to make REP: %v", err)
@@ -70,7 +70,7 @@ func TestTtlInvalidTooBig(t *testing.T) {
 	}
 	defer srep.Close()
 
-	err = srep.SetOption(mangos.OptionTtl, 256)
+	err = srep.SetOption(mangos.OptionTTL, 256)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -80,7 +80,7 @@ func TestTtlInvalidTooBig(t *testing.T) {
 	}
 }
 
-func TestTtlInvalidNotInt(t *testing.T) {
+func TestTTLInvalidNotInt(t *testing.T) {
 	srep, err := rep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to make REP: %v", err)
@@ -88,7 +88,7 @@ func TestTtlInvalidNotInt(t *testing.T) {
 	}
 	defer srep.Close()
 
-	err = srep.SetOption(mangos.OptionTtl, "garbage")
+	err = srep.SetOption(mangos.OptionTTL, "garbage")
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -98,7 +98,7 @@ func TestTtlInvalidNotInt(t *testing.T) {
 	}
 }
 
-func TestTtlSet(t *testing.T) {
+func TestTTLSet(t *testing.T) {
 	srep, err := rep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to make REP: %v", err)
@@ -106,13 +106,13 @@ func TestTtlSet(t *testing.T) {
 	}
 	defer srep.Close()
 
-	err = srep.SetOption(mangos.OptionTtl, 2)
+	err = srep.SetOption(mangos.OptionTTL, 2)
 	if err != nil {
 		t.Errorf("Failed SetOption: %v", err)
 		return
 	}
 
-	v, err := srep.GetOption(mangos.OptionTtl)
+	v, err := srep.GetOption(mangos.OptionTTL)
 	if err != nil {
 		t.Errorf("Failed GetOption: %v", err)
 		return
@@ -124,7 +124,7 @@ func TestTtlSet(t *testing.T) {
 	}
 }
 
-func TestTtlDrop(t *testing.T) {
+func TestTTLDrop(t *testing.T) {
 	nhop := 3
 	srep := make([]mangos.Socket, 0, nhop)
 	sreq := make([]mangos.Socket, 0, nhop)
@@ -211,7 +211,7 @@ func TestTtlDrop(t *testing.T) {
 	}
 
 	// Now try setting the option
-	err = rp.SetOption(mangos.OptionTtl, nhop-1)
+	err = rp.SetOption(mangos.OptionTTL, nhop-1)
 	if err != nil {
 		t.Errorf("Failed set TTL: %v", err)
 		return

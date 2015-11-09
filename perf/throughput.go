@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// LatencyServer is the server side -- very much equivalent to local_thr in
+// ThroughputServer is the server side -- very much equivalent to local_thr in
 // nanomsg/perf.  It does the measurement by counting packets received.
 func ThroughputServer(addr string, msgSize int, count int) {
 	s, err := pair.NewSocket()

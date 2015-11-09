@@ -100,7 +100,7 @@ func (x *pull) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol() allocates a new PULL protocol object.
+// NewProtocol allocates a new PULL protocol object.
 func NewProtocol() mangos.Protocol {
 	return &pull{}
 }

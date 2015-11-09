@@ -74,9 +74,9 @@ const (
 	// indicate an infinite time.  Default is 1 second.
 	OptionSurveyTime = "SURVEY-TIME"
 
-	// OptionTlsConfig is used to supply TLS configuration details.
+	// OptionTLSConfig is used to supply TLS configuration details.
 	// The parameter is a tls.Config pointer.
-	OptionTlsConfig = "TLS-CONFIG"
+	OptionTLSConfig = "TLS-CONFIG"
 
 	// OptionWriteQLen is used to set the size, in messages, of the write
 	// queue channel. By default, it's 128. This option cannot be set if
@@ -109,7 +109,7 @@ const (
 	// those that do, if a message traverses more than this many devices,
 	// it will be dropped.  This is used to provide protection against
 	// loops in the topology.  The default is protocol specific.
-	OptionTtl = "TTL"
+	OptionTTL = "TTL"
 
 	// OptionMaxRecvSize supplies the maximum receive size for inbound
 	// messages.  This option exists because the wire protocol allows

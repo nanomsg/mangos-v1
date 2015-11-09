@@ -28,6 +28,8 @@ import (
 	"github.com/gdamore/mangos/protocol/req"
 )
 
+// TranTest provides a common test structure for transports, so that they
+// can implement a battery of standard tests.
 type TranTest struct {
 	addr    string
 	tran    mangos.Transport
@@ -37,18 +39,21 @@ type TranTest struct {
 	sockReq mangos.Socket
 }
 
+// NewTranTest creates a TranTest.
 func NewTranTest(tran mangos.Transport, addr string) *TranTest {
 	tt := &TranTest{addr: addr, tran: tran}
 	if strings.HasPrefix(tt.addr, "tls+tcp://") || strings.HasPrefix(tt.addr, "wss://") {
-		tt.cliCfg, _ = GetTlsConfig(false)
-		tt.srvCfg, _ = GetTlsConfig(true)
+		tt.cliCfg, _ = GetTLSConfig(false)
+		tt.srvCfg, _ = GetTLSConfig(true)
 	}
 	tt.sockRep, _ = rep.NewSocket()
 	tt.sockReq, _ = req.NewSocket()
 	return tt
 }
 
-func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
+// TestListenAndAccept tests that we can both listen and accept connections
+// for the given transport.
+func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 	t.Logf("Establishing listener for %s", tt.addr)
 	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
@@ -57,7 +62,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 	}
 	defer l.Close()
 	if tt.srvCfg != nil {
-		if err = l.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
+		if err = l.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -79,7 +84,7 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 			return
 		}
 		if tt.cliCfg != nil {
-			if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
+			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)
 				return
 			}
@@ -132,7 +137,10 @@ func (tt *TranTest) TranTestListenAndAccept(t *testing.T) {
 	wg.Wait()
 }
 
-func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
+// TestDuplicateListen checks to make sure that an attempt to listen
+// on a second socket, when another listener is already present, properly
+// fails with ErrAddrInUse.
+func (tt *TranTest) TestDuplicateListen(t *testing.T) {
 	var err error
 	time.Sleep(100 * time.Millisecond)
 	t.Logf("Testing Duplicate Listen on %s", tt.addr)
@@ -143,7 +151,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	}
 	defer l1.Close()
 	if tt.srvCfg != nil {
-		if err = l1.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
+		if err = l1.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -160,7 +168,7 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	}
 	defer l2.Close()
 	if tt.srvCfg != nil {
-		if err = l2.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
+		if err = l2.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -172,13 +180,15 @@ func (tt *TranTest) TranTestDuplicateListen(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func (tt *TranTest) TranTestConnRefused(t *testing.T) {
+// TestConnRefused tests that attempts to dial to an address without a listener
+// properly fail with EConnRefused.
+func (tt *TranTest) TestConnRefused(t *testing.T) {
 	d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
 	if err != nil || d == nil {
 		t.Errorf("New Dialer failed: %v", err)
 	}
 	if tt.cliCfg != nil {
-		if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
+		if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -191,7 +201,9 @@ func (tt *TranTest) TranTestConnRefused(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
-func (tt *TranTest) TranTestSendRecv(t *testing.T) {
+// TestSendRecv test that the transport can send and receive.  It uses the
+// REQ/REP protocol for messages.
+func (tt *TranTest) TestSendRecv(t *testing.T) {
 	ping := []byte("REQUEST_MESSAGE")
 	ack := []byte("RESPONSE_MESSAGE")
 
@@ -205,7 +217,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 	}
 	defer l.Close()
 	if tt.srvCfg != nil {
-		if err = l.SetOption(mangos.OptionTlsConfig, tt.srvCfg); err != nil {
+		if err = l.SetOption(mangos.OptionTLSConfig, tt.srvCfg); err != nil {
 			t.Errorf("Failed setting TLS config: %v", err)
 			return
 		}
@@ -222,7 +234,7 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 		t.Logf("Connecting REQ on %s", tt.addr)
 		d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
 		if tt.cliCfg != nil {
-			if err = d.SetOption(mangos.OptionTlsConfig, tt.cliCfg); err != nil {
+			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)
 				return
 			}
@@ -324,7 +336,8 @@ func (tt *TranTest) TranTestSendRecv(t *testing.T) {
 	}
 }
 
-func (tt *TranTest) TranTestScheme(t *testing.T) {
+// TestScheme tests the Scheme() entry point on the transport.
+func (tt *TranTest) TestScheme(t *testing.T) {
 	scheme := tt.tran.Scheme()
 	t.Log("Checking scheme")
 	if !strings.HasPrefix(tt.addr, scheme+"://") {
@@ -334,7 +347,8 @@ func (tt *TranTest) TranTestScheme(t *testing.T) {
 	t.Log("Scheme match")
 }
 
-func (tt *TranTest) TranTestListenerSetOptionInvalid(t *testing.T) {
+// TestListenerSetOptionInvalid tests passing invalid options to a listener.
+func (tt *TranTest) TestListenerSetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid listener SetOption")
 	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
@@ -352,7 +366,9 @@ func (tt *TranTest) TranTestListenerSetOptionInvalid(t *testing.T) {
 	}
 }
 
-func (tt *TranTest) TranTestListenerGetOptionInvalid(t *testing.T) {
+// TestListenerGetOptionInvalid tests trying to get an invalid option on
+// a listener.
+func (tt *TranTest) TestListenerGetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid listener GetOption")
 	l, err := tt.tran.NewListener(tt.addr, tt.sockRep)
 	if err != nil {
@@ -370,7 +386,8 @@ func (tt *TranTest) TranTestListenerGetOptionInvalid(t *testing.T) {
 	}
 }
 
-func (tt *TranTest) TranTestDialerSetOptionInvalid(t *testing.T) {
+// TestDialerSetOptionInvalid tests trying to set an invalid option on a Dialer.
+func (tt *TranTest) TestDialerSetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid dialer SetOption")
 	d, err := tt.tran.NewDialer(tt.addr, tt.sockRep)
 	if err != nil {
@@ -388,7 +405,9 @@ func (tt *TranTest) TranTestDialerSetOptionInvalid(t *testing.T) {
 	}
 }
 
-func (tt *TranTest) TranTestDialerGetOptionInvalid(t *testing.T) {
+// TestDialerGetOptionInvalid tests attempting to get an invalid option on
+// a Dialer.
+func (tt *TranTest) TestDialerGetOptionInvalid(t *testing.T) {
 	t.Log("Trying invalid listener GetOption")
 	d, err := tt.tran.NewDialer(tt.addr, tt.sockRep)
 	if err != nil {
@@ -406,6 +425,8 @@ func (tt *TranTest) TranTestDialerGetOptionInvalid(t *testing.T) {
 	}
 }
 
+// TestDialerBadScheme tests to makes sure that giving a bogus scheme
+// to create a dialer fails properly.
 func (tt *TranTest) TestDialerBadScheme(t *testing.T) {
 	t.Logf("NewDialer with bogus scheme")
 	d, err := tt.tran.NewDialer("bogus://address", tt.sockRep)
@@ -418,6 +439,8 @@ func (tt *TranTest) TestDialerBadScheme(t *testing.T) {
 	}
 }
 
+// TestListenerBadScheme tests to makes sure that giving a bogus scheme
+// to create a listener fails properly.
 func (tt *TranTest) TestListenerBadScheme(t *testing.T) {
 	t.Logf("NewListener with bogus scheme")
 	d, err := tt.tran.NewListener("bogus://address", tt.sockRep)
@@ -430,16 +453,17 @@ func (tt *TranTest) TestListenerBadScheme(t *testing.T) {
 	}
 }
 
-func (tt *TranTest) TranTestAll(t *testing.T) {
-	tt.TranTestScheme(t)
-	tt.TranTestListenAndAccept(t)
-	tt.TranTestConnRefused(t)
-	tt.TranTestDuplicateListen(t)
-	tt.TranTestSendRecv(t)
-	tt.TranTestDialerSetOptionInvalid(t)
-	tt.TranTestDialerGetOptionInvalid(t)
-	tt.TranTestListenerSetOptionInvalid(t)
-	tt.TranTestListenerGetOptionInvalid(t)
+// TestAll runs a full battery of standard tests on the transport.
+func (tt *TranTest) TestAll(t *testing.T) {
+	tt.TestScheme(t)
+	tt.TestListenAndAccept(t)
+	tt.TestConnRefused(t)
+	tt.TestDuplicateListen(t)
+	tt.TestSendRecv(t)
+	tt.TestDialerSetOptionInvalid(t)
+	tt.TestDialerGetOptionInvalid(t)
+	tt.TestListenerSetOptionInvalid(t)
+	tt.TestListenerGetOptionInvalid(t)
 	tt.TestDialerBadScheme(t)
 	tt.TestListenerBadScheme(t)
 }

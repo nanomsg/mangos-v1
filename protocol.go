@@ -171,6 +171,9 @@ const (
 	ProtoStar = (100 * 16)
 )
 
+// ProtocolName returns the name corresponding to a given protocol number.
+// This is useful for transports like WebSocket, which use a text name
+// rather than the number in the handshake.
 func ProtocolName(number uint16) string {
 	names := map[uint16]string{
 		ProtoPair:       "pair",
@@ -206,10 +209,10 @@ func ValidPeers(p1, p2 Protocol) bool {
 // have no data to send.
 func NullRecv(ep Endpoint) {
 	for {
-		if m := ep.RecvMsg(); m == nil {
+		var m *Message
+		if m = ep.RecvMsg(); m == nil {
 			return
-		} else {
-			m.Free()
 		}
+		m.Free()
 	}
 }

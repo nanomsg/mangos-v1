@@ -18,6 +18,7 @@ import (
 	"errors"
 )
 
+// Various error codes.
 var (
 	ErrBadAddr     = errors.New("invalid address")
 	ErrBadHeader   = errors.New("invalid header received")
@@ -39,6 +40,6 @@ var (
 	ErrGarbled     = errors.New("message garbled")
 	ErrAddrInUse   = errors.New("address in use")
 	ErrBadProperty = errors.New("invalid property name")
-	ErrTlsNoConfig = errors.New("missing TLS configuration")
-	ErrTlsNoCert   = errors.New("missing TLS certificates")
+	ErrTLSNoConfig = errors.New("missing TLS configuration")
+	ErrTLSNoCert   = errors.New("missing TLS certificates")
 )

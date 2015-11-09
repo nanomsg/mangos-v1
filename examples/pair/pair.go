@@ -42,14 +42,14 @@ func die(format string, v ...interface{}) {
 	os.Exit(1)
 }
 
-func send_name(sock mangos.Socket, name string) {
+func sendName(sock mangos.Socket, name string) {
 	fmt.Printf("%s: SENDING \"%s\"\n", name, name)
 	if err := sock.Send([]byte(name)); err != nil {
 		die("failed sending: %s", err)
 	}
 }
 
-func recv_name(sock mangos.Socket, name string) {
+func recvName(sock mangos.Socket, name string) {
 	var msg []byte
 	var err error
 	if msg, err = sock.Recv(); err == nil {
@@ -57,12 +57,12 @@ func recv_name(sock mangos.Socket, name string) {
 	}
 }
 
-func send_recv(sock mangos.Socket, name string) {
+func sendRecv(sock mangos.Socket, name string) {
 	for {
 		sock.SetOption(mangos.OptionRecvDeadline, 100*time.Millisecond)
-		recv_name(sock, name)
+		recvName(sock, name)
 		time.Sleep(time.Second)
-		send_name(sock, name)
+		sendName(sock, name)
 	}
 }
 
@@ -77,7 +77,7 @@ func node0(url string) {
 	if err = sock.Listen(url); err != nil {
 		die("can't listen on pair socket: %s", err.Error())
 	}
-	send_recv(sock, "node0")
+	sendRecv(sock, "node0")
 }
 
 func node1(url string) {
@@ -92,7 +92,7 @@ func node1(url string) {
 	if err = sock.Dial(url); err != nil {
 		die("can't dial on pair socket: %s", err.Error())
 	}
-	send_recv(sock, "node1")
+	sendRecv(sock, "node1")
 }
 
 func main() {

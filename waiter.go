@@ -44,9 +44,8 @@ func (cv *CondTimed) WaitAbsTimeout(when time.Time) bool {
 	now := time.Now()
 	if when.After(now) {
 		return cv.WaitRelTimeout(when.Sub(now))
-	} else {
-		return cv.WaitRelTimeout(time.Duration(0))
 	}
+	return cv.WaitRelTimeout(time.Duration(0))
 }
 
 // Waiter is a way to wait for completion, but it includes a timeout.  It

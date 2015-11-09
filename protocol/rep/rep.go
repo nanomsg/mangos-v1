@@ -264,7 +264,7 @@ func (r *rep) SetOption(name string, v interface{}) error {
 			r.sock.SetSendError(mangos.ErrProtoState)
 		}
 		return nil
-	case mangos.OptionTtl:
+	case mangos.OptionTTL:
 		if ttl, ok := v.(int); !ok {
 			return mangos.ErrBadValue
 		} else if ttl < 1 || ttl > 255 {
@@ -282,7 +282,7 @@ func (r *rep) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
 		return r.raw, nil
-	case mangos.OptionTtl:
+	case mangos.OptionTTL:
 		return r.ttl, nil
 	default:
 		return nil, mangos.ErrBadOption

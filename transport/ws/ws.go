@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ws implements an simple websocket transport for mangos.
+// Package ws implements a simple WebSocket transport for mangos.
 // This transport is considered EXPERIMENTAL.
 package ws
 
@@ -55,11 +55,11 @@ func (o options) get(name string) (interface{}, error) {
 	if o == nil {
 		return nil, mangos.ErrBadOption
 	}
-	if v, ok := o[name]; !ok {
+	v, ok := o[name]
+	if !ok {
 		return nil, mangos.ErrBadOption
-	} else {
-		return v, nil
 	}
+	return v, nil
 }
 
 // SetOption sets an option.  We have none, so just ErrBadOption.
@@ -72,7 +72,7 @@ func (o options) set(name string, val interface{}) error {
 		case bool:
 			o[name] = v
 		}
-	case mangos.OptionTlsConfig:
+	case mangos.OptionTLSConfig:
 		switch v := val.(type) {
 		case *tls.Config:
 			// Make a private copy.
@@ -106,13 +106,13 @@ type wsTran int
 func (w *wsPipe) Recv() (*mangos.Message, error) {
 
 	// We ignore the message type for receive.
-	if _, body, err := w.ws.ReadMessage(); err != nil {
+	_, body, err := w.ws.ReadMessage()
+	if err != nil {
 		return nil, err
-	} else {
-		msg := mangos.NewMessage(0)
-		msg.Body = body
-		return msg, nil
 	}
+	msg := mangos.NewMessage(0)
+	msg.Body = body
+	return msg, nil
 }
 
 func (w *wsPipe) Send(m *mangos.Message) error {
@@ -173,7 +173,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 	wd := &websocket.Dialer{}
 
 	wd.Subprotocols = []string{d.proto.PeerName() + ".sp.nanomsg.org"}
-	if v, ok := d.opts[mangos.OptionTlsConfig]; ok {
+	if v, ok := d.opts[mangos.OptionTLSConfig]; ok {
 		wd.TLSClientConfig = v.(*tls.Config)
 	}
 
@@ -210,7 +210,7 @@ type listener struct {
 	ug       websocket.Upgrader
 	htsvr    *http.Server
 	mux      *http.ServeMux
-	url_     *url.URL
+	url      *url.URL
 	listener net.Listener
 	proto    mangos.Protocol
 	opts     options
@@ -243,13 +243,13 @@ func (l *listener) Listen() error {
 	var tcfg *tls.Config
 
 	if l.iswss {
-		v, ok := l.opts[mangos.OptionTlsConfig]
+		v, ok := l.opts[mangos.OptionTLSConfig]
 		if !ok || v == nil {
-			return mangos.ErrTlsNoConfig
+			return mangos.ErrTLSNoConfig
 		}
 		tcfg = v.(*tls.Config)
 		if tcfg.Certificates == nil || len(tcfg.Certificates) == 0 {
-			return mangos.ErrTlsNoCert
+			return mangos.ErrTLSNoCert
 		}
 	}
 
@@ -257,7 +257,7 @@ func (l *listener) Listen() error {
 	// case of a port already in use.  This also lets us configure
 	// properties of the underlying TCP connection.
 
-	if taddr, err = net.ResolveTCPAddr("tcp", l.url_.Host); err != nil {
+	if taddr, err = net.ResolveTCPAddr("tcp", l.url.Host); err != nil {
 		return err
 	}
 
@@ -271,7 +271,7 @@ func (l *listener) Listen() error {
 	l.pending = nil
 	l.running = true
 
-	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.mux}
+	l.htsvr = &http.Server{Addr: l.url.Host, Handler: l.mux}
 
 	go l.htsvr.Serve(l.listener)
 
@@ -325,7 +325,7 @@ func (l *listener) handler(ws *websocket.Conn, req *http.Request) {
 	w.props[mangos.PropRemoteAddr] = ws.RemoteAddr()
 
 	if req.TLS != nil {
-		w.props[mangos.PropTlsConnState] = *req.TLS
+		w.props[mangos.PropTLSConnState] = *req.TLS
 	}
 
 	w.wg.Add(1)
@@ -373,7 +373,7 @@ func (l *listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (l *listener) Address() string {
-	return l.url_.String()
+	return l.url.String()
 }
 
 func (wsTran) Scheme() string {
@@ -402,7 +402,7 @@ func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListene
 		if v, e := sock.GetOption(mangos.OptionMaxRecvSize); e == nil {
 			l.maxrx = v.(int)
 		}
-		l.mux.Handle(l.url_.Path, l)
+		l.mux.Handle(l.url.Path, l)
 	}
 	return l, e
 }
@@ -416,16 +416,16 @@ func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 	if strings.HasPrefix(addr, "wss://") {
 		l.iswss = true
 	}
-	l.url_, err = url.ParseRequestURI(addr)
+	l.url, err = url.ParseRequestURI(addr)
 	if err != nil {
 		return nil, err
 	}
-	if len(l.url_.Path) == 0 {
-		l.url_.Path = "/"
+	if len(l.url.Path) == 0 {
+		l.url.Path = "/"
 	}
 	l.mux = http.NewServeMux()
 
-	l.htsvr = &http.Server{Addr: l.url_.Host, Handler: l.mux}
+	l.htsvr = &http.Server{Addr: l.url.Host, Handler: l.mux}
 
 	return l, nil
 }

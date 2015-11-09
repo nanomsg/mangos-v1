@@ -52,9 +52,9 @@ var proto string
 var dialAddrs []string
 var listenAddrs []string
 var subscriptions []string
-var recvTimeout int = -1
-var sendTimeout int = -1
-var sendInterval int = -1
+var recvTimeout = -1
+var sendTimeout = -1
+var sendInterval = -1
 var sendDelay int
 var sendData []byte
 var printFormat string
@@ -553,7 +553,7 @@ func main() {
 		fatalf("Protocol not specified.")
 	}
 
-	sock.SetOption(mangos.OptionTlsConfig, &tlscfg)
+	sock.SetOption(mangos.OptionTLSConfig, &tlscfg)
 
 	if len(listenAddrs) == 0 && len(dialAddrs) == 0 {
 		fatalf("No address specified.")

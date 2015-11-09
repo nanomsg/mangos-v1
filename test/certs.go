@@ -164,9 +164,9 @@ var clientTmpl = &x509.Certificate{
 	ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 }
 
-// NewTlsConfig creates a suitable TLS configuration, using
+// NewTLSConfig creates a suitable TLS configuration, using
 // either a server or client.  A self-signed CA Cert is included.
-func NewTlsConfig(server bool) (*tls.Config, error) {
+func NewTLSConfig(server bool) (*tls.Config, error) {
 	cfg := &tls.Config{}
 
 	keys, err := newKeys()
@@ -187,20 +187,20 @@ var lock sync.Mutex
 var clientConfig *tls.Config
 var serverConfig *tls.Config
 
-// GetTlsConfig is like NewTlsConfig, but it caches to avoid regenerating
+// GetTLSConfig is like NewTLSConfig, but it caches to avoid regenerating
 // key material pointlessly.
-func GetTlsConfig(server bool) (*tls.Config, error) {
+func GetTLSConfig(server bool) (*tls.Config, error) {
 	var err error
 	var cfg *tls.Config
 	lock.Lock()
 	if server {
 		if cfg = serverConfig; cfg == nil {
-			cfg, err = NewTlsConfig(true)
+			cfg, err = NewTLSConfig(true)
 			serverConfig = cfg
 		}
 	} else {
 		if cfg = clientConfig; cfg == nil {
-			cfg, err = NewTlsConfig(false)
+			cfg, err = NewTLSConfig(false)
 			clientConfig = cfg
 		}
 	}

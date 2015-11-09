@@ -317,30 +317,30 @@ func TestTCPOptions(t *testing.T) {
 			return
 		}
 
-		if val, err := d.GetOption(n); err != nil {
+		val, err := d.GetOption(n)
+		if err != nil {
 			t.Errorf("Get option %s failed: %v", n, err)
 			return
-		} else {
-			switch v := val.(type) {
-			case bool:
-				if !v {
-					t.Errorf("Option %s value not true", n)
-					return
-				}
-			default:
-				t.Errorf("Option %s wrong type!", n)
+		}
+		switch v := val.(type) {
+		case bool:
+			if !v {
+				t.Errorf("Option %s value not true", n)
 				return
 			}
+		default:
+			t.Errorf("Option %s wrong type!", n)
+			return
 		}
 
-		if err := d.SetOption(n, 1234); err != mangos.ErrBadValue {
+		if err = d.SetOption(n, 1234); err != mangos.ErrBadValue {
 			t.Errorf("Expected ErrBadValue, but did not get it")
 			return
 		}
 	}
 
 	// Negative test: try a bad option
-	if err := d.SetOption("NO-SUCH-OPTION", 0); err != mangos.ErrBadOption {
+	if err = d.SetOption("NO-SUCH-OPTION", 0); err != mangos.ErrBadOption {
 		t.Errorf("Expected ErrBadOption, but did not get it")
 		return
 	}

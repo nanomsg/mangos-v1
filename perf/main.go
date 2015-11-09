@@ -25,7 +25,7 @@ import (
 	"strconv"
 )
 
-func Usage() {
+func usage() {
 	fmt.Printf("Bad Usage!\n")
 	os.Exit(1)
 }
@@ -170,5 +170,5 @@ func main() {
 			args = args[1:]
 		}
 	}
-	Usage()
+	usage()
 }

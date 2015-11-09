@@ -34,8 +34,8 @@ import (
 
 var protoReq = req.NewProtocol()
 var protoRep = rep.NewProtocol()
-var cliCfg, _ = NewTlsConfig(false)
-var srvCfg, _ = NewTlsConfig(true)
+var cliCfg, _ = NewTLSConfig(false)
+var srvCfg, _ = NewTLSConfig(true)
 
 // T is a structure that subtests can inherit from.
 type T struct {
@@ -236,7 +236,7 @@ func (c *T) Dial() bool {
 	case strings.HasPrefix(c.addr, "tls+tcp://"):
 		fallthrough
 	case strings.HasPrefix(c.addr, "wss://"):
-		options[mangos.OptionTlsConfig] = cliCfg
+		options[mangos.OptionTLSConfig] = cliCfg
 	}
 
 	err := c.Sock.DialOptions(c.addr, options)
@@ -255,7 +255,7 @@ func (c *T) Listen() bool {
 	case strings.HasPrefix(c.addr, "tls+tcp://"):
 		fallthrough
 	case strings.HasPrefix(c.addr, "wss://"):
-		options[mangos.OptionTlsConfig] = srvCfg
+		options[mangos.OptionTLSConfig] = srvCfg
 	}
 	err := c.Sock.ListenOptions(c.addr, options)
 	if err != nil {

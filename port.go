@@ -58,6 +58,7 @@ type Port interface {
 // PortAction determines whether the action on a Port is addition or removal.
 type PortAction int
 
+// PortAction values.
 const (
 	PortActionAdd = iota
 	PortActionRemove

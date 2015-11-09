@@ -56,6 +56,7 @@ import (
 // either normal or raw mode sockets.
 type Domain int
 
+// Constants for socket type.
 const (
 	AF_SP     = Domain(0)
 	AF_SP_RAW = Domain(1)
@@ -65,6 +66,7 @@ const (
 // that Mangos supports.
 type Protocol int
 
+// Constants for protocols.
 const (
 	PUSH       = Protocol(mangos.ProtoPush)
 	PULL       = Protocol(mangos.ProtoPull)

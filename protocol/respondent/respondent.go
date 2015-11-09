@@ -258,7 +258,7 @@ func (x *resp) SetOption(name string, v interface{}) error {
 			x.sock.SetSendError(mangos.ErrProtoState)
 		}
 		return nil
-	case mangos.OptionTtl:
+	case mangos.OptionTTL:
 		if ttl, ok := v.(int); !ok {
 			return mangos.ErrBadValue
 		} else if ttl < 1 || ttl > 255 {

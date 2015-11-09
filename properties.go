@@ -27,11 +27,11 @@ const (
 	// end dialer.  The value is a net.Addr.
 	PropRemoteAddr = "REMOTE-ADDR"
 
-	// PropTlsConnState is used to supply TLS connection details. The
+	// PropTLSConnState is used to supply TLS connection details. The
 	// value is a tls.ConnectionState.  It is only valid when TLS is used.
-	PropTlsConnState = "TLS-STATE"
+	PropTLSConnState = "TLS-STATE"
 
-	// PropHttpRequest conveys an *http.Request.  This property only exists
+	// PropHTTPRequest conveys an *http.Request.  This property only exists
 	// for websocket connections.
-	PropHttpRequest = "HTTP-REQUEST"
+	PropHTTPRequest = "HTTP-REQUEST"
 )

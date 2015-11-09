@@ -263,7 +263,7 @@ func (x *surveyor) GetOption(name string) (interface{}, error) {
 }
 
 // NewProtocol returns a new SURVEYOR protocol object.
-func NewSurveyor() mangos.Protocol {
+func NewProtocol() mangos.Protocol {
 	return &surveyor{}
 }
 

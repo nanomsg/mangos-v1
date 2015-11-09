@@ -26,11 +26,11 @@ type options map[string]interface{}
 
 // GetOption retrieves an option value.
 func (o options) get(name string) (interface{}, error) {
-	if v, ok := o[name]; !ok {
+	v, ok := o[name]
+	if !ok {
 		return nil, mangos.ErrBadOption
-	} else {
-		return v, nil
 	}
+	return v, nil
 }
 
 // SetOption sets an option.

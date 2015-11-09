@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ws implements an simple websocket transport for mangos.
+// Package wss implements a secure WebSocket transport for mangos.
 // This transport is considered EXPERIMENTAL.
 package wss
 
