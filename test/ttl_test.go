@@ -21,20 +21,18 @@ import (
 	"time"
 
 	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/inproc"
 )
 
-func TestTTLInvalidZero(t *testing.T) {
-	srep, err := rep.NewSocket()
+// SetTTLZero tests that a given socket fails to set a TTL of zero.
+func SetTTLZero(t *testing.T, f newSockFunc) {
+	s, err := f()
 	if err != nil {
-		t.Errorf("Failed to make REP: %v", err)
+		t.Errorf("Failed to make socket: %v", err)
 		return
 	}
-	defer srep.Close()
-
-	err = srep.SetOption(mangos.OptionTTL, 0)
+	defer s.Close()
+	err = s.SetOption(mangos.OptionTTL, 0)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -44,15 +42,15 @@ func TestTTLInvalidZero(t *testing.T) {
 	}
 }
 
-func TestTTLInvalidNegative(t *testing.T) {
-	srep, err := rep.NewSocket()
+// SetTTLNegative tests that a given socket fails to set a negative TTL.
+func SetTTLNegative(t *testing.T, f newSockFunc) {
+	s, err := f()
 	if err != nil {
-		t.Errorf("Failed to make REP: %v", err)
+		t.Errorf("Failed to make socket: %v", err)
 		return
 	}
-	defer srep.Close()
-
-	err = srep.SetOption(mangos.OptionTTL, -1)
+	defer s.Close()
+	err = s.SetOption(mangos.OptionTTL, -1)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -62,15 +60,15 @@ func TestTTLInvalidNegative(t *testing.T) {
 	}
 }
 
-func TestTTLInvalidTooBig(t *testing.T) {
-	srep, err := rep.NewSocket()
+// SetTTLTooBig tests that a given socket fails to set a very large TTL.
+func SetTTLTooBig(t *testing.T, f newSockFunc) {
+	s, err := f()
 	if err != nil {
-		t.Errorf("Failed to make REP: %v", err)
+		t.Errorf("Failed to make socket: %v", err)
 		return
 	}
-	defer srep.Close()
-
-	err = srep.SetOption(mangos.OptionTTL, 256)
+	defer s.Close()
+	err = s.SetOption(mangos.OptionTTL, 256)
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -80,15 +78,15 @@ func TestTTLInvalidTooBig(t *testing.T) {
 	}
 }
 
-func TestTTLInvalidNotInt(t *testing.T) {
-	srep, err := rep.NewSocket()
+// SetTTLNotInt tests that a given socket fails to set a non-integer TTL.
+func SetTTLNotInt(t *testing.T, f newSockFunc) {
+	s, err := f()
 	if err != nil {
-		t.Errorf("Failed to make REP: %v", err)
+		t.Errorf("Failed to make socket: %v", err)
 		return
 	}
-	defer srep.Close()
-
-	err = srep.SetOption(mangos.OptionTTL, "garbage")
+	defer s.Close()
+	err = s.SetOption(mangos.OptionTTL, "garbage")
 	switch err {
 	case mangos.ErrBadValue: // expected result
 	case nil:
@@ -98,21 +96,22 @@ func TestTTLInvalidNotInt(t *testing.T) {
 	}
 }
 
-func TestTTLSet(t *testing.T) {
-	srep, err := rep.NewSocket()
+// SetTTL tests that we can set a valid TTL, and get the same value back.
+func SetTTL(t *testing.T, f newSockFunc) {
+	s, err := f()
 	if err != nil {
-		t.Errorf("Failed to make REP: %v", err)
+		t.Errorf("Failed to make socket: %v", err)
 		return
 	}
-	defer srep.Close()
+	defer s.Close()
 
-	err = srep.SetOption(mangos.OptionTTL, 2)
+	err = s.SetOption(mangos.OptionTTL, 2)
 	if err != nil {
 		t.Errorf("Failed SetOption: %v", err)
 		return
 	}
 
-	v, err := srep.GetOption(mangos.OptionTTL)
+	v, err := s.GetOption(mangos.OptionTTL)
 	if err != nil {
 		t.Errorf("Failed GetOption: %v", err)
 		return
@@ -124,16 +123,18 @@ func TestTTLSet(t *testing.T) {
 	}
 }
 
-func TestTTLDrop(t *testing.T) {
+// TTLDropTest is a generic test for dropping based on TTL expiration.
+// F1 makes the client socket, f2 makes the server socket.
+func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 	nhop := 3
-	srep := make([]mangos.Socket, 0, nhop)
-	sreq := make([]mangos.Socket, 0, nhop)
+	clis := make([]mangos.Socket, 0, nhop)
+	srvs := make([]mangos.Socket, 0, nhop)
 	inp := inproc.NewTransport()
 
 	for i := 0; i < nhop; i++ {
-		s, err := rep.NewSocket()
+		s, err := srv()
 		if err != nil {
-			t.Errorf("Failed to make REP: %v", err)
+			t.Errorf("Failed to make server: %v", err)
 			return
 		}
 		defer s.Close()
@@ -152,13 +153,13 @@ func TestTTLDrop(t *testing.T) {
 			return
 		}
 
-		srep = append(srep, s)
+		srvs = append(srvs, s)
 	}
 
 	for i := 0; i < nhop; i++ {
-		s, err := req.NewSocket()
+		s, err := cli()
 		if err != nil {
-			t.Errorf("Failed to make REQ: %v", err)
+			t.Errorf("Failed to make client: %v", err)
 			return
 		}
 		defer s.Close()
@@ -171,23 +172,23 @@ func TestTTLDrop(t *testing.T) {
 			return
 		}
 
-		sreq = append(sreq, s)
+		clis = append(clis, s)
 	}
 
 	// Now make the device chain
 	for i := 0; i < nhop-1; i++ {
-		err := mangos.Device(srep[i], sreq[i+1])
+		err := mangos.Device(srvs[i], clis[i+1])
 		if err != nil {
 			t.Errorf("Device failed: %v", err)
 			return
 		}
 	}
 
-	// At this point, we can issue requests on sreq[0], and read them from
-	// srep[nhop-1].
+	// At this point, we can issue requests on clis[0], and read them from
+	// srvs[nhop-1].
 
-	rq := sreq[0]
-	rp := srep[nhop-1]
+	rq := clis[0]
+	rp := srvs[nhop-1]
 
 	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond*20)
 	if err != nil {
@@ -195,10 +196,12 @@ func TestTTLDrop(t *testing.T) {
 		return
 	}
 
+	t.Logf("Socket for sending is %s", rq.GetProtocol().Name())
 	if err = rq.Send([]byte("GOOD")); err != nil {
 		t.Errorf("Failed first send: %v", err)
 		return
 	}
+	t.Logf("Socket for receiving is %s", rp.GetProtocol().Name())
 	v, err := rp.Recv()
 	if err != nil {
 		t.Errorf("Failed first recv: %v", err)
@@ -210,7 +213,7 @@ func TestTTLDrop(t *testing.T) {
 		t.Logf("Got good message: %v", v)
 	}
 
-	// Now try setting the option
+	// Now try setting the option.
 	err = rp.SetOption(mangos.OptionTTL, nhop-1)
 	if err != nil {
 		t.Errorf("Failed set TTL: %v", err)

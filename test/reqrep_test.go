@@ -148,3 +148,27 @@ func TestReqRepWS(t *testing.T) {
 func TestReqRepWSS(t *testing.T) {
 	RunTestsWSS(t, reqRepCases())
 }
+
+func TestReqRepTTLZero(t *testing.T) {
+	SetTTLZero(t, rep.NewSocket)
+}
+
+func TestReqRepTTLNegative(t *testing.T) {
+	SetTTLNegative(t, rep.NewSocket)
+}
+
+func TestReqRepTTLTooBig(t *testing.T) {
+	SetTTLTooBig(t, rep.NewSocket)
+}
+
+func TestReqRepTTLNotInt(t *testing.T) {
+	SetTTLNotInt(t, rep.NewSocket)
+}
+
+func TestReqRepTTLSet(t *testing.T) {
+	SetTTL(t, rep.NewSocket)
+}
+
+func TestReqRepTTLDrop(t *testing.T) {
+	TTLDropTest(t, req.NewSocket, rep.NewSocket)
+}

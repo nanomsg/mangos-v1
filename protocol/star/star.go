@@ -41,6 +41,7 @@ type star struct {
 	raw  bool
 	w    mangos.Waiter
 	init sync.Once
+	ttl  int
 
 	sync.Mutex
 }
@@ -48,6 +49,7 @@ type star struct {
 func (x *star) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.eps = make(map[uint32]*starEp)
+	x.ttl = 8
 	x.w.Init()
 }
 
@@ -137,14 +139,31 @@ func (x *star) sender() {
 
 func (pe *starEp) receiver() {
 	for {
-		msg := pe.ep.RecvMsg()
-		if msg == nil {
+		m := pe.ep.RecvMsg()
+		if m == nil {
 			return
 		}
 
+		if len(m.Body) < 4 {
+			m.Free()
+			continue
+		}
+		if m.Body[0] != 0 || m.Body[1] != 0 || m.Body[2] != 0 {
+			// non-zero reserved fields are illegal
+			m.Free()
+			continue
+		}
+		if int(m.Body[3]) >= pe.x.ttl { // TTL expired?
+			// XXX: bump a stat
+			m.Free()
+			continue
+		}
+		m.Header = append(m.Header, 0, 0, 0, m.Body[3]+1)
+		m.Body = m.Body[4:]
+
 		// if we're in raw mode, this does only a sendup, otherwise
 		// it does both a retransmit + sendup
-		pe.x.broadcast(msg, pe)
+		pe.x.broadcast(m, pe)
 	}
 }
 
@@ -194,8 +213,17 @@ func (x *star) SetOption(name string, v interface{}) error {
 	var ok bool
 	switch name {
 	case mangos.OptionRaw:
-		if x.raw = v.(bool); !ok {
+		if x.raw, ok = v.(bool); !ok {
 			return mangos.ErrBadValue
+		}
+		return nil
+	case mangos.OptionTTL:
+		if ttl, ok := v.(int); !ok {
+			return mangos.ErrBadValue
+		} else if ttl < 1 || ttl > 255 {
+			return mangos.ErrBadValue
+		} else {
+			x.ttl = ttl
 		}
 		return nil
 	default:
@@ -207,9 +235,22 @@ func (x *star) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
 		return x.raw, nil
+	case mangos.OptionTTL:
+		return x.ttl, nil
 	default:
 		return nil, mangos.ErrBadOption
 	}
+}
+
+func (x *star) SendHook(m *mangos.Message) bool {
+
+	if x.raw {
+		// TTL header must be present.
+		return true
+	}
+	// new message has a zero hop count
+	m.Header = append(m.Header, 0, 0, 0, 0)
+	return true
 }
 
 // NewProtocol returns a new STAR protocol object.

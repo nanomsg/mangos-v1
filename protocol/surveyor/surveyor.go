@@ -37,6 +37,7 @@ type surveyor struct {
 	timer    *time.Timer
 	w        mangos.Waiter
 	init     sync.Once
+	ttl      int
 
 	sync.Mutex
 }
@@ -243,6 +244,17 @@ func (x *surveyor) SetOption(name string, val interface{}) error {
 			return mangos.ErrBadValue
 		}
 		return nil
+	case mangos.OptionTTL:
+		// We don't do anything with this, but support it for
+		// symmetry with the respondent socket.
+		if ttl, ok := val.(int); !ok {
+			return mangos.ErrBadValue
+		} else if ttl < 1 || ttl > 255 {
+			return mangos.ErrBadValue
+		} else {
+			x.ttl = ttl
+		}
+		return nil
 	default:
 		return mangos.ErrBadOption
 	}
@@ -257,6 +269,8 @@ func (x *surveyor) GetOption(name string) (interface{}, error) {
 		d := x.duration
 		x.Unlock()
 		return d, nil
+	case mangos.OptionTTL:
+		return x.ttl, nil
 	default:
 		return nil, mangos.ErrBadOption
 	}

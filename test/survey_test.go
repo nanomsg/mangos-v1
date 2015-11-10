@@ -162,3 +162,27 @@ func TestSurveyWS(t *testing.T) {
 func TestSurveyWSS(t *testing.T) {
 	RunTestsWSS(t, surveyCases())
 }
+
+func TestSurveyTTLZero(t *testing.T) {
+	SetTTLZero(t, respondent.NewSocket)
+}
+
+func TestSurveyTTLNegative(t *testing.T) {
+	SetTTLNegative(t, respondent.NewSocket)
+}
+
+func TestSurveyTTLTooBig(t *testing.T) {
+	SetTTLTooBig(t, respondent.NewSocket)
+}
+
+func TestSurveyTTLNotInt(t *testing.T) {
+	SetTTLNotInt(t, respondent.NewSocket)
+}
+
+func TestSurveyTTLSet(t *testing.T) {
+	SetTTL(t, respondent.NewSocket)
+}
+
+func TestSurveyTTLDrop(t *testing.T) {
+	TTLDropTest(t, surveyor.NewSocket, respondent.NewSocket)
+}

@@ -37,6 +37,8 @@ var protoRep = rep.NewProtocol()
 var cliCfg, _ = NewTLSConfig(false)
 var srvCfg, _ = NewTLSConfig(true)
 
+type newSockFunc func() (mangos.Socket, error)
+
 // T is a structure that subtests can inherit from.
 type T struct {
 	t       *testing.T

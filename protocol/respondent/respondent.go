@@ -276,6 +276,8 @@ func (x *resp) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
 		return x.raw, nil
+	case mangos.OptionTTL:
+		return x.ttl, nil
 	default:
 		return nil, mangos.ErrBadOption
 	}
