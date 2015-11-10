@@ -3,10 +3,10 @@
 
 [![Linux Status](https://img.shields.io/travis/gdamore/mangos.svg?label=linux)](https://travis-ci.org/gdamore/mangos)
 [![Windows Status](https://img.shields.io/appveyor/ci/gdamore/mangos.svg?label=windows)](https://ci.appveyor.com/project/gdamore/mangos)
-[![GitHub License](https://img.shields.io/github/license/gdamore/mangos.svg)](https://github.com/gdamore/mangos/blob/master/LICENSE)
-[![Issues](https://img.shields.io/github/issues/gdamore/mangos.svg)](https://github.com/gdamore/mangos/issues)
+[![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/gdamore/mangos/blob/master/LICENSE)
 [![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/gdamore/mangos)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/gdamore/mangos)
+[![Go Report Card](http://goreportcard.com/badge/gdamore/mangos)](http://goreportcard.com/report/gdamore/mangos)
 
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
