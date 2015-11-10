@@ -23,25 +23,25 @@ import (
 var tt = test.NewTranTest(NewTransport(), "inproc://testname")
 
 func TestInpListenAndAccept(t *testing.T) {
-	tt.TranTestListenAndAccept(t)
+	tt.TestListenAndAccept(t)
 }
 
 func TestInpDuplicateListen(t *testing.T) {
-	tt.TranTestDuplicateListen(t)
+	tt.TestDuplicateListen(t)
 }
 
 func TestInpConnRefused(t *testing.T) {
-	tt.TranTestConnRefused(t)
+	tt.TestConnRefused(t)
 }
 
 func TestInpSendRecv(t *testing.T) {
-	tt.TranTestSendRecv(t)
+	tt.TestSendRecv(t)
 }
 
 func TestInpSchem(t *testing.T) {
-	tt.TranTestScheme(t)
+	tt.TestScheme(t)
 }
 
 func TestInp(t *testing.T) {
-	tt.TranTestAll(t)
+	tt.TestAll(t)
 }

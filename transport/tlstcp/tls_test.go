@@ -23,21 +23,21 @@ import (
 var tt = test.NewTranTest(NewTransport(), "tls+tcp://127.0.0.1:3334")
 
 func TestTLSListenAndAccept(t *testing.T) {
-	tt.TranTestListenAndAccept(t)
+	tt.TestListenAndAccept(t)
 }
 
 func TestTLSDuplicateListen(t *testing.T) {
-	tt.TranTestDuplicateListen(t)
+	tt.TestDuplicateListen(t)
 }
 
 func TestTLSConnRefused(t *testing.T) {
-	tt.TranTestConnRefused(t)
+	tt.TestConnRefused(t)
 }
 
 func TestTLSSendRecv(t *testing.T) {
-	tt.TranTestSendRecv(t)
+	tt.TestSendRecv(t)
 }
 
 func TestTLSAll(t *testing.T) {
-	tt.TranTestAll(t)
+	tt.TestAll(t)
 }

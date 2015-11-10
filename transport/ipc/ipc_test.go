@@ -30,7 +30,7 @@ func TestIpcListenAndAccept(t *testing.T) {
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
-		tt.TranTestListenAndAccept(t)
+		tt.TestListenAndAccept(t)
 	}
 }
 
@@ -41,7 +41,7 @@ func TestIpcDuplicateListen(t *testing.T) {
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
-		tt.TranTestDuplicateListen(t)
+		tt.TestDuplicateListen(t)
 	}
 }
 
@@ -52,7 +52,7 @@ func TestIpcConnRefused(t *testing.T) {
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
-		tt.TranTestConnRefused(t)
+		tt.TestConnRefused(t)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestIpcSendRecv(t *testing.T) {
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
-		tt.TranTestSendRecv(t)
+		tt.TestSendRecv(t)
 	}
 }
 
@@ -74,6 +74,6 @@ func TestIpcAll(t *testing.T) {
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
-		tt.TranTestAll(t)
+		tt.TestAll(t)
 	}
 }
