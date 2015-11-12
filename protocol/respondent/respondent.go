@@ -144,7 +144,7 @@ func (x *resp) receiver(ep mangos.Endpoint) {
 		for {
 			if hops >= x.ttl {
 				m.Free() // ErrTooManyHops
-				return
+				continue
 			}
 			hops++
 			if len(m.Body) < 4 {
