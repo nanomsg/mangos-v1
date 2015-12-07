@@ -114,7 +114,7 @@ func newSocket(proto Protocol) *socket {
 	sock.urq = make(chan *Message, sock.urqLen)
 	sock.closeq = make(chan struct{})
 	sock.reconntime = time.Millisecond * 100 // make it a tunable?
-	sock.reconnmax = time.Minute
+	sock.reconnmax = time.Duration(0)
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
 	sock.linger = time.Second
@@ -572,9 +572,11 @@ func (d *dialer) dialer() {
 		case <-d.sock.closeq: // exit if parent socket closed
 			return
 		case <-time.After(rtime):
-			rtime *= 2
-			if rtime > rtmax {
-				rtime = rtmax
+			if rtmax > 0 {
+				rtime *= 2
+				if rtime > rtmax {
+					rtime = rtmax
+				}
 			}
 			continue
 		}
