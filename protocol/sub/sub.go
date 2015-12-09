@@ -167,11 +167,6 @@ func (s *sub) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol returns a new SUB protocol object.
-func NewProtocol() mangos.Protocol {
-	return &sub{}
-}
-
 // NewSocket allocates a new Socket using the SUB protocol.
 func NewSocket() (mangos.Socket, error) {
 	return mangos.MakeSocket(&sub{}), nil

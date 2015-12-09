@@ -151,11 +151,6 @@ func (x *pair) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol returns a new PAIR protocol object.
-func NewProtocol() mangos.Protocol {
-	return &pair{}
-}
-
 // NewSocket allocates a new Socket using the PAIR protocol.
 func NewSocket() (mangos.Socket, error) {
 	return mangos.MakeSocket(&pair{}), nil

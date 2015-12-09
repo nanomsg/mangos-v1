@@ -283,11 +283,6 @@ func (x *resp) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol returns a new RESPONDENT protocol object.
-func NewProtocol() mangos.Protocol {
-	return &resp{}
-}
-
 // NewSocket allocates a new Socket using the RESPONDENT protocol.
 func NewSocket() (mangos.Socket, error) {
 	return mangos.MakeSocket(&resp{}), nil

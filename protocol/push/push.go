@@ -126,11 +126,6 @@ func (x *push) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol returns a new PUSH protocol object.
-func NewProtocol() mangos.Protocol {
-	return &push{}
-}
-
 // NewSocket allocates a new Socket using the PUSH protocol.
 func NewSocket() (mangos.Socket, error) {
 	return mangos.MakeSocket(&push{}), nil

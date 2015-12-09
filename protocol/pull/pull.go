@@ -100,11 +100,6 @@ func (x *pull) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol allocates a new PULL protocol object.
-func NewProtocol() mangos.Protocol {
-	return &pull{}
-}
-
 // NewSocket allocates a new Socket using the PULL protocol.
 func NewSocket() (mangos.Socket, error) {
 	return mangos.MakeSocket(&pull{}), nil
