@@ -27,13 +27,9 @@ import (
 	"time"
 
 	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
 	"github.com/gdamore/mangos/transport/all"
 )
 
-var protoReq = req.NewProtocol()
-var protoRep = rep.NewProtocol()
 var cliCfg, _ = NewTLSConfig(false)
 var srvCfg, _ = NewTLSConfig(true)
 
