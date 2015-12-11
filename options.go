@@ -130,4 +130,20 @@ const (
 	// This option is only intended to prevent gross abuse  of the system,
 	// and not a substitute for proper application message verification.
 	OptionMaxRecvSize = "MAX-RCV-SIZE"
+
+	// OptionReconnectTime is the initial interval used for connection
+	// attempts.  If a connection attempt does not succeed, then ths socket
+	// will wait this long before trying again.  An optional exponential
+	// backoff may cause this value to grow.  See OptionMaxReconnectTime
+	// for more details.   This is a time.Duration whose default value is
+	// 100msec.  This option must be set before starting any dialers.
+	OptionReconnectTime = "RECONNECT-TIME"
+
+	// OptionMaxReconnectTime is the maximum value of the time between
+	// connection attempts, when an exponential backoff is used.  If this
+	// value is zero, then exponential backoff is disabled, otherwise
+	// the value to wait between attempts is doubled until it hits this
+	// limit.  This value is a time.Duration, with initial value 0.
+	// This option must be set before starting any dialers.
+	OptionMaxReconnectTime = "MAX-RECONNECT-TIME"
 )

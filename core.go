@@ -113,7 +113,7 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, sock.uwqLen)
 	sock.urq = make(chan *Message, sock.urqLen)
 	sock.closeq = make(chan struct{})
-	sock.reconntime = time.Millisecond * 100 // make it a tunable?
+	sock.reconntime = time.Millisecond * 100
 	sock.reconnmax = time.Duration(0)
 	sock.proto = proto
 	sock.transports = make(map[string]Transport)
@@ -437,6 +437,16 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		default:
 			return ErrBadValue
 		}
+	case OptionReconnectTime:
+		sock.Lock()
+		sock.reconntime = value.(time.Duration)
+		sock.Unlock()
+		return nil
+	case OptionMaxReconnectTime:
+		sock.Lock()
+		sock.reconnmax = value.(time.Duration)
+		sock.Unlock()
+		return nil
 	}
 	if matched {
 		return nil
