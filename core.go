@@ -222,6 +222,11 @@ func (sock *socket) SendMsg(msg *Message) error {
 	}
 	sock.Lock()
 	timeout := mkTimer(sock.wdeadline)
+	if sock.wdeadline != 0 {
+		msg.expire = time.Now().Add(sock.wdeadline)
+	} else {
+		msg.expire = time.Time{}
+	}
 	sock.Unlock()
 	select {
 	case <-timeout:

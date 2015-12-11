@@ -119,6 +119,10 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 
 	var buf []byte
 
+	if m.Expired() {
+		m.Free()
+		return nil
+	}
 	if len(m.Header) > 0 {
 		buf = make([]byte, 0, len(m.Header)+len(m.Body))
 		buf = append(buf, m.Header...)

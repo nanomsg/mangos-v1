@@ -93,6 +93,11 @@ func (p *inproc) Send(m *mangos.Message) error {
 		return mangos.ErrClosed
 	}
 
+	if m.Expired() {
+		m.Free()
+		return nil
+	}
+
 	// Upper protocols expect to have to pick header and body part.
 	// Also we need to have a fresh copy of the message for receiver, to
 	// break ownership.
