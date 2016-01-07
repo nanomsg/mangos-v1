@@ -31,10 +31,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pair"
-	"github.com/gdamore/mangos/transport/ipc"
-	"github.com/gdamore/mangos/transport/tcp"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pair"
+	"github.com/go-mangos/mangos/transport/ipc"
+	"github.com/go-mangos/mangos/transport/tcp"
 )
 
 func die(format string, v ...interface{}) {

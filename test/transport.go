@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/rep"
+	"github.com/go-mangos/mangos/protocol/req"
 )
 
 // TranTest provides a common test structure for transports, so that they

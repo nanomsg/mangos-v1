@@ -19,7 +19,7 @@ package pull
 import (
 	"time"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 )
 
 type pull struct {

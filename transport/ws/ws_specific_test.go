@@ -20,9 +20,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
-	//"github.com/gdamore/mangos/test"
+	"github.com/go-mangos/mangos/protocol/rep"
+	"github.com/go-mangos/mangos/protocol/req"
+	//"github.com/go-mangos/mangos/test"
 )
 
 func TestWebsockPath(t *testing.T) {

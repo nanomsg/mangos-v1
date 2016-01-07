@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 )
 
 // req is an implementation of the req protocol.

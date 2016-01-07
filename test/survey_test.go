@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/respondent"
-	"github.com/gdamore/mangos/protocol/surveyor"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/respondent"
+	"github.com/go-mangos/mangos/protocol/surveyor"
 )
 
 type surveyTest struct {

@@ -18,7 +18,7 @@ package tcp
 import (
 	"net"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 )
 
 // options is used for shared GetOption/SetOption logic.

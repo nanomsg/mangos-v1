@@ -17,8 +17,8 @@ package test
 import (
 	"testing"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pair"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pair"
 )
 
 type pairTest struct {

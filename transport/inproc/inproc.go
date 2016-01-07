@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 )
 
 // inproc implements the Pipe interface on top of channels.

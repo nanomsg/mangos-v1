@@ -17,9 +17,9 @@ package test
 import (
 	"testing"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pull"
-	"github.com/gdamore/mangos/protocol/push"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pull"
+	"github.com/go-mangos/mangos/protocol/push"
 )
 
 type PushTest struct {

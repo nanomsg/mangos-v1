@@ -18,9 +18,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pub"
-	"github.com/gdamore/mangos/protocol/sub"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pub"
+	"github.com/go-mangos/mangos/protocol/sub"
 )
 
 var publish = []string{

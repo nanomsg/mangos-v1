@@ -20,16 +20,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pair"
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
-	"github.com/gdamore/mangos/transport/inproc"
-	"github.com/gdamore/mangos/transport/ipc"
-	"github.com/gdamore/mangos/transport/tcp"
-	"github.com/gdamore/mangos/transport/tlstcp"
-	"github.com/gdamore/mangos/transport/ws"
-	"github.com/gdamore/mangos/transport/wss"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pair"
+	"github.com/go-mangos/mangos/protocol/rep"
+	"github.com/go-mangos/mangos/protocol/req"
+	"github.com/go-mangos/mangos/transport/inproc"
+	"github.com/go-mangos/mangos/transport/ipc"
+	"github.com/go-mangos/mangos/transport/tcp"
+	"github.com/go-mangos/mangos/transport/tlstcp"
+	"github.com/go-mangos/mangos/transport/ws"
+	"github.com/go-mangos/mangos/transport/wss"
 )
 
 func TestDeviceBadPair(t *testing.T) {

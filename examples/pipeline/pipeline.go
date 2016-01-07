@@ -28,11 +28,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pull"
-	"github.com/gdamore/mangos/protocol/push"
-	"github.com/gdamore/mangos/transport/ipc"
-	"github.com/gdamore/mangos/transport/tcp"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pull"
+	"github.com/go-mangos/mangos/protocol/push"
+	"github.com/go-mangos/mangos/transport/ipc"
+	"github.com/go-mangos/mangos/transport/tcp"
 	"os"
 )
 

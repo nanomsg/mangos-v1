@@ -17,8 +17,8 @@
 package wss
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/ws"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/transport/ws"
 )
 
 type wssTran struct {

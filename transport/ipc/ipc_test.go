@@ -18,7 +18,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/gdamore/mangos/test"
+	"github.com/go-mangos/mangos/test"
 )
 
 var tt = test.NewTranTest(NewTransport(), "ipc:///tmp/test1234")

@@ -17,7 +17,7 @@ package tlstcp
 import (
 	"testing"
 
-	"github.com/gdamore/mangos/test"
+	"github.com/go-mangos/mangos/test"
 )
 
 var tt = test.NewTranTest(NewTransport(), "tls+tcp://127.0.0.1:3334")

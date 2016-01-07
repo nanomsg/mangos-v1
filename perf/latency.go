@@ -19,9 +19,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pair"
-	"github.com/gdamore/mangos/transport/all"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pair"
+	"github.com/go-mangos/mangos/transport/all"
 	"log"
 	"time"
 )

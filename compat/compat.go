@@ -38,18 +38,18 @@ import (
 )
 
 import (
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/bus"
-	"github.com/gdamore/mangos/protocol/pair"
-	"github.com/gdamore/mangos/protocol/pub"
-	"github.com/gdamore/mangos/protocol/pull"
-	"github.com/gdamore/mangos/protocol/push"
-	"github.com/gdamore/mangos/protocol/rep"
-	"github.com/gdamore/mangos/protocol/req"
-	"github.com/gdamore/mangos/protocol/respondent"
-	"github.com/gdamore/mangos/protocol/sub"
-	"github.com/gdamore/mangos/protocol/surveyor"
-	"github.com/gdamore/mangos/transport/all"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/bus"
+	"github.com/go-mangos/mangos/protocol/pair"
+	"github.com/go-mangos/mangos/protocol/pub"
+	"github.com/go-mangos/mangos/protocol/pull"
+	"github.com/go-mangos/mangos/protocol/push"
+	"github.com/go-mangos/mangos/protocol/rep"
+	"github.com/go-mangos/mangos/protocol/req"
+	"github.com/go-mangos/mangos/protocol/respondent"
+	"github.com/go-mangos/mangos/protocol/sub"
+	"github.com/go-mangos/mangos/protocol/surveyor"
+	"github.com/go-mangos/mangos/transport/all"
 )
 
 // Domain is the socket domain or address family.  We use it to indicate

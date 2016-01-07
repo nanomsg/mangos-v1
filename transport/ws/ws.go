@@ -24,7 +24,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 	"sync"
 )
 

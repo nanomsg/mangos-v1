@@ -26,8 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/transport/all"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/transport/all"
 )
 
 var cliCfg, _ = NewTLSConfig(false)

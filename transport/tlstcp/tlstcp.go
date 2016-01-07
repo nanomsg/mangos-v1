@@ -19,7 +19,7 @@ import (
 	"crypto/tls"
 	"net"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 )
 
 type options map[string]interface{}

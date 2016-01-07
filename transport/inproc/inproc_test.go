@@ -17,7 +17,7 @@ package inproc
 import (
 	"testing"
 
-	"github.com/gdamore/mangos/test"
+	"github.com/go-mangos/mangos/test"
 )
 
 var tt = test.NewTranTest(NewTransport(), "inproc://testname")

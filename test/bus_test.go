@@ -18,8 +18,8 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/bus"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/bus"
 )
 
 type busTest struct {
