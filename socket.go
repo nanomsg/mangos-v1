@@ -23,10 +23,10 @@ type Socket interface {
 	// will return ErrClosed.
 	Close() error
 
-	// Send puts the message on the outbound send.  It always succeeds,
-	// unless the buffer(s) are full.  Once the system takes ownership of
-	// the message, it guarantees to deliver the message or keep trying as
-	// long as the Socket is open.
+	// Send puts the message on the outbound send queue.  It blocks
+	// until the message can be queued, or the send deadline expires.
+	// If a queued message is later dropped for any reason,
+	// there will be no notification back to the application.
 	Send([]byte) error
 
 	// Recv receives a complete message.  The entire message is received.
