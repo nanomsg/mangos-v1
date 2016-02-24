@@ -2,7 +2,7 @@
 
 The **macat** command is a command‐line interface to send and receive data
 via the
-[mangos](https://github.com/gdamore/mangos) implementation of the SP
+[mangos](https://github.com/go-mangos/mangos) implementation of the SP
 [nanomsg](http://www.nanomsg.org) protocols. It is designed to be suitable
 for use as a drop‐in replacement for nanocat(1).
 

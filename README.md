@@ -3,10 +3,10 @@
 
 [![Linux Status](https://img.shields.io/travis/gdamore/mangos.svg?label=linux)](https://travis-ci.org/gdamore/mangos)
 [![Windows Status](https://img.shields.io/appveyor/ci/gdamore/mangos.svg?label=windows)](https://ci.appveyor.com/project/gdamore/mangos)
-[![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/gdamore/mangos/blob/master/LICENSE)
+[![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/go-mangos/mangos/blob/master/LICENSE)
 [![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/gdamore/mangos)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/gdamore/mangos)
-[![Go Report Card](http://goreportcard.com/badge/gdamore/mangos)](http://goreportcard.com/report/gdamore/mangos)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/go-mangos/mangos)
+[![Go Report Card](http://goreportcard.com/badge/go-mangos/mangos)](http://goreportcard.com/report/go-mangos/mangos)
 
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
@@ -45,30 +45,30 @@ via my email address, garrett -at- damore -dot- org
 
 ### Using *go get*
 
-    $ go get -u github.com/gdamore/mangos
+    $ go get -u github.com/go-mangos/mangos
 
 After this command *mangos* is ready to use. Its source will be in:
 
-    $GOPATH/src/pkg/github.com/gdamore/mangos
+    $GOPATH/src/pkg/github.com/go-mangos/mangos
 
 You can use `go get -u -a` to update all installed packages.
 
 ## Documentation
 
-For docs, see http://godoc.org/github.com/gdamore/mangos or run:
+For docs, see http://godoc.org/github.com/go-mangos/mangos or run:
 
-    $ godoc github.com/gdamore/mangos
+    $ godoc github.com/go-mangos/mangos
 
 ## Testing
 
 This package supports internal self tests, which can be run in
 the idiomatic Go way, although it uses a separate test sub-package:
 
-    $ go test github.com/gdamore/mangos/test
+    $ go test github.com/go-mangos/mangos/test
 
 There are also internal benchmarks available:
 
-    $ go test -bench=. github.com/gdamore/mangos/test
+    $ go test -bench=. github.com/go-mangos/mangos/test
 
 ## Examples
 
