@@ -23,4 +23,4 @@
 //
 // For more information, see www.nanomsg.org.
 //
-package mangos
+package mangos // import "github.com/go-mangos/mangos"
