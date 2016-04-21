@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -138,11 +138,8 @@ func (rt *crepTest) Init(t *testing.T, addr string, num uint32) bool {
 }
 
 func (rt *crepTest) Finish() {
-	rt.sock.Close()
 	rt.ok = rt.cur == rt.tot
-	if !rt.ok {
-		close(rt.done)
-	}
+	close(rt.done)
 }
 
 func (rt *crepTest) DoTest() bool {
@@ -207,14 +204,11 @@ func ReqRepCompat(t *testing.T, addr string, num uint32) {
 
 	t.Logf("Waiting for tests to complete")
 
-	select {
-	case <-req.done:
-		t.Logf("Req complete")
-		break
-	case <-rep.done:
-		t.Logf("Rep complete")
-		break
-	}
+	<-rep.done
+	t.Logf("Rep complete")
+
+	<-req.done
+	t.Logf("Req complete")
 
 	req.sock.Close()
 	rep.sock.Close()
