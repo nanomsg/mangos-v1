@@ -1,7 +1,7 @@
 ## mangos <img src=mangos.jpg align=right>
 
 
-[![Linux Status](https://img.shields.io/travis/gdamore/mangos.svg?label=linux)](https://travis-ci.org/gdamore/mangos)
+[![Linux Status](https://img.shields.io/travis/gdamore/mangos.svg?label=linux)](https://travis-ci.org/go-mangos/mangos)
 [![Windows Status](https://img.shields.io/appveyor/ci/gdamore/mangos.svg?label=windows)](https://ci.appveyor.com/project/gdamore/mangos)
 [![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/go-mangos/mangos/blob/master/LICENSE)
 [![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/gdamore/mangos)
