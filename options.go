@@ -132,7 +132,7 @@ const (
 	OptionMaxRecvSize = "MAX-RCV-SIZE"
 
 	// OptionReconnectTime is the initial interval used for connection
-	// attempts.  If a connection attempt does not succeed, then ths socket
+	// attempts.  If a connection attempt does not succeed, then the socket
 	// will wait this long before trying again.  An optional exponential
 	// backoff may cause this value to grow.  See OptionMaxReconnectTime
 	// for more details.   This is a time.Duration whose default value is
