@@ -35,7 +35,6 @@ type repEp struct {
 type rep struct {
 	sock         mangos.ProtocolSocket
 	eps          map[uint32]*repEp
-	backtracebuf []byte
 	backtrace    []byte
 	backtraceL   sync.Mutex
 	raw          bool
@@ -49,7 +48,6 @@ type rep struct {
 func (r *rep) Init(sock mangos.ProtocolSocket) {
 	r.sock = sock
 	r.eps = make(map[uint32]*repEp)
-	r.backtracebuf = make([]byte, 64)
 	r.ttl = 8 // default specified in the RFC
 	r.w.Init()
 	r.sock.SetSendError(mangos.ErrProtoState)
@@ -227,9 +225,8 @@ func (r *rep) RecvHook(m *mangos.Message) bool {
 	}
 	r.sock.SetSendError(nil)
 	r.backtraceL.Lock()
-	r.backtrace = append(r.backtracebuf[0:0], m.Header...)
+	r.backtrace = append(r.backtrace[0:0], m.Header...)
 	r.backtraceL.Unlock()
-	m.Header = nil
 	return true
 }
 
