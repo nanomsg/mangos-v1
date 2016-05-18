@@ -156,7 +156,6 @@ func (r *req) sender(pe *reqEp) {
 		}
 
 		if pe.ep.SendMsg(m) != nil {
-			r.resend <- m
 			break
 		}
 	}

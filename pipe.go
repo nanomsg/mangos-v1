@@ -142,11 +142,11 @@ func (p *pipe) IsServer() bool {
 }
 
 func (p *pipe) LocalProtocol() uint16 {
-	return p.LocalProtocol()
+	return p.pipe.LocalProtocol()
 }
 
 func (p *pipe) RemoteProtocol() uint16 {
-	return p.RemoteProtocol()
+	return p.pipe.RemoteProtocol()
 }
 
 func (p *pipe) Dialer() Dialer {

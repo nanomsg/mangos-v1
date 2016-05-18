@@ -40,8 +40,8 @@ const (
 	OptionSendDeadline = "SEND-DEADLINE"
 
 	// OptionRetryTime is used by REQ.  The argument is a time.Duration.
-	// When a request has been replied to within the given duration,
-	// the request will automatically be resent to an available peer.
+	// When a request has not been replied to within the given duration,
+	// that request will automatically be resent to an available peer.
 	// This value should be longer than the maximum possible processing
 	// and transport time.  The value zero indicates that no automatic
 	// retries should be sent.  The default value is one minute.
@@ -132,7 +132,7 @@ const (
 	OptionMaxRecvSize = "MAX-RCV-SIZE"
 
 	// OptionReconnectTime is the initial interval used for connection
-	// attempts.  If a connection attempt does not succeed, then ths socket
+	// attempts.  If a connection attempt does not succeed, then the socket
 	// will wait this long before trying again.  An optional exponential
 	// backoff may cause this value to grow.  See OptionMaxReconnectTime
 	// for more details.   This is a time.Duration whose default value is

@@ -25,7 +25,7 @@ package mangos
 // established to forward messages in each direction.  If either socket returns
 // error on receive or send, the goroutine doing the forwarding will exit.
 // This means that closing either socket will generally cause the goroutines
-// to exit.  Apart from closing the socket(s), no futher operations should be
+// to exit.  Apart from closing the socket(s), no further operations should be
 // performed against the socket.
 func Device(s1 Socket, s2 Socket) error {
 	// Is one of the sockets nil?

@@ -493,6 +493,14 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		sock.Lock()
 		defer sock.Unlock()
 		return sock.maxRxSize, nil
+	case OptionReconnectTime:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.reconntime, nil
+	case OptionMaxReconnectTime:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.reconnmax, nil
 	}
 	return nil, ErrBadOption
 }
