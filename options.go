@@ -40,7 +40,7 @@ const (
 	OptionSendDeadline = "SEND-DEADLINE"
 
 	// OptionRetryTime is used by REQ.  The argument is a time.Duration.
-	// When a request has been replied to within the given duration,
+	// When a request has not been replied to within the given duration,
 	// the request will automatically be resent to an available peer.
 	// This value should be longer than the maximum possible processing
 	// and transport time.  The value zero indicates that no automatic
