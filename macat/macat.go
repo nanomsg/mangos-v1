@@ -553,8 +553,6 @@ func main() {
 		fatalf("Protocol not specified.")
 	}
 
-	sock.SetOption(mangos.OptionTLSConfig, &tlscfg)
-
 	if len(listenAddrs) == 0 && len(dialAddrs) == 0 {
 		fatalf("No address specified.")
 	}
@@ -581,6 +579,8 @@ func main() {
 	}
 
 	for i := range listenAddrs {
+		var opts = make(map[string]interface{})
+
 		// TLS addresses require a certificate to be supplied.
 		if strings.HasPrefix(listenAddrs[i], "tls") {
 			if len(tlscfg.Certificates) == 0 {
@@ -589,20 +589,24 @@ func main() {
 			if tlscfg.InsecureSkipVerify && !noVerifyTLS {
 				fatalf("No CA certificate specified.")
 			}
+			opts[mangos.OptionTLSConfig] = &tlscfg
 		}
-		err := sock.Listen(listenAddrs[i])
+		err := sock.ListenOptions(listenAddrs[i], opts)
 		if err != nil {
 			fatalf("Bind(%s): %v", listenAddrs[i], err)
 		}
 	}
 
 	for i := range dialAddrs {
+		var opts = make(map[string]interface{})
+
 		if strings.HasPrefix(dialAddrs[i], "tls") {
 			if tlscfg.InsecureSkipVerify && !noVerifyTLS {
 				fatalf("No CA certificate specified.")
 			}
+			opts[mangos.OptionTLSConfig] = &tlscfg
 		}
-		err := sock.Dial(dialAddrs[i])
+		err := sock.DialOptions(dialAddrs[i], opts)
 		if err != nil {
 			fatalf("Dial(%s): %v", dialAddrs[i], err)
 		}

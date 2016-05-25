@@ -74,7 +74,8 @@ const (
 	// indicate an infinite time.  Default is 1 second.
 	OptionSurveyTime = "SURVEY-TIME"
 
-	// OptionTLSConfig is used to supply TLS configuration details.
+	// OptionTLSConfig is used to supply TLS configuration details. It
+	// can be set using the ListenOptions or DialOptions.
 	// The parameter is a tls.Config pointer.
 	OptionTLSConfig = "TLS-CONFIG"
 
