@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,6 +15,7 @@
 package mangos
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -33,20 +34,64 @@ type Message struct {
 	bsize  int
 	refcnt int32
 	expire time.Time
+	pool   *sync.Pool
 }
 
 type msgCacheInfo struct {
 	maxbody int
-	cache   chan *Message
+}
+
+func newMsg(sz int) *Message {
+	m := &Message{}
+	m.bbuf = make([]byte, 0, sz)
+	m.hbuf = make([]byte, 0, 32)
+	m.bsize = sz
+	return m
 }
 
 // We can tweak these!
 var messageCache = []msgCacheInfo{
-	{maxbody: 64, cache: make(chan *Message, 2048)},   // 128K
-	{maxbody: 128, cache: make(chan *Message, 1024)},  // 128K
-	{maxbody: 1024, cache: make(chan *Message, 1024)}, // 1 MB
-	{maxbody: 8192, cache: make(chan *Message, 256)},  // 2 MB
-	{maxbody: 65536, cache: make(chan *Message, 64)},  // 4 MB
+	{
+		maxbody: 64,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(64) },
+		},
+	}, {
+		maxbody: 128,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(128) },
+		},
+	}, {
+		maxbody: 256,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(256) },
+		},
+	}, {
+		maxbody: 512,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(512) },
+		},
+	}, {
+		maxbody: 1024,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(1024) },
+		},
+	}, {
+		maxbody: 4096,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(4096) },
+		},
+	}, {
+		maxbody: 8192,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(8192) },
+		},
+	}, {
+		maxbody: 65536,
+		pool: &sync.Pool{
+			New: func() interface{} { return newMsg(65536) },
+		},
+	},
 }
 
 // Free decrements the reference count on a message, and releases its
@@ -55,20 +100,14 @@ var messageCache = []msgCacheInfo{
 // be recycled without engaging GC.  This can have rather substantial
 // benefits for performance.
 func (m *Message) Free() {
-	var ch chan *Message
 	if v := atomic.AddInt32(&m.refcnt, -1); v > 0 {
 		return
 	}
 	for i := range messageCache {
 		if m.bsize == messageCache[i].maxbody {
-			ch = messageCache[i].cache
-			break
+			messageCache[i].pool.Put(m)
+			return
 		}
-	}
-	m.Port = nil
-	select {
-	case ch <- m:
-	default:
 	}
 }
 
@@ -103,21 +142,14 @@ func (m *Message) Expired() bool {
 // use of a "cache" which greatly reduces the load on the garbage collector.
 func NewMessage(sz int) *Message {
 	var m *Message
-	var ch chan *Message
 	for i := range messageCache {
 		if sz < messageCache[i].maxbody {
-			ch = messageCache[i].cache
-			sz = messageCache[i].maxbody
+			m = messageCache[i].pool.Get().(*Message)
 			break
 		}
 	}
-	select {
-	case m = <-ch:
-	default:
-		m = &Message{}
-		m.bbuf = make([]byte, 0, sz)
-		m.hbuf = make([]byte, 0, 32)
-		m.bsize = sz
+	if m == nil {
+		m = messageCache[0].pool.Get().(*Message)
 	}
 
 	m.refcnt = 1
