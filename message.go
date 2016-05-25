@@ -39,6 +39,7 @@ type Message struct {
 
 type msgCacheInfo struct {
 	maxbody int
+	pool    *sync.Pool
 }
 
 func newMsg(sz int) *Message {
