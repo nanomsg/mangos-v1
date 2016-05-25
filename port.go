@@ -43,10 +43,10 @@ type Port interface {
 	IsClient() bool
 
 	// LocalProtocol returns the local protocol number.
-	LocalProtocol() uint16
+	LocalProtocol() ProtocolNumber
 
 	// RemoteProtocol returns the remote protocol number.
-	RemoteProtocol() uint16
+	RemoteProtocol() ProtocolNumber
 
 	// Dialer returns the dialer for this Port, or nil if a server.
 	Dialer() Dialer

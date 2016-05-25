@@ -137,11 +137,11 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 	return nil
 }
 
-func (w *wsPipe) LocalProtocol() uint16 {
+func (w *wsPipe) LocalProtocol() mangos.ProtocolNumber {
 	return w.proto.Number()
 }
 
-func (w *wsPipe) RemoteProtocol() uint16 {
+func (w *wsPipe) RemoteProtocol() mangos.ProtocolNumber {
 	return w.proto.PeerNumber()
 }
 
@@ -176,7 +176,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	wd := &websocket.Dialer{}
 
-	wd.Subprotocols = []string{d.proto.PeerName() + ".sp.nanomsg.org"}
+	wd.Subprotocols = []string{d.proto.PeerNumber().String() + ".sp.nanomsg.org"}
 	if v, ok := d.opts[mangos.OptionTLSConfig]; ok {
 		wd.TLSClientConfig = v.(*tls.Config)
 	}
@@ -313,7 +313,7 @@ func (l *listener) handler(ws *websocket.Conn, req *http.Request) {
 		return
 	}
 
-	if ws.Subprotocol() != l.proto.Name()+".sp.nanomsg.org" {
+	if ws.Subprotocol() != l.proto.Number().String() + ".sp.nanomsg.org" {
 		ws.Close()
 		l.lock.Unlock()
 		return
@@ -415,7 +415,7 @@ func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 	var err error
 	l := &listener{proto: proto, opts: make(map[string]interface{})}
 	l.cv.L = &l.lock
-	l.ug.Subprotocols = []string{proto.Name() + ".sp.nanomsg.org"}
+	l.ug.Subprotocols = []string{proto.Number().String() + ".sp.nanomsg.org"}
 
 	if strings.HasPrefix(addr, "wss://") {
 		l.iswss = true
