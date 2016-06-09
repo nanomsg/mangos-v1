@@ -108,13 +108,13 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 type listener struct {
 	sock     mangos.Socket
 	addr     *net.TCPAddr
+	bound    net.Addr
 	listener *net.TCPListener
 	opts     options
 	config   *tls.Config
 }
 
 func (l *listener) Listen() error {
-
 	var err error
 	v, ok := l.opts[mangos.OptionTLSConfig]
 	if !ok {
@@ -131,10 +131,16 @@ func (l *listener) Listen() error {
 	if l.listener, err = net.ListenTCP("tcp", l.addr); err != nil {
 		return err
 	}
+
+	l.bound = l.listener.Addr()
+
 	return nil
 }
 
 func (l *listener) Address() string {
+	if b := l.bound; b != nil {
+		return "tls+tcp://" + b.String()
+	}
 	return "tls+tcp://" + l.addr.String()
 }
 
