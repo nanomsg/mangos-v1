@@ -150,7 +150,7 @@ func NewMessage(sz int) *Message {
 		}
 	}
 	if m == nil {
-		m = messageCache[0].pool.Get().(*Message)
+		m = newMsg(sz)
 	}
 
 	m.refcnt = 1
