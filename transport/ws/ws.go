@@ -137,11 +137,11 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 	return nil
 }
 
-func (w *wsPipe) LocalProtocol() uint16 {
+func (w *wsPipe) LocalProtocol() mangos.ProtocolNumber {
 	return w.proto.Number()
 }
 
-func (w *wsPipe) RemoteProtocol() uint16 {
+func (w *wsPipe) RemoteProtocol() mangos.ProtocolNumber {
 	return w.proto.PeerNumber()
 }
 

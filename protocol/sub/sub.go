@@ -80,20 +80,20 @@ func (s *sub) receiver(ep mangos.Endpoint) {
 	}
 }
 
-func (*sub) Number() uint16 {
+func (*sub) Number() mangos.ProtocolNumber {
 	return mangos.ProtoSub
 }
 
-func (*sub) PeerNumber() uint16 {
+func (*sub) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoPub
 }
 
-func (*sub) Name() string {
-	return "sub"
+func (s *sub) Name() string {
+	return s.Number().String()
 }
 
-func (*sub) PeerName() string {
-	return "pub"
+func (s *sub) PeerName() string {
+	return s.PeerNumber().String()
 }
 
 func (s *sub) AddEndpoint(ep mangos.Endpoint) {

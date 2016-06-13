@@ -67,20 +67,20 @@ func (x *push) sender(ep *pushEp) {
 	}
 }
 
-func (*push) Number() uint16 {
+func (*push) Number() mangos.ProtocolNumber {
 	return mangos.ProtoPush
 }
 
-func (*push) PeerNumber() uint16 {
+func (*push) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoPull
 }
 
-func (*push) Name() string {
-	return "push"
+func (x *push) Name() string {
+	return x.Number().String()
 }
 
-func (*push) PeerName() string {
-	return "pull"
+func (x *push) PeerName() string {
+	return x.PeerNumber().String()
 }
 
 func (x *push) AddEndpoint(ep mangos.Endpoint) {

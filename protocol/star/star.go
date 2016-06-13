@@ -193,20 +193,20 @@ func (x *star) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Unlock()
 }
 
-func (*star) Number() uint16 {
+func (*star) Number() mangos.ProtocolNumber {
 	return mangos.ProtoStar
 }
 
-func (*star) PeerNumber() uint16 {
+func (*star) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoStar
 }
 
-func (*star) Name() string {
-	return "star"
+func (x *star) Name() string {
+	return x.Number().String()
 }
 
-func (*star) PeerName() string {
-	return "star"
+func (x *star) PeerName() string {
+	return x.PeerNumber().String()
 }
 
 func (x *star) SetOption(name string, v interface{}) error {
