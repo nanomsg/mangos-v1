@@ -19,15 +19,15 @@ import (
 	"time"
 
 	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/pub"
+	"github.com/go-mangos/mangos/protocol/surveyor"
 	"github.com/go-mangos/mangos/transport/tcp"
 )
 
-func testPubNonBlock(t *testing.T, addr string, tran mangos.Transport) {
+func testSurvNonBlock(t *testing.T, addr string, tran mangos.Transport) {
 	maxqlen := 2
 	timeout := time.Second/2
 
-	rp, err := pub.NewSocket()
+	rp, err := surveyor.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to make PUB: %v", err)
 		return
@@ -61,6 +61,6 @@ func testPubNonBlock(t *testing.T, addr string, tran mangos.Transport) {
 	}
 }
 
-func TestPubNonBlockTCP(t *testing.T) {
-	testPubNonBlock(t, AddrTestTCP, tcp.NewTransport())
+func TestSurvNonBlockTCP(t *testing.T) {
+	testSurvNonBlock(t, AddrTestTCP, tcp.NewTransport())
 }

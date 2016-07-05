@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -183,6 +183,9 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 			return
 		}
 	}
+
+	// Wait for the various connections to plumb up
+	time.Sleep(time.Millisecond*100)
 
 	// At this point, we can issue requests on clis[0], and read them from
 	// srvs[nhop-1].

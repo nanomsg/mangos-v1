@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -56,6 +56,8 @@ func (x *surveyor) Init(sock mangos.ProtocolSocket) {
 		func() { x.sock.SetRecvError(mangos.ErrProtoState) })
 	x.timer.Stop()
 	x.w.Init()
+	x.w.Add()
+	go x.sender()
 }
 
 func (x *surveyor) Shutdown(expire time.Time) {
@@ -142,10 +144,6 @@ func (peer *surveyorP) receiver() {
 
 func (x *surveyor) AddEndpoint(ep mangos.Endpoint) {
 	peer := &surveyorP{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
-	x.init.Do(func() {
-		x.w.Add()
-		go x.sender()
-	})
 	x.Lock()
 	x.peers[ep.GetID()] = peer
 	go peer.receiver()

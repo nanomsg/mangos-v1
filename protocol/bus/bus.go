@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -45,6 +45,8 @@ func (x *bus) Init(sock mangos.ProtocolSocket) {
 	x.sock = sock
 	x.peers = make(map[uint32]*busEp)
 	x.w.Init()
+	x.w.Add()
+	go x.sender()
 }
 
 func (x *bus) Shutdown(expire time.Time) {
@@ -150,10 +152,6 @@ func (pe *busEp) receiver() {
 }
 
 func (x *bus) AddEndpoint(ep mangos.Endpoint) {
-	x.init.Do(func() {
-		x.w.Add()
-		go x.sender()
-	})
 	// Set our broadcast depth to match upper depth -- this should
 	// help avoid dropping when bursting, if we burst before we
 	// context switch.
