@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -46,6 +46,8 @@ func (p *pub) Init(sock mangos.ProtocolSocket) {
 	p.eps = make(map[uint32]*pubEp)
 	p.sock.SetRecvError(mangos.ErrProtoOp)
 	p.w.Init()
+	p.w.Add()
+	go p.sender()
 }
 
 func (p *pub) Shutdown(expire time.Time) {
@@ -104,15 +106,12 @@ func (p *pub) sender() {
 				}
 			}
 			p.Unlock()
+			m.Free()
 		}
 	}
 }
 
 func (p *pub) AddEndpoint(ep mangos.Endpoint) {
-	p.init.Do(func() {
-		p.w.Add()
-		go p.sender()
-	})
 	depth := 16
 	if i, err := p.sock.GetOption(mangos.OptionWriteQLen); err == nil {
 		depth = i.(int)
