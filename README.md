@@ -6,8 +6,7 @@
 [![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/go-mangos/mangos/blob/master/LICENSE)
 [![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/gdamore/mangos)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/go-mangos/mangos)
-[![Go Report Card](http://goreportcard.com/badge/go-mangos/mangos)](http://goreportcard.com/report/go-mangos/mangos)
-
+[![Go Report Card](https://goreportcard.com/badge/github.com/go-mangos/mangos)](https://goreportcard.com/report/github.com/go-mangos/mangos)
 
 package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
 protocols.  This makes heavy use of go channels, internally, but it can operate
