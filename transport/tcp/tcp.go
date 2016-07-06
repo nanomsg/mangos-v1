@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -166,7 +166,7 @@ func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 		return nil, err
 	}
 
-	if d.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
+	if d.addr, err = mangos.ResolveTCPAddr(addr); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -180,7 +180,7 @@ func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListe
 		return nil, err
 	}
 
-	if l.addr, err = net.ResolveTCPAddr("tcp", addr); err != nil {
+	if l.addr, err = mangos.ResolveTCPAddr(addr); err != nil {
 		return nil, err
 	}
 

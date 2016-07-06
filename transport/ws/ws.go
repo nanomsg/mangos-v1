@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -261,7 +261,7 @@ func (l *listener) Listen() error {
 	// case of a port already in use.  This also lets us configure
 	// properties of the underlying TCP connection.
 
-	if taddr, err = net.ResolveTCPAddr("tcp", l.url.Host); err != nil {
+	if taddr, err = mangos.ResolveTCPAddr(l.url.Host); err != nil {
 		return err
 	}
 

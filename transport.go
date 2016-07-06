@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,6 +15,7 @@
 package mangos
 
 import (
+	"net"
 	"strings"
 )
 
@@ -148,4 +149,14 @@ func StripScheme(t Transport, addr string) (string, error) {
 		return addr, ErrBadTran
 	}
 	return addr[len(t.Scheme()+"://"):], nil
+}
+
+// ResolveTCPAddr is like net.ResolveTCPAddr, but it handles the
+// wildcard used in nanomsg URLs, replacing it with an empty
+// string to indicate that all local interfaces be used.
+func ResolveTCPAddr(addr string) (*net.TCPAddr, error) {
+	if strings.HasPrefix(addr, "*") {
+		addr = addr[1:]
+	}
+	return net.ResolveTCPAddr("tcp", addr)
 }
