@@ -22,4 +22,3 @@ url=tcp://127.0.0.1:40899
 sleep 5
 kill $server $client0 $client1 $client2
 
-

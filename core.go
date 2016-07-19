@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -32,11 +32,12 @@ type socket struct {
 
 	sync.Mutex
 
-	uwq    chan *Message // upper write queue
-	uwqLen int           // upper write queue buffer length
-	urq    chan *Message // upper read queue
-	urqLen int           // upper read queue buffer length
-	closeq chan struct{} // closed when user requests close
+	uwq      chan *Message // upper write queue
+	uwqLen   int           // upper write queue buffer length
+	urq      chan *Message // upper read queue
+	urqLen   int           // upper read queue buffer length
+	closeq   chan struct{} // closed when user requests close
+	recverrq chan struct{} // signaled when an error is pending
 
 	closing bool  // true if Socket was closed at API level
 	active  bool  // true if either Dial or Listen has been successfully called
@@ -113,6 +114,7 @@ func newSocket(proto Protocol) *socket {
 	sock.uwq = make(chan *Message, sock.uwqLen)
 	sock.urq = make(chan *Message, sock.urqLen)
 	sock.closeq = make(chan struct{})
+	sock.recverrq = make(chan struct{})
 	sock.reconntime = time.Millisecond * 100
 	sock.reconnmax = time.Duration(0)
 	sock.proto = proto
@@ -163,6 +165,10 @@ func (sock *socket) SetSendError(err error) {
 func (sock *socket) SetRecvError(err error) {
 	sock.Lock()
 	sock.recverr = err
+	select {
+	case sock.recverrq <- struct{}{}:
+	default:
+	}
 	sock.Unlock()
 }
 
@@ -255,6 +261,9 @@ func (sock *socket) RecvMsg() (*Message, error) {
 	}
 
 	for {
+		if e = sock.recverr; e != nil {
+			return nil, e
+		}
 		select {
 		case <-timeout:
 			return nil, ErrRecvTimeout
@@ -269,6 +278,7 @@ func (sock *socket) RecvMsg() (*Message, error) {
 			}
 		case <-sock.closeq:
 			return nil, ErrClosed
+		case <-sock.recverrq:
 		}
 	}
 }
