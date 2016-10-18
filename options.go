@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -147,4 +147,13 @@ const (
 	// limit.  This value is a time.Duration, with initial value 0.
 	// This option must be set before starting any dialers.
 	OptionMaxReconnectTime = "MAX-RECONNECT-TIME"
+
+	// OptionBestEffort enables non-blocking send operations on the
+	// socket. Normally (for some socket types), a socket will block if
+	// there are no receivers, or the receivers are unable to keep up
+	// with the sender. (Multicast sockets types like Bus or Star do not
+	// behave this way.)  If this option is set, instead of blocking, the
+	// message will be silently discarded.  The value is a boolean, and
+	// defaults to False.
+	OptionBestEffort = "BEST-EFFORT"
 )
