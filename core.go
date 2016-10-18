@@ -39,10 +39,11 @@ type socket struct {
 	closeq   chan struct{} // closed when user requests close
 	recverrq chan struct{} // signaled when an error is pending
 
-	closing bool  // true if Socket was closed at API level
-	active  bool  // true if either Dial or Listen has been successfully called
-	recverr error // error to return on attempts to Recv()
-	senderr error // error to return on attempts to Send()
+	closing    bool  // true if Socket was closed at API level
+	active     bool  // true if either Dial or Listen has been successfully called
+	bestEffort bool  // true if OptionBestEffort is set
+	recverr    error // error to return on attempts to Recv()
+	senderr    error // error to return on attempts to Send()
 
 	rdeadline  time.Duration
 	wdeadline  time.Duration
@@ -212,6 +213,7 @@ func (sock *socket) Close() error {
 }
 
 func (sock *socket) SendMsg(msg *Message) error {
+
 	sock.Lock()
 	e := sock.senderr
 	if e != nil {
@@ -227,20 +229,34 @@ func (sock *socket) SendMsg(msg *Message) error {
 		}
 	}
 	sock.Lock()
-	timeout := mkTimer(sock.wdeadline)
+	useBestEffort := sock.bestEffort
 	if sock.wdeadline != 0 {
 		msg.expire = time.Now().Add(sock.wdeadline)
 	} else {
 		msg.expire = time.Time{}
 	}
 	sock.Unlock()
-	select {
-	case <-timeout:
-		return ErrSendTimeout
-	case <-sock.closeq:
-		return ErrClosed
-	case sock.uwq <- msg:
-		return nil
+
+	if !useBestEffort {
+		timeout := mkTimer(sock.wdeadline)
+		select {
+		case <-timeout:
+			return ErrSendTimeout
+		case <-sock.closeq:
+			return ErrClosed
+		case sock.uwq <- msg:
+			return nil
+		}
+	} else {
+		select {
+		case <-sock.closeq:
+			return ErrClosed
+		case sock.uwq <- msg:
+			return nil
+		default:
+			msg.Free()
+			return nil
+		}
 	}
 }
 
@@ -460,6 +476,11 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 	case OptionMaxReconnectTime:
 		sock.Lock()
 		sock.reconnmax = value.(time.Duration)
+		sock.Unlock()
+		return nil
+	case OptionBestEffort:
+		sock.Lock()
+		sock.bestEffort = value.(bool)
 		sock.Unlock()
 		return nil
 	}
