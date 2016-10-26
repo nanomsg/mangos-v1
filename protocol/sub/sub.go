@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -16,6 +16,10 @@
 // from publishers (PUB peers).  The messages are filtered based on
 // subscription, such that only subscribed messages (see OptionSubscribe) are
 // received.
+//
+// Note that in order to receive any messages, at least one subscription must
+// be present.  If no subscription is present (the default state), receive
+// operations will block forever.
 package sub
 
 import (
