@@ -269,17 +269,15 @@ func (sock *socket) Send(b []byte) error {
 func (sock *socket) RecvMsg() (*Message, error) {
 	sock.Lock()
 	timeout := mkTimer(sock.rdeadline)
-	e := sock.recverr
 	sock.Unlock()
 
-	if e != nil {
-		return nil, e
-	}
-
 	for {
-		if e = sock.recverr; e != nil {
+		sock.Lock()
+		if e := sock.recverr; e != nil {
+			sock.Unlock()
 			return nil, e
 		}
+		sock.Unlock()
 		select {
 		case <-timeout:
 			return nil, ErrRecvTimeout
