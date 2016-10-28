@@ -36,12 +36,7 @@ func (o options) set(name string, val interface{}) error {
 	case mangos.OptionTLSConfig:
 		switch v := val.(type) {
 		case *tls.Config:
-			// Make a private copy
-			cfg := *v
-			// TLS versions prior to 1.2 are insecure/broken
-			cfg.MinVersion = tls.VersionTLS12
-			cfg.MaxVersion = tls.VersionTLS12
-			o[name] = &cfg
+			o[name] = v
 		default:
 			return mangos.ErrBadValue
 		}
