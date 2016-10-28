@@ -77,12 +77,11 @@ func (x *surveyor) Shutdown(expire time.Time) {
 
 func (x *surveyor) sender() {
 	defer x.w.Done()
-	sq := x.sock.SendChannel()
 	cq := x.sock.CloseChannel()
 	for {
 		var m *mangos.Message
 		select {
-		case m = <-sq:
+		case m = <-x.sock.SendChannel():
 		case <-cq:
 			return
 		}

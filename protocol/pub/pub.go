@@ -36,7 +36,6 @@ type pub struct {
 	eps  map[uint32]*pubEp
 	raw  bool
 	w    mangos.Waiter
-	init sync.Once
 
 	sync.Mutex
 }
@@ -86,7 +85,6 @@ func (pe *pubEp) peerSender() {
 func (p *pub) sender() {
 	defer p.w.Done()
 
-	sq := p.sock.SendChannel()
 	cq := p.sock.CloseChannel()
 
 	for {
@@ -94,7 +92,7 @@ func (p *pub) sender() {
 		case <-cq:
 			return
 
-		case m := <-sq:
+		case m := <-p.sock.SendChannel():
 
 			p.Lock()
 			for _, peer := range p.eps {

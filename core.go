@@ -146,10 +146,14 @@ func MakeSocket(proto Protocol) Socket {
 // API presented to Protocol implementations.
 
 func (sock *socket) SendChannel() <-chan *Message {
+        sock.Lock()
+        defer sock.Unlock()
 	return sock.uwq
 }
 
 func (sock *socket) RecvChannel() chan<- *Message {
+        sock.Lock()
+        defer sock.Unlock()
 	return sock.urq
 }
 

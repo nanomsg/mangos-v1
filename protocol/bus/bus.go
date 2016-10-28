@@ -104,7 +104,6 @@ func (x *bus) broadcast(m *mangos.Message, sender uint32) {
 }
 
 func (x *bus) sender() {
-	sq := x.sock.SendChannel()
 	cq := x.sock.CloseChannel()
 	defer x.w.Done()
 	for {
@@ -112,7 +111,7 @@ func (x *bus) sender() {
 		select {
 		case <-cq:
 			return
-		case m := <-sq:
+		case m := <-x.sock.SendChannel():
 			// If a header was present, it means this message is
 			// being rebroadcast.  It should be a pipe ID.
 			if len(m.Header) >= 4 {

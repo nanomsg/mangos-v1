@@ -40,7 +40,6 @@ type star struct {
 	eps  map[uint32]*starEp
 	raw  bool
 	w    mangos.Waiter
-	init sync.Once
 	ttl  int
 
 	sync.Mutex
@@ -126,14 +125,13 @@ func (x *star) broadcast(m *mangos.Message, sender *starEp) {
 
 func (x *star) sender() {
 	defer x.w.Done()
-	sq := x.sock.SendChannel()
 	cq := x.sock.CloseChannel()
 
 	for {
 		select {
 		case <-cq:
 			return
-		case m := <-sq:
+		case m := <-x.sock.SendChannel():
 			x.broadcast(m, nil)
 		}
 	}

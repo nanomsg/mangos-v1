@@ -29,7 +29,7 @@ func testSurvNonBlock(t *testing.T, addr string, tran mangos.Transport) {
 
 	rp, err := surveyor.NewSocket()
 	if err != nil {
-		t.Errorf("Failed to make PUB: %v", err)
+		t.Errorf("Failed to make SURVEYOR: %v", err)
 		return
 	}
 	defer rp.Close()

@@ -29,7 +29,7 @@ func testStarNonBlock(t *testing.T, addr string, tran mangos.Transport) {
 
 	rp, err := star.NewSocket()
 	if err != nil {
-		t.Errorf("Failed to make PUB: %v", err)
+		t.Errorf("Failed to make STAR: %v", err)
 		return
 	}
 	defer rp.Close()

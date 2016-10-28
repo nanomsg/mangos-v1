@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -41,7 +41,6 @@ type rep struct {
 	raw          bool
 	ttl          int
 	w            mangos.Waiter
-	init         sync.Once
 
 	sync.Mutex
 }
@@ -53,6 +52,8 @@ func (r *rep) Init(sock mangos.ProtocolSocket) {
 	r.ttl = 8 // default specified in the RFC
 	r.w.Init()
 	r.sock.SetSendError(mangos.ErrProtoState)
+	r.w.Add()
+	go r.sender()
 }
 
 func (r *rep) Shutdown(expire time.Time) {
@@ -132,14 +133,13 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 
 func (r *rep) sender() {
 	defer r.w.Done()
-	sq := r.sock.SendChannel()
 	cq := r.sock.CloseChannel()
 
 	for {
 		var m *mangos.Message
 
 		select {
-		case m = <-sq:
+		case m = <-r.sock.SendChannel():
 		case <-cq:
 			return
 		}
@@ -194,10 +194,6 @@ func (r *rep) AddEndpoint(ep mangos.Endpoint) {
 	pe := &repEp{ep: ep, r: r, q: make(chan *mangos.Message, 2)}
 	pe.w.Init()
 	r.Lock()
-	r.init.Do(func() {
-		r.w.Add()
-		go r.sender()
-	})
 	r.eps[ep.GetID()] = pe
 	r.Unlock()
 	go r.receiver(ep)
