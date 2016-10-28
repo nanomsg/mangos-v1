@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package req implements the REQ protocol, which is the request side of
-// the request/response pattern.  (REP is the reponse.)
+// the request/response pattern.  (REP is the response.)
 package req
 
 import (
