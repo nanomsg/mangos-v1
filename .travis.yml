@@ -6,12 +6,12 @@ go:
   - 1.7
   - master
 
+gobuild_args: -race
+
 notifications:
   webhooks:
     urls:
       - https://webhooks.gitter.im/e/69b57e988266b7fa9abe
     on_success: always  # options: [always|never|change] default: always
     on_failure: always  # options: [always|never|change] default: always
-    on_start: false     # default: false
-
-
+    on_start: never     # default: false
