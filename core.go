@@ -15,6 +15,7 @@
 package mangos
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -268,6 +269,13 @@ func (sock *socket) Send(b []byte) error {
 	msg := NewMessage(len(b))
 	msg.Body = append(msg.Body, b...)
 	return sock.SendMsg(msg)
+}
+
+// String just emits a very high level debug.  This avoids
+// triggering race conditions from trying to print %v without
+// holding locks on structure members.
+func (sock *socket) String() string {
+	return fmt.Sprintf("SOCKET[%s](%p)", sock.proto.Name(), sock)
 }
 
 func (sock *socket) RecvMsg() (*Message, error) {

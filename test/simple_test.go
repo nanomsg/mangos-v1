@@ -53,12 +53,16 @@ func TestSimpleCorrect(t *testing.T) {
 			So(e, ShouldBeNil)
 	
 			iter := 100000
-			Convey(fmt.Sprintf("We can send/recv %d msgs async", iter), func(c C) {
+			Convey(fmt.Sprintf("We can send/recv %d msgs async", iter), func() {
 				wg := &sync.WaitGroup{}
 				wg.Add(2)
-				go simpleSend(c, tx, wg, iter)
-				go simpleRecv(c, rx, wg, iter)
+				goodtx := true
+				goodrx := true
+				go simpleSend(tx, wg, iter, &goodtx)
+				go simpleRecv(rx, wg, iter, &goodrx)
 				wg.Wait()
+				So(goodtx, ShouldBeTrue)
+				So(goodrx, ShouldBeTrue)
 				e = tx.Close()
 				So(e, ShouldBeNil)
 				e = rx.Close()
@@ -68,7 +72,7 @@ func TestSimpleCorrect(t *testing.T) {
 	})
 }
 
-func simpleSend(c C, tx mangos.Socket, wg *sync.WaitGroup, iter int) {
+func simpleSend(tx mangos.Socket, wg *sync.WaitGroup, iter int, pass *bool) {
 	defer wg.Done()
 	var buf [256]byte
 	good := true
@@ -80,10 +84,10 @@ func simpleSend(c C, tx mangos.Socket, wg *sync.WaitGroup, iter int) {
 			break
 		}
 	}
-	c.So(good, ShouldBeTrue)
+	*pass = good
 }
 
-func simpleRecv(c C, rx mangos.Socket, wg *sync.WaitGroup, iter int) {
+func simpleRecv(rx mangos.Socket, wg *sync.WaitGroup, iter int, pass *bool) {
 	defer wg.Done()
 	good := true
 	for i := 0; i < iter; i++ {
@@ -93,5 +97,5 @@ func simpleRecv(c C, rx mangos.Socket, wg *sync.WaitGroup, iter int) {
 			break
 		}
 	}
-	c.So(good, ShouldBeTrue)
+	*pass = good
 }
