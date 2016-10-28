@@ -25,7 +25,7 @@ import (
 
 func testPubNonBlock(t *testing.T, addr string, tran mangos.Transport) {
 	maxqlen := 2
-	timeout := time.Second/2
+	timeout := time.Second / 2
 
 	rp, err := pub.NewSocket()
 	if err != nil {
@@ -53,7 +53,7 @@ func testPubNonBlock(t *testing.T, addr string, tran mangos.Transport) {
 
 	msg := []byte{'A', 'B', 'C'}
 
-	for i := 0; i < maxqlen * 2; i++ {
+	for i := 0; i < maxqlen*2; i++ {
 		t.Logf("Sending #%d", i)
 		if err := rp.Send(msg); err != nil {
 			t.Errorf("Failed to send: %v", err)

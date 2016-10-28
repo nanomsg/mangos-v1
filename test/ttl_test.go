@@ -185,7 +185,7 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 	}
 
 	// Wait for the various connections to plumb up
-	time.Sleep(time.Millisecond*100)
+	time.Sleep(time.Millisecond * 100)
 
 	// At this point, we can issue requests on clis[0], and read them from
 	// srvs[nhop-1].

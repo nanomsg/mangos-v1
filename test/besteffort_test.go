@@ -24,7 +24,7 @@ import (
 )
 
 func testBestEffort(t *testing.T, addr string, tran mangos.Transport) {
-	timeout := time.Second/2
+	timeout := time.Second / 2
 
 	rp, err := pair.NewSocket()
 	if err != nil {
