@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -16,52 +16,43 @@ package test
 
 import (
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestNewKeys(t *testing.T) {
-	t.Logf("Starting key generation")
-	keys, err := newKeys()
-	if err != nil {
-		t.Errorf("Failed key generation: %v", err)
-		return
-	}
-	if keys == nil {
-		t.Errorf("Nil keys")
-		return
-	}
-	t.Logf("Keys Generated")
-	t.Logf("Checking root signature")
-	if err = keys.root.cert.CheckSignatureFrom(keys.root.cert); err != nil {
-		t.Errorf("Invalid sig: %v", err)
-		//return
-	}
-	t.Logf("Checking server signature")
-	if err = keys.server.cert.CheckSignatureFrom(keys.root.cert); err != nil {
-		t.Errorf("Invalid sig: %v", err)
-		//return
-	}
-	t.Logf("Checking client signature")
-	if err = keys.client.cert.CheckSignatureFrom(keys.root.cert); err != nil {
-		t.Errorf("Invalid sig: %v", err)
-		//return
-	}
-	t.Logf("Checking negative signature")
-	if err = keys.root.cert.CheckSignatureFrom(keys.client.cert); err == nil {
-		t.Errorf("Whoops! Negative signature test failure")
-	}
-	t.Logf("Negative test: Got expected error: %v", err)
+	Convey("With a new keys", t, func() {
+		keys, err := newKeys()
+		So(err, ShouldBeNil)
+		So(keys, ShouldNotBeNil)
+
+		Convey("Root signature should check", func() {
+			err = keys.root.cert.CheckSignatureFrom(keys.root.cert)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("Server signature should check", func() {
+			err = keys.server.cert.CheckSignatureFrom(keys.root.cert)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("Client signature should check", func() {
+			err = keys.client.cert.CheckSignatureFrom(keys.root.cert)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("Client cert does not check root", func() {
+			err = keys.root.cert.CheckSignatureFrom(keys.client.cert)
+			So(err, ShouldNotBeNil)
+		})
+	})
 }
 
 func TestNewTLSConfig(t *testing.T) {
-	t.Logf("Creating TLS config")
-	cfg, err := NewTLSConfig(true)
-	if err != nil {
-		t.Errorf("Failed generation: %v", err)
-		return
-	}
-	if cfg == nil {
-		t.Errorf("Nil config!")
-		return
-	}
-	t.Logf("Done")
+
+	Convey("We can generate a new TLS config", t, func() {
+		cfg, err := NewTLSConfig(true)
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+	})
 }

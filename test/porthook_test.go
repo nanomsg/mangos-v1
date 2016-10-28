@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -23,6 +23,8 @@ import (
 	"github.com/go-mangos/mangos/protocol/rep"
 	"github.com/go-mangos/mangos/protocol/req"
 	"github.com/go-mangos/mangos/transport/tcp"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type hookinfo struct {
@@ -74,137 +76,105 @@ func (h *hooktest) Hook(action mangos.PortAction, p mangos.Port) bool {
 }
 
 func TestPortHook(t *testing.T) {
-	t.Logf("Testing Add Hook")
+	Convey("Testing Add Hook", t, func() {
 
-	srvtest := &hooktest{allow: true, t: t}
-	clitest := &hooktest{allow: true, t: t}
+		srvtest := &hooktest{allow: true, t: t}
+		clitest := &hooktest{allow: true, t: t}
 
-	addr := AddrTestTCP
+		addr := AddrTestTCP
 
-	srvtest.expect = []hookinfo{{
-		action: mangos.PortActionAdd,
-		addr:   addr,
-		server: true,
-		isopen: true,
-	}, {
-		action: mangos.PortActionRemove,
-		addr:   addr,
-		server: true,
-		isopen: false,
-	}}
+		srvtest.expect = []hookinfo{{
+			action: mangos.PortActionAdd,
+			addr:   addr,
+			server: true,
+			isopen: true,
+		}, {
+			action: mangos.PortActionRemove,
+			addr:   addr,
+			server: true,
+			isopen: false,
+		}}
 
-	clitest.expect = []hookinfo{{
-		action: mangos.PortActionAdd,
-		addr:   addr,
-		server: false,
-		isopen: true,
-	}, {
-		action: mangos.PortActionRemove,
-		addr:   addr,
-		server: false,
-		isopen: false,
-	}}
+		clitest.expect = []hookinfo{{
+			action: mangos.PortActionAdd,
+			addr:   addr,
+			server: false,
+			isopen: true,
+		}, {
+			action: mangos.PortActionRemove,
+			addr:   addr,
+			server: false,
+			isopen: false,
+		}}
 
-	sockreq, err := req.NewSocket()
-	if err != nil {
-		t.Errorf("NewSocket failed: %v", err)
-		return
-	}
-	defer sockreq.Close()
-	sockreq.AddTransport(tcp.NewTransport())
-	if sockreq.SetPortHook(clitest.Hook) != nil {
-		t.Errorf("SetPortHook result not nil!")
-		return
-	}
-	d, err := sockreq.NewDialer(addr, nil)
-	if err != nil {
-		t.Errorf("NewDialer failed: %v", err)
-		return
-	}
+		Convey("Given a REQ & REP sockets", func() {
+			sockreq, err := req.NewSocket()
+			So(err, ShouldBeNil)
+			So(sockreq, ShouldNotBeNil)
 
-	sockrep, err := rep.NewSocket()
-	if err != nil {
-		t.Errorf("NewSocket failed: %v", err)
-		return
-	}
-	defer sockrep.Close()
-	sockrep.AddTransport(tcp.NewTransport())
-	if sockrep.SetPortHook(srvtest.Hook) != nil {
-		t.Errorf("SetPortHook result not nil!")
-		return
-	}
-	l, err := sockrep.NewListener(addr, nil)
-	if err != nil {
-		t.Errorf("NewListener failed: %v", err)
-		return
-	}
+			defer sockreq.Close()
+			sockreq.AddTransport(tcp.NewTransport())
 
-	if err := l.Listen(); err != nil {
-		t.Errorf("Listen failed: %v", err)
-		return
-	}
+			sockrep, err := rep.NewSocket()
+			So(err, ShouldBeNil)
+			So(sockrep, ShouldNotBeNil)
 
-	if err := d.Dial(); err != nil {
-		t.Errorf("Dial failed: %v", err)
-		return
-	}
+			defer sockrep.Close()
+			sockrep.AddTransport(tcp.NewTransport())
 
-	// wait a second for connection to establish
-	// could also issue a req/rep...
-	t.Logf("Waiting a bit...")
-	time.Sleep(100 * time.Millisecond)
+			d, err := sockreq.NewDialer(addr, nil)
+			So(err, ShouldBeNil)
+			So(d, ShouldNotBeNil)
 
-	d.Close()
-	l.Close()
+			l, err := sockrep.NewListener(addr, nil)
+			So(err, ShouldBeNil)
+			So(l, ShouldNotBeNil)
 
-	// shut down the server
-	sockrep.Close()
-	sockreq.Close()
+			Convey("We can set port hooks", func() {
+				hook := sockreq.SetPortHook(clitest.Hook)
+				So(hook, ShouldBeNil)
 
-	time.Sleep(100 * time.Millisecond)
+				hook = sockrep.SetPortHook(srvtest.Hook)
+				So(hook, ShouldBeNil)
 
-	clitest.Lock()
-	defer clitest.Unlock()
+				Convey("And establish a connection", func() {
+					err = l.Listen()
+					So(err, ShouldBeNil)
 
-	srvtest.Lock()
-	defer srvtest.Unlock()
+					err = d.Dial()
+					So(err, ShouldBeNil)
 
-	for i, info := range clitest.expect {
-		t.Logf("Exp C[%d]: %s", i, info.String())
-	}
-	for i, info := range clitest.calls {
-		t.Logf("Got C[%d]: %s", i, info.String())
-	}
-	for i, info := range srvtest.expect {
-		t.Logf("Exp S[%d]: %s", i, info.String())
-	}
-	for i, info := range srvtest.calls {
-		t.Logf("Got S[%d]: %s", i, info.String())
-	}
+					// time for conn to establish
+					time.Sleep(time.Millisecond * 100)
 
-	if len(srvtest.calls) != len(srvtest.expect) {
-		t.Errorf("Server got wrong # calls, %d != %d",
-			len(srvtest.calls), len(srvtest.expect))
-		return
-	}
-	for i := range srvtest.calls {
-		if srvtest.calls[i].String() != srvtest.expect[i].String() {
-			t.Errorf("Server hook %d wrong: %s != %s", i,
-				srvtest.calls[i].String(),
-				srvtest.expect[i].String())
-		}
-	}
+					// Shutdown the sockets
+					d.Close()
+					l.Close()
 
-	if len(clitest.calls) != len(clitest.expect) {
-		t.Errorf("Client got wrong # calls, %d != %d",
-			len(clitest.calls), len(clitest.expect))
-		return
-	}
-	for i := range clitest.calls {
-		if clitest.calls[i].String() != clitest.expect[i].String() {
-			t.Errorf("Server hook %d wrong: %s != %s", i,
-				clitest.calls[i].String(),
-				clitest.expect[i].String())
-		}
-	}
+					sockrep.Close()
+					sockreq.Close()
+
+					Convey("The hooks were called", func() {
+
+						time.Sleep(100 * time.Millisecond)
+
+						clitest.Lock()
+						defer clitest.Unlock()
+
+						srvtest.Lock()
+						defer srvtest.Unlock()
+
+						So(len(srvtest.calls), ShouldEqual, len(srvtest.expect))
+						for i := range srvtest.calls {
+							So(srvtest.calls[i].String(), ShouldEqual, srvtest.expect[i].String())
+						}
+						So(len(clitest.calls), ShouldEqual, len(clitest.expect))
+						for i := range clitest.calls {
+							So(clitest.calls[i].String(), ShouldEqual, clitest.expect[i].String())
+						}
+					})
+				})
+			})
+		})
+	})
 }

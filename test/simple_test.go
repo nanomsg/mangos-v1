@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,6 +15,7 @@
 package test
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -22,85 +23,75 @@ import (
 	"github.com/go-mangos/mangos"
 	"github.com/go-mangos/mangos/protocol/pair"
 	"github.com/go-mangos/mangos/transport/tcp"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 // This test case just tests that the simple Send/Recv (suboptimal) interfaces
 // work as advertised.  This covers verification that was reported in GitHub
 // issue 139: Race condition in simple Send()/Recv() code
 
-type simpleTest struct {
-	T
-}
-
 func TestSimpleCorrect(t *testing.T) {
-	tx, e := pair.NewSocket()
-	if e != nil {
-		t.Fatalf("NewSocket: %v", e)
-		return
-	}
-	rx, e := pair.NewSocket()
-	if e != nil {
-		t.Fatalf("NewSocket: %v", e)
-		return
-	}
-	tx.AddTransport(tcp.NewTransport())
-	rx.AddTransport(tcp.NewTransport())
 
-	if e = rx.Listen(AddrTestTCP); e != nil {
-		t.Fatalf("Listen: %v", e)
-		return
-	}
-	if e = tx.Dial(AddrTestTCP); e != nil {
-		t.Fatalf("Dial: %v", e)
-		return
-	}
+	Convey("We can use the simple Send/Recv API", t, func() {
+		tx, e := pair.NewSocket()
+		So(e, ShouldBeNil)
+		So(tx, ShouldNotBeNil)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	go simpleSend(t, tx, wg)
-	go simpleRecv(t, rx, wg)
-	wg.Wait()
+		rx, e := pair.NewSocket()
+		So(e, ShouldBeNil)
+		So(rx, ShouldNotBeNil)
+
+		tx.AddTransport(tcp.NewTransport())
+		rx.AddTransport(tcp.NewTransport())
+
+		Convey("When a simple TCP pair is created", func() {
+			e = rx.Listen(AddrTestTCP)
+			So(e, ShouldBeNil)
+
+			e = tx.Dial(AddrTestTCP)
+			So(e, ShouldBeNil)
+	
+			iter := 100000
+			Convey(fmt.Sprintf("We can send/recv %d msgs async", iter), func(c C) {
+				wg := &sync.WaitGroup{}
+				wg.Add(2)
+				go simpleSend(c, tx, wg, iter)
+				go simpleRecv(c, rx, wg, iter)
+				wg.Wait()
+				e = tx.Close()
+				So(e, ShouldBeNil)
+				e = rx.Close()
+				So(e, ShouldBeNil)
+			})
+		})
+	})
 }
 
-func simpleSend(t *testing.T, tx mangos.Socket, wg *sync.WaitGroup) {
+func simpleSend(c C, tx mangos.Socket, wg *sync.WaitGroup, iter int) {
+	defer wg.Done()
 	var buf [256]byte
-	i := 0
-	for i = 0; i < 10000; i++ {
+	good := true
+	for i := 0; i < iter; i++ {
 		l := rand.Intn(255) + 1
 		buf[0] = uint8(l)
 		if e := tx.Send(buf[:l]); e != nil {
-			t.Fatalf("Send: %v", e)
+			good = false
 			break
 		}
 	}
-	t.Logf("Sent %d Msgs", i)
-	if e := tx.Close(); e != nil {
-		t.Fatalf("Tx Close: %v", e)
-	}
-	wg.Done()
+	c.So(good, ShouldBeTrue)
 }
 
-func simpleRecv(t *testing.T, rx mangos.Socket, wg *sync.WaitGroup) {
-	i := 0
-	for i = 0; i < 10000; i++ {
+func simpleRecv(c C, rx mangos.Socket, wg *sync.WaitGroup, iter int) {
+	defer wg.Done()
+	good := true
+	for i := 0; i < iter; i++ {
 		buf, e := rx.Recv()
-		if e != nil {
-			t.Fatalf("Recv: %v", e)
-			break
-		}
-		if len(buf) < 1 {
-			t.Fatalf("Recv: empty buf")
-			break
-		}
-		if len(buf) != int(buf[0]) {
-			t.Fatalf("Recv: length %d != expected %d",
-				len(buf), buf[0])
+		if buf == nil || e != nil || len(buf) < 1 || len(buf) != int(buf[0]) {
+			good = false
 			break
 		}
 	}
-	t.Logf("Recvd %d Msgs", i)
-	if e := rx.Close(); e != nil {
-		t.Fatalf("Rx Close: %v", e)
-	}
-	wg.Done()
+	c.So(good, ShouldBeTrue)
 }
