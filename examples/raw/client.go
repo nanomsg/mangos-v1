@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 )
 
 // synchronize our output messaging so we don't overlap
-var L sync.Mutex
+var lock sync.Mutex
 
 func clientWorker(url string, id int) {
 	var sock mangos.Socket
@@ -62,9 +62,9 @@ func clientWorker(url string, id int) {
 
 	worker := binary.BigEndian.Uint32(m.Body[0:])
 
-	L.Lock()
+	lock.Lock()
 	fmt.Printf("Client: %4d   Server: %4d\n", id, worker)
-	L.Unlock()
+	lock.Unlock()
 }
 
 func client(url string, nworkers int) {

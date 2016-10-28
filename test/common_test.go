@@ -565,7 +565,6 @@ func slowStart(t *testing.T, cases []TestCase) bool {
 
 	if !exitqclosed {
 		close(exitq)
-		exitqclosed = true
 	}
 
 	for i := range cases {

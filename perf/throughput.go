@@ -56,6 +56,9 @@ func ThroughputServer(addr string, msgSize int, count int) {
 	}
 
 	msg, err := s.RecvMsg()
+	if err != nil {
+		log.Fatalf("Failed to receive start message: %v", err)
+	}
 	msg.Free()
 
 	start := time.Now()
