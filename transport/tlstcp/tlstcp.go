@@ -141,17 +141,23 @@ func (l *listener) Address() string {
 
 func (l *listener) Accept() (mangos.Pipe, error) {
 
-	conn, err := l.listener.AcceptTCP()
+	tconn, err := l.listener.AcceptTCP()
 	if err != nil {
 		return nil, err
 	}
 
-	if err = l.opts.configTCP(conn); err != nil {
-		conn.Close()
+	if err = l.opts.configTCP(tconn); err != nil {
+		tconn.Close()
 		return nil, err
 	}
 
-	return mangos.NewConnPipe(tls.Server(conn, l.config), l.sock)
+	conn := tls.Server(tconn, l.config)
+	if err = conn.Handshake(); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return mangos.NewConnPipe(conn, l.sock,
+		mangos.PropTLSConnState, conn.ConnectionState())
 }
 
 func (l *listener) Close() error {
