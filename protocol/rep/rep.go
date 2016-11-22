@@ -134,12 +134,17 @@ func (r *rep) receiver(ep mangos.Endpoint) {
 func (r *rep) sender() {
 	defer r.w.Done()
 	cq := r.sock.CloseChannel()
+	sq := r.sock.SendChannel()
 
 	for {
 		var m *mangos.Message
 
 		select {
-		case m = <-r.sock.SendChannel():
+		case m = <-sq:
+			if m == nil {
+				sq = r.sock.SendChannel()
+				continue
+			}
 		case <-cq:
 			return
 		}

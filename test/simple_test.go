@@ -51,7 +51,7 @@ func TestSimpleCorrect(t *testing.T) {
 
 			e = tx.Dial(AddrTestTCP)
 			So(e, ShouldBeNil)
-	
+
 			iter := 100000
 			Convey(fmt.Sprintf("We can send/recv %d msgs async", iter), func() {
 				wg := &sync.WaitGroup{}

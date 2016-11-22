@@ -59,6 +59,10 @@ func (x *push) sender(ep *pushEp) {
 		case <-ep.cq:
 			return
 		case m := <-sq:
+			if m == nil {
+				sq = x.sock.SendChannel()
+				continue
+			}
 			if ep.ep.SendMsg(m) != nil {
 				m.Free()
 				return

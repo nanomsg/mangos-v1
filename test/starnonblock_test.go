@@ -21,46 +21,45 @@ import (
 	"github.com/go-mangos/mangos"
 	"github.com/go-mangos/mangos/protocol/star"
 	"github.com/go-mangos/mangos/transport/tcp"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testStarNonBlock(t *testing.T, addr string, tran mangos.Transport) {
+func testStarNonBlock(addr string, tran mangos.Transport) {
 	maxqlen := 2
-	timeout := time.Second / 2
+	timeout := time.Second / 10
 
-	rp, err := star.NewSocket()
-	if err != nil {
-		t.Errorf("Failed to make STAR: %v", err)
-		return
-	}
-	defer rp.Close()
-	rp.AddTransport(tran)
+	Convey("Given a suitable Star socket", func() {
+		rp, err := star.NewSocket()
+		So(err, ShouldBeNil)
+		So(rp, ShouldNotBeNil)
 
-	// Now try setting the option
-	err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
-	if err != nil {
-		t.Errorf("Failed set WriteQLen: %v", err)
-		return
-	}
-	// At this point, we can issue requests on rq, and read them from rp.
-	if err = rp.SetOption(mangos.OptionSendDeadline, timeout); err != nil {
-		t.Errorf("Failed set recv deadline")
-		return
-	}
-	if err = rp.Listen(addr); err != nil {
-		t.Errorf("Failed listen: %v", err)
-		return
-	}
+		defer rp.Close()
+		rp.AddTransport(tran)
 
-	msg := []byte{'A', 'B', 'C'}
+		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
+		So(err, ShouldBeNil)
 
-	for i := 0; i < maxqlen*2; i++ {
-		t.Logf("Sending #%d", i)
-		if err := rp.Send(msg); err != nil {
-			t.Errorf("Failed to send: %v", err)
-		}
-	}
+		err = rp.SetOption(mangos.OptionSendDeadline, timeout)
+		So(err, ShouldBeNil)
+
+		err = rp.Listen(addr)
+		So(err, ShouldBeNil)
+
+		msg := []byte{'A', 'B', 'C'}
+
+		Convey("We don't block, even sending many messages", func() {
+			for i := 0; i < maxqlen*10; i++ {
+
+				err := rp.Send(msg)
+				So(err, ShouldBeNil)
+			}
+		})
+	})
 }
 
 func TestStarNonBlockTCP(t *testing.T) {
-	testStarNonBlock(t, AddrTestTCP, tcp.NewTransport())
+	Convey("Testing STAR Send (TCP) is Non-Blocking", t, func() {
+		testStarNonBlock(AddrTestTCP, tcp.NewTransport())
+	})
 }

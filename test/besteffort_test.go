@@ -61,7 +61,7 @@ func testBestEffort(addr string, tran mangos.Transport) {
 			So(err, ShouldBeNil)
 
 			for i := 0; i < 2; i++ {
-				err  = rp.Send(msg)
+				err = rp.Send(msg)
 				So(err, ShouldEqual, mangos.ErrSendTimeout)
 			}
 		})

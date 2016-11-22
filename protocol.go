@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -113,8 +113,11 @@ type ProtocolSendHook interface {
 type ProtocolSocket interface {
 	// SendChannel represents the channel used to send messages.  The
 	// application injects messages to it, and the protocol consumes
-	// messages from it.  When the socket is done sending, it will send
-	// a nil message on the channel, or close the channel.
+	// messages from it.  The channel may be closed when the core needs to
+	// create a new channel, typically after an option is set that requires
+	// the channel to be reconfigured.  (OptionWriteQLen) When the protocol
+	// implementation notices this, it should call this function again to obtain
+	// the value of the new channel.
 	SendChannel() <-chan *Message
 
 	// RecvChannel is the channel used to receive messages.  The protocol

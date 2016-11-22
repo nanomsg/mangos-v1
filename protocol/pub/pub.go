@@ -86,13 +86,18 @@ func (p *pub) sender() {
 	defer p.w.Done()
 
 	cq := p.sock.CloseChannel()
+	sq := p.sock.SendChannel()
 
 	for {
 		select {
 		case <-cq:
 			return
 
-		case m := <-p.sock.SendChannel():
+		case m := <-sq:
+			if m == nil {
+				sq = p.sock.SendChannel()
+				continue
+			}
 
 			p.Lock()
 			for _, peer := range p.eps {

@@ -126,12 +126,17 @@ func (x *star) broadcast(m *mangos.Message, sender *starEp) {
 func (x *star) sender() {
 	defer x.w.Done()
 	cq := x.sock.CloseChannel()
+	sq := x.sock.SendChannel()
 
 	for {
 		select {
 		case <-cq:
 			return
-		case m := <-x.sock.SendChannel():
+		case m := <-sq:
+			if m == nil {
+				sq = x.sock.SendChannel()
+				continue
+			}
 			x.broadcast(m, nil)
 		}
 	}

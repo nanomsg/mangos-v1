@@ -75,10 +75,15 @@ func (x *resp) sender() {
 
 	defer x.w.Done()
 	cq := x.sock.CloseChannel()
+	sq := x.sock.SendChannel()
 	for {
 		var m *mangos.Message
 		select {
-		case m = <-x.sock.SendChannel():
+		case m = <-sq:
+			if m == nil {
+				sq = x.sock.SendChannel()
+				continue
+			}
 		case <-cq:
 			return
 		}

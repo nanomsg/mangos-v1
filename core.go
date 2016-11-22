@@ -449,8 +449,10 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		if length < 0 {
 			return ErrBadValue
 		}
+		owq := sock.uwq
 		sock.uwqLen = length
 		sock.uwq = make(chan *Message, sock.uwqLen)
+		close(owq)
 		return nil
 	case OptionReadQLen:
 		sock.Lock()
