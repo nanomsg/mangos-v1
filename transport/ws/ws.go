@@ -208,6 +208,7 @@ type listener struct {
 	lock     sync.Mutex
 	cv       sync.Cond
 	running  bool
+	noserve  bool
 	addr     string
 	ug       websocket.Upgrader
 	htsvr    *http.Server
@@ -234,6 +235,7 @@ func (l *listener) GetOption(n string) (interface{}, error) {
 		// that Accept() will appear to hang, even though Listen()
 		// is not called yet.
 		l.running = true
+		l.noserve = true
 		return l, nil
 	}
 	return l.opts.get(n)
@@ -244,6 +246,11 @@ func (l *listener) Listen() error {
 	var err error
 	var tcfg *tls.Config
 
+	if l.noserve {
+		// The HTTP framework is going to call us, so we use that rather than
+		// listening on our own.  We just fake this out.
+		return nil
+	}
 	if l.iswss {
 		v, ok := l.opts[mangos.OptionTLSConfig]
 		if !ok || v == nil {
@@ -432,7 +439,7 @@ func (wsTran) listener(addr string, proto mangos.Protocol) (*listener, error) {
 	return l, nil
 }
 
-// NewTransport allocates a new inproc:// transport.
+// NewTransport allocates a new ws:// transport.
 func NewTransport() mangos.Transport {
 	return wsTran(0)
 }
