@@ -65,6 +65,9 @@ type socket struct {
 
 	// Port hook -- called when a port is added or removed
 	porthook PortHook
+
+	// Debugger -- buffer to collect connection reattempt messages
+	debugger logger
 }
 
 func (sock *socket) addPipe(tranpipe Pipe, d *dialer, l *listener) *pipe {
@@ -560,6 +563,10 @@ func (sock *socket) SetPortHook(newhook PortHook) PortHook {
 	return oldhook
 }
 
+func (sock *socket) Debug() string {
+	return sock.debugger.String()
+}
+
 type dialer struct {
 	d      PipeDialer
 	sock   *socket
@@ -614,6 +621,7 @@ func (d *dialer) dialer() {
 	for {
 		p, err := d.d.Dial()
 		if err == nil {
+			d.sock.debugger.Logf("connected to %s", d.addr)
 			// reset retry time
 			rtime = d.sock.reconntime
 			d.sock.Lock()
@@ -632,6 +640,7 @@ func (d *dialer) dialer() {
 		}
 
 		// we're redialing here
+		d.sock.debugger.Logf("failed to dial %s, retrying: %v", d.addr, err)
 		select {
 		case <-d.closeq: // dialer closed
 			return
