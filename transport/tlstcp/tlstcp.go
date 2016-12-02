@@ -88,6 +88,10 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 		config = v.(*tls.Config)
 	}
 	conn := tls.Client(tconn, config)
+	if err = conn.Handshake(); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	return mangos.NewConnPipe(conn, d.sock,
 		mangos.PropTLSConnState, conn.ConnectionState())
 }
