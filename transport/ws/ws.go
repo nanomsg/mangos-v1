@@ -18,14 +18,15 @@ package ws
 
 import (
 	"crypto/tls"
-	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/go-mangos/mangos"
-	"sync"
 )
 
 // Some special options
@@ -190,6 +191,9 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 	w.ws.SetReadLimit(int64(d.maxrx))
 	w.props[mangos.PropLocalAddr] = w.ws.LocalAddr()
 	w.props[mangos.PropRemoteAddr] = w.ws.RemoteAddr()
+	if tlsConn, ok := w.ws.UnderlyingConn().(*tls.Conn); ok {
+		w.props[mangos.PropTLSConnState] = tlsConn.ConnectionState()
+	}
 
 	w.wg.Add(1)
 	return w, nil
