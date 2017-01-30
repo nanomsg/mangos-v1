@@ -235,15 +235,17 @@ func (sock *socket) SendMsg(msg *Message) error {
 	}
 	sock.Lock()
 	useBestEffort := sock.bestEffort
-	if sock.wdeadline != 0 {
-		msg.expire = time.Now().Add(sock.wdeadline)
+	wdeadline := sock.wdeadline
+	sock.Unlock()
+
+	if wdeadline != 0 {
+		msg.expire = time.Now().Add(wdeadline)
 	} else {
 		msg.expire = time.Time{}
 	}
-	sock.Unlock()
 
 	if !useBestEffort {
-		timeout := mkTimer(sock.wdeadline)
+		timeout := mkTimer(wdeadline)
 		select {
 		case <-timeout:
 			return ErrSendTimeout
