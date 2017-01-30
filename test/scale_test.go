@@ -37,7 +37,7 @@ import (
 )
 
 func scalabilityClient(errp *error, loops int, wg *sync.WaitGroup) {
-	wg.Done()
+	defer wg.Done()
 	sock, err := req.NewSocket()
 	if err != nil {
 		*errp = err
@@ -89,10 +89,14 @@ func scalabilityServer(sock mangos.Socket) {
 }
 
 func TestScalability(t *testing.T) {
-	// On my Mac, I can run up to 1M easily, but GC takes a long time
-	// to garbage collect all the stacks.
-	loops := 10
-	threads := 100000
+	// Beyond this things get crazy.
+	// Note that the thread count actually indicates that you will
+	// have this many client sockets, and an equal number of server
+	// side pipes.  On my Mac, 20K leads to around 30 sec to run the
+	// program, whereas 10k can run in under 10 sec.  This proves we
+	// can handle 10K connections.
+	loops := 1
+	threads := 10000
 
 	errs := make([]error, threads)
 
