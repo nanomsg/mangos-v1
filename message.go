@@ -26,9 +26,21 @@ import (
 // transport layers (including TCP/ethernet headers, and SP protocol
 // independent length headers), are *not* included in the Header.
 type Message struct {
+	// Header carries any protocol (SP) specific header.  Applications
+	// should not modify or use this unless they are using Raw mode.
+	// No user data may be placed here.
 	Header []byte
-	Body   []byte
-	Port   Port
+
+	// Body carries the body of the message.  This can also be thought
+	// of as the message "payload".
+	Body []byte
+
+	// Port may be set on message receipt, to indicate the Port from
+	// which the Message was received.  There are no guarantees that the
+	// Port is still active, and applications should only use this for
+	// informational purposes.
+	Port Port
+
 	bbuf   []byte
 	hbuf   []byte
 	bsize  int
