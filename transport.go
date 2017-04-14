@@ -51,12 +51,12 @@ type Pipe interface {
 	// LocalProtocol returns the 16-bit SP protocol number used by the
 	// local side.  This will normally be sent to the peer during
 	// connection establishment.
-	LocalProtocol() uint16
+	LocalProtocol() ProtocolNumber
 
 	// RemoteProtocol returns the 16-bit SP protocol number used by the
 	// remote side.  This will normally be received from the peer during
 	// connection establishment.
-	RemoteProtocol() uint16
+	RemoteProtocol() ProtocolNumber
 
 	// IsOpen returns true if the underlying connection is open.
 	IsOpen() bool

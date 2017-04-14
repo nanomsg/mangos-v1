@@ -141,20 +141,12 @@ func (p *pub) RemoveEndpoint(ep mangos.Endpoint) {
 	}
 }
 
-func (*pub) Number() uint16 {
+func (*pub) Number() mangos.ProtocolNumber {
 	return mangos.ProtoPub
 }
 
-func (*pub) PeerNumber() uint16 {
+func (*pub) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoSub
-}
-
-func (*pub) Name() string {
-	return "pub"
-}
-
-func (*pub) PeerName() string {
-	return "sub"
 }
 
 func (p *pub) SetOption(name string, v interface{}) error {

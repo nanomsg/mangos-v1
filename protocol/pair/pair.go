@@ -117,20 +117,12 @@ func (x *pair) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Unlock()
 }
 
-func (*pair) Number() uint16 {
+func (*pair) Number() mangos.ProtocolNumber {
 	return mangos.ProtoPair
 }
 
-func (*pair) Name() string {
-	return "pair"
-}
-
-func (*pair) PeerNumber() uint16 {
+func (*pair) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoPair
-}
-
-func (*pair) PeerName() string {
-	return "pair"
 }
 
 func (x *pair) SetOption(name string, v interface{}) error {

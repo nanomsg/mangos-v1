@@ -141,11 +141,11 @@ func (p *pipe) IsServer() bool {
 	return p.l != nil
 }
 
-func (p *pipe) LocalProtocol() uint16 {
+func (p *pipe) LocalProtocol() ProtocolNumber {
 	return p.pipe.LocalProtocol()
 }
 
-func (p *pipe) RemoteProtocol() uint16 {
+func (p *pipe) RemoteProtocol() ProtocolNumber {
 	return p.pipe.RemoteProtocol()
 }
 
