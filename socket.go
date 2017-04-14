@@ -80,4 +80,7 @@ type Socket interface {
 	// added or removed from this socket (connect/disconnect).  The previous
 	// hook is returned (nil if none.)
 	SetPortHook(PortHook) PortHook
+
+	// Debug returns a string containing
+	Debug() string
 }
