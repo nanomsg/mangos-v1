@@ -63,13 +63,13 @@ type Protocol interface {
 
 	// ProtocolNumber returns a 16-bit value for the protocol number,
 	// as assigned by the SP governing body. (IANA?)
-	Number() uint16
+	Number() ProtocolNumber
 
 	// Name returns our name.
 	Name() string
 
 	// PeerNumber() returns a 16-bit number for our peer protocol.
-	PeerNumber() uint16
+	PeerNumber() ProtocolNumber
 
 	// PeerName() returns the name of our peer protocol.
 	PeerName() string
@@ -154,31 +154,33 @@ type ProtocolSocket interface {
 	SetSendError(error)
 }
 
-// Useful constants for protocol numbers.  Note that the major protocol number
-// is stored in the upper 12 bits, and the minor (subprotocol) is located in
-// the bottom 4 bits.
+// ProtocolNumber represents the (registered) number associated with a given protocol.
+type ProtocolNumber uint16
+
+// Well-known protocol numbers.  Note that the major protocol number is stored in the
+// upper 12 bits, and the minor (subprotocol) is located in the bottom 4 bits.
 const (
-	ProtoPair       = (1 * 16)
-	ProtoPub        = (2 * 16)
-	ProtoSub        = (2 * 16) + 1
-	ProtoReq        = (3 * 16)
-	ProtoRep        = (3 * 16) + 1
-	ProtoPush       = (5 * 16)
-	ProtoPull       = (5 * 16) + 1
-	ProtoSurveyor   = (6 * 16) + 2
-	ProtoRespondent = (6 * 16) + 3
-	ProtoBus        = (7 * 16)
+	ProtoPair       ProtocolNumber = (1 * 16)
+	ProtoPub        ProtocolNumber = (2 * 16)
+	ProtoSub        ProtocolNumber = (2 * 16) + 1
+	ProtoReq        ProtocolNumber = (3 * 16)
+	ProtoRep        ProtocolNumber = (3 * 16) + 1
+	ProtoPush       ProtocolNumber = (5 * 16)
+	ProtoPull       ProtocolNumber = (5 * 16) + 1
+	ProtoSurveyor   ProtocolNumber = (6 * 16) + 2
+	ProtoRespondent ProtocolNumber = (6 * 16) + 3
+	ProtoBus        ProtocolNumber = (7 * 16)
 
 	// Experimental Protocols - Use at Risk
 
-	ProtoStar = (100 * 16)
+	ProtoStar ProtocolNumber = (100 * 16)
 )
 
-// ProtocolName returns the name corresponding to a given protocol number.
+// String implements the fmt.Stringer interface for ProtocolNumber.
 // This is useful for transports like WebSocket, which use a text name
 // rather than the number in the handshake.
-func ProtocolName(number uint16) string {
-	names := map[uint16]string{
+func (p ProtocolNumber) String() string {
+	names := map[ProtocolNumber]string{
 		ProtoPair:       "pair",
 		ProtoPub:        "pub",
 		ProtoSub:        "sub",
@@ -189,7 +191,7 @@ func ProtocolName(number uint16) string {
 		ProtoSurveyor:   "surveyor",
 		ProtoRespondent: "respondent",
 		ProtoBus:        "bus"}
-	return names[number]
+	return names[p]
 }
 
 // ValidPeers returns true if the two sockets are capable of

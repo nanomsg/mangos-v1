@@ -92,12 +92,12 @@ func (p *conn) Send(msg *Message) error {
 }
 
 // LocalProtocol returns our local protocol number.
-func (p *conn) LocalProtocol() uint16 {
+func (p *conn) LocalProtocol() ProtocolNumber {
 	return p.proto.Number()
 }
 
 // RemoteProtocol returns our peer's protocol number.
-func (p *conn) RemoteProtocol() uint16 {
+func (p *conn) RemoteProtocol() ProtocolNumber {
 	return p.proto.PeerNumber()
 }
 
@@ -207,7 +207,7 @@ type connHeader struct {
 	S       byte // 'S'
 	P       byte // 'P'
 	Version byte // only zero at present
-	Proto   uint16
+	Proto   ProtocolNumber
 	Rsvd    uint16 // always zero at present
 }
 

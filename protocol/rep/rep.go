@@ -179,20 +179,20 @@ func (r *rep) sender() {
 	}
 }
 
-func (*rep) Number() uint16 {
+func (*rep) Number() mangos.ProtocolNumber {
 	return mangos.ProtoRep
 }
 
-func (*rep) PeerNumber() uint16 {
+func (*rep) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoReq
 }
 
-func (*rep) Name() string {
-	return "rep"
+func (r *rep) Name() string {
+	return r.Number().String()
 }
 
-func (*rep) PeerName() string {
-	return "req"
+func (r *rep) PeerName() string {
+	return r.PeerNumber().String()
 }
 
 func (r *rep) AddEndpoint(ep mangos.Endpoint) {

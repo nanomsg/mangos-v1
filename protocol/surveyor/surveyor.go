@@ -168,20 +168,20 @@ func (x *surveyor) RemoveEndpoint(ep mangos.Endpoint) {
 	}
 }
 
-func (*surveyor) Number() uint16 {
+func (*surveyor) Number() mangos.ProtocolNumber {
 	return mangos.ProtoSurveyor
 }
 
-func (*surveyor) PeerNumber() uint16 {
+func (*surveyor) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoRespondent
 }
 
-func (*surveyor) Name() string {
-	return "surveyor"
+func (x *surveyor) Name() string {
+	return x.Number().String()
 }
 
-func (*surveyor) PeerName() string {
-	return "respondent"
+func (x *surveyor) PeerName() string {
+	return x.PeerNumber().String()
 }
 
 func (x *surveyor) SendHook(m *mangos.Message) bool {

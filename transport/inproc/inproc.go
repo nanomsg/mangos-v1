@@ -113,11 +113,11 @@ func (p *inproc) Send(m *mangos.Message) error {
 	}
 }
 
-func (p *inproc) LocalProtocol() uint16 {
+func (p *inproc) LocalProtocol() mangos.ProtocolNumber {
 	return p.proto.Number()
 }
 
-func (p *inproc) RemoteProtocol() uint16 {
+func (p *inproc) RemoteProtocol() mangos.ProtocolNumber {
 	return p.proto.PeerNumber()
 }
 

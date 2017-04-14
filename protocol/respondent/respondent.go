@@ -231,20 +231,20 @@ func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
 	}
 }
 
-func (*resp) Number() uint16 {
+func (*resp) Number() mangos.ProtocolNumber {
 	return mangos.ProtoRespondent
 }
 
-func (*resp) PeerNumber() uint16 {
+func (*resp) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoSurveyor
 }
 
-func (*resp) Name() string {
-	return "respondent"
+func (x *resp) Name() string {
+	return x.Number().String()
 }
 
-func (*resp) PeerName() string {
-	return "surveyor"
+func (x *resp) PeerName() string {
+	return x.PeerNumber().String()
 }
 
 func (x *resp) SetOption(name string, v interface{}) error {

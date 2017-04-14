@@ -180,20 +180,20 @@ func (x *bus) RemoveEndpoint(ep mangos.Endpoint) {
 	x.Unlock()
 }
 
-func (*bus) Number() uint16 {
+func (*bus) Number() mangos.ProtocolNumber {
 	return mangos.ProtoBus
 }
 
-func (*bus) Name() string {
-	return "bus"
+func (x *bus) Name() string {
+	return x.Number().String()
 }
 
-func (*bus) PeerNumber() uint16 {
+func (*bus) PeerNumber() mangos.ProtocolNumber {
 	return mangos.ProtoBus
 }
 
-func (*bus) PeerName() string {
-	return "bus"
+func (x *bus) PeerName() string {
+	return x.PeerNumber().String()
 }
 
 func (x *bus) RecvHook(m *mangos.Message) bool {
