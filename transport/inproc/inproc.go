@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2017 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -31,6 +31,7 @@ type inproc struct {
 	proto  mangos.Protocol
 	addr   addr
 	peer   *inproc
+	sync.Mutex
 }
 
 type addr string
@@ -122,7 +123,11 @@ func (p *inproc) RemoteProtocol() uint16 {
 }
 
 func (p *inproc) Close() error {
-	close(p.closeq)
+	p.Lock()
+	defer p.Unlock()
+	if p.IsOpen() {
+		close(p.closeq)
+	}
 	return nil
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2017 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"sync"
 )
 
 // conn implements the Pipe interface on top of net.Conn.  The
@@ -30,6 +31,7 @@ type conn struct {
 	open  bool
 	props map[string]interface{}
 	maxrx int64
+	sync.Mutex
 }
 
 // connipc is *almost* like a regular conn, but the IPC protocol insists
@@ -103,8 +105,13 @@ func (p *conn) RemoteProtocol() uint16 {
 
 // Close implements the Pipe Close method.
 func (p *conn) Close() error {
-	p.open = false
-	return p.c.Close()
+	p.Lock()
+	defer p.Unlock()
+	if p.IsOpen() {
+		p.open = false
+		return p.c.Close()
+	}
+	return nil
 }
 
 // IsOpen implements the PipeIsOpen method.
