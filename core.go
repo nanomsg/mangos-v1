@@ -620,6 +620,7 @@ func (d *dialer) dialer() {
 			rtime = d.sock.reconntime
 			d.sock.Lock()
 			if d.closed {
+				d.sock.Unlock()
 				p.Close()
 				return
 			}
