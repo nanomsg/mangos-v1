@@ -130,6 +130,7 @@ type wsPipe struct {
 	props map[string]interface{}
 	iswss bool
 	dtype int
+	sync.Mutex
 }
 
 type wsTran int
@@ -177,9 +178,13 @@ func (w *wsPipe) RemoteProtocol() uint16 {
 }
 
 func (w *wsPipe) Close() error {
-	w.open = false
-	w.ws.Close()
-	w.wg.Done()
+	w.Lock()
+	defer w.Unlock()
+	if w.IsOpen() {
+		w.open = false
+		w.ws.Close()
+		w.wg.Done()
+	}
 	return nil
 }
 
