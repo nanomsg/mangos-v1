@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2017 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -620,6 +620,7 @@ func (d *dialer) dialer() {
 			rtime = d.sock.reconntime
 			d.sock.Lock()
 			if d.closed {
+				d.sock.Unlock()
 				p.Close()
 				return
 			}
@@ -636,8 +637,14 @@ func (d *dialer) dialer() {
 		// we're redialing here
 		select {
 		case <-d.closeq: // dialer closed
+			if p != nil {
+				p.Close()
+			}
 			return
 		case <-d.sock.closeq: // exit if parent socket closed
+			if p != nil {
+				p.Close()
+			}
 			return
 		case <-time.After(rtime):
 			if rtmax > 0 {
