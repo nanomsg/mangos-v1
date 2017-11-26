@@ -85,6 +85,8 @@ func (p *inproc) Recv() (*mangos.Message, error) {
 		return m, nil
 	case <-p.closeq:
 		return nil, mangos.ErrClosed
+	case <-p.peer.closeq:
+		return nil, mangos.ErrClosed
 	}
 }
 
@@ -109,6 +111,9 @@ func (p *inproc) Send(m *mangos.Message) error {
 	case p.wq <- nmsg:
 		return nil
 	case <-p.closeq:
+		nmsg.Free()
+		return mangos.ErrClosed
+	case <-p.peer.closeq:
 		nmsg.Free()
 		return mangos.ErrClosed
 	}
