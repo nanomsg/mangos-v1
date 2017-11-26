@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2017 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -63,6 +63,12 @@ func (rt *creqTest) Init(t *testing.T, addr string, num uint32) bool {
 	rt.tot = num
 	rt.addr = addr
 	rt.done = make(chan struct{})
+
+	if _, err := rt.sock.Connect(rt.addr); err != nil {
+		rt.t.Errorf("Failed to connect: %s", err)
+		return false
+	}
+
 	return true
 }
 
@@ -73,9 +79,6 @@ func (rt *creqTest) Finish() {
 
 func (rt *creqTest) DoTest() bool {
 	defer rt.Finish()
-	if _, err := rt.sock.Connect(rt.addr); err != nil {
-		rt.t.Fatalf("Failed to connect: %s", err)
-	}
 	for rt.cur < rt.tot {
 		var e error
 		var n int
@@ -134,6 +137,10 @@ func (rt *crepTest) Init(t *testing.T, addr string, num uint32) bool {
 	rt.tot = num
 	rt.addr = addr
 	rt.done = make(chan struct{})
+	if _, err := rt.sock.Bind(rt.addr); err != nil {
+		rt.t.Errorf("Failed Bind: %s", err)
+		return false
+	}
 	return true
 }
 
@@ -144,10 +151,6 @@ func (rt *crepTest) Finish() {
 
 func (rt *crepTest) DoTest() bool {
 	defer rt.Finish()
-	if _, err := rt.sock.Bind(rt.addr); err != nil {
-		rt.t.Errorf("Failed Bind: %s", err)
-		return false
-	}
 
 	for rt.cur < rt.tot {
 		var m []byte
@@ -189,8 +192,12 @@ func (rt *crepTest) DoTest() bool {
 func ReqRepCompat(t *testing.T, addr string, num uint32) {
 	req := &creqTest{}
 	rep := &crepTest{}
-	req.Init(t, addr, num)
+
 	rep.Init(t, addr, num)
+	req.Init(t, addr, num)
+
+	// We wait a bit for the connection to establish
+	time.Sleep(time.Millisecond * 100)
 
 	t.Logf("Doing %d exchanges", num)
 

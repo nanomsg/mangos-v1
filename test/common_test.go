@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2017 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -544,6 +544,9 @@ func slowStart(t *testing.T, cases []TestCase) bool {
 	numrdy := 0
 	exitqclosed := false
 
+	// Windows can take a while to complete TCP connections.
+	// I don't know why Windows in particular is so bad here.
+	time.Sleep(time.Millisecond * 250)
 	for i := range cases {
 		go slowStartSender(cases[i], exitq)
 		go slowStartReceiver(cases[i], wakeq, exitq)
@@ -594,7 +597,6 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 		if !cases[i].Init(t, addr) {
 			return
 		}
-		defer cases[i].Close()
 	}
 
 	for i := range cases {
@@ -614,6 +616,10 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 	}
 	for i := range cases {
 		waitTest(cases[i])
+	}
+
+	for i := range cases {
+		cases[i].Close()
 	}
 }
 
