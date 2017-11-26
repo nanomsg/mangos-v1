@@ -76,6 +76,7 @@ func (rt *creqTest) DoTest() bool {
 	if _, err := rt.sock.Connect(rt.addr); err != nil {
 		rt.t.Fatalf("Failed to connect: %s", err)
 	}
+	time.Sleep(time.Millisecond * 20)
 	for rt.cur < rt.tot {
 		var e error
 		var n int

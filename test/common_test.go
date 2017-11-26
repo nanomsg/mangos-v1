@@ -544,6 +544,7 @@ func slowStart(t *testing.T, cases []TestCase) bool {
 	numrdy := 0
 	exitqclosed := false
 
+	time.Sleep(time.Millisecond * 100)
 	for i := range cases {
 		go slowStartSender(cases[i], exitq)
 		go slowStartReceiver(cases[i], wakeq, exitq)
@@ -594,7 +595,6 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 		if !cases[i].Init(t, addr) {
 			return
 		}
-		defer cases[i].Close()
 	}
 
 	for i := range cases {
@@ -614,6 +614,10 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 	}
 	for i := range cases {
 		waitTest(cases[i])
+	}
+
+	for i := range cases {
+		cases[i].Close()
 	}
 }
 
