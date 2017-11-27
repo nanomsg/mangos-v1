@@ -61,7 +61,8 @@ For docs, see http://godoc.org/github.com/go-mangos/mangos or run:
 ## Testing
 
 This package supports internal self tests, which can be run in
-the idiomatic Go way note that most of the tests are in a test subdirectory):
+the idiomatic Go way.  (Note that most of the tests are in a test
+subdirectory.)
 
     $ go test github.com/go-mangos/mangos/...
 
