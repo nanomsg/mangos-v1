@@ -61,13 +61,18 @@ For docs, see http://godoc.org/github.com/go-mangos/mangos or run:
 ## Testing
 
 This package supports internal self tests, which can be run in
-the idiomatic Go way, although it uses a separate test sub-package:
+the idiomatic Go way note that most of the tests are in a test subdirectory):
 
-    $ go test github.com/go-mangos/mangos/test
+    $ go test github.com/go-mangos/mangos/...
 
 There are also internal benchmarks available:
 
     $ go test -bench=. github.com/go-mangos/mangos/test
+
+## Commercial Support
+
+[Staysail Systems, Inc.](mailto:info@staysail.tech) offers
+[commercial support](http://staysail.tech/support/mangos) for mangos.
 
 ## Examples
 
@@ -75,11 +80,11 @@ Some examples are posted in the directories under examples/
 The examples are rewrites (in Go) of Tim Dysinger's libnanomsg examples,
 which are located at
 
-http://tim.dysinger.net/posts/2013-09-16-getting-started-with-nanomsg.html
+http://nanomsg.org/gettingstarted/index.html
 
 godoc in the example directories will yield information about how to run
 each example program.
 
 Enjoy!
 
-Copyright 2015 The Mangos Authors
+Copyright 2017 The Mangos Authors
