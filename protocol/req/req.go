@@ -53,7 +53,7 @@ func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.sock = socket
 	r.eps = make(map[uint32]*reqEp)
 	r.resend = make(chan *mangos.Message)
-	r.wakeq = make(chan bool, 1)
+	r.wakeq = make(chan bool)
 	r.w.Init()
 
 	r.nextid = uint32(time.Now().UnixNano()) // quasi-random
