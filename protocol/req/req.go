@@ -29,8 +29,6 @@ type req struct {
 	sync.Mutex
 	sock   mangos.ProtocolSocket
 	eps    map[uint32]*reqEp
-	pend   *reqEp
-	wakeq  chan bool
 	resend chan *mangos.Message
 	raw    bool
 	retry  time.Duration
@@ -53,7 +51,6 @@ func (r *req) Init(socket mangos.ProtocolSocket) {
 	r.sock = socket
 	r.eps = make(map[uint32]*reqEp)
 	r.resend = make(chan *mangos.Message)
-	r.wakeq = make(chan bool)
 	r.w.Init()
 
 	r.nextid = uint32(time.Now().UnixNano()) // quasi-random
@@ -85,7 +82,6 @@ func (r *req) resender() {
 	for {
 		select {
 		case <-r.waker.C:
-		case <-r.wakeq:
 		case <-cq:
 			return
 		}
@@ -159,14 +155,7 @@ func (r *req) sender(pe *reqEp) {
 			return
 		}
 
-		r.Lock()
-		r.pend = pe
-		r.Unlock()
-
 		if pe.ep.SendMsg(m) != nil {
-			r.Lock()
-			r.pend = nil
-			r.Unlock()
 			r.resend <- m
 			break
 		}
@@ -199,13 +188,7 @@ func (r *req) AddEndpoint(ep mangos.Endpoint) {
 	pe := &reqEp{cq: make(chan struct{}), ep: ep}
 	r.Lock()
 	r.eps[ep.GetID()] = pe
-	// If we were waiting for somewhere to send this message, try it now.
-	if r.pend == nil && r.reqmsg != nil {
-		select {
-		case r.wakeq <- true:
-		default:
-		}
-	}
+
 	r.Unlock()
 	go r.receiver(ep)
 	r.w.Add()
@@ -217,15 +200,6 @@ func (r *req) RemoveEndpoint(ep mangos.Endpoint) {
 	r.Lock()
 	pe := r.eps[id]
 	delete(r.eps, id)
-	// If we were waiting for a reply on this connection, we won't get one.
-	// Remove us, and ask for a reschedule.
-	if r.pend == pe {
-		r.pend = nil
-		select {
-		case r.wakeq <- true:
-		default:
-		}
-	}
 	r.Unlock()
 	if pe != nil {
 		close(pe.cq)
@@ -282,7 +256,6 @@ func (r *req) RecvHook(m *mangos.Message) bool {
 	m = r.reqmsg
 	r.reqmsg = nil
 	m.Free()
-	r.pend = nil
 	r.sock.SetRecvError(mangos.ErrProtoState)
 	return true
 }
