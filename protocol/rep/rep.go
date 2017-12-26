@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2017 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -158,8 +158,8 @@ func (r *rep) sender() {
 		m.Header = m.Header[4:]
 		r.Lock()
 		pe := r.eps[id]
-		r.Unlock()
 		if pe == nil {
+			r.Unlock()
 			m.Free()
 			continue
 		}
@@ -168,7 +168,7 @@ func (r *rep) sender() {
 		case pe.q <- m:
 		default:
 			// If our queue is full, we have no choice but to
-			// throw it on the floor.  This shoudn't happen,
+			// throw it on the floor.  This shouldn't happen,
 			// since each partner should be running synchronously.
 			// Devices are a different situation, and this could
 			// lead to lossy behavior there.  Initiators will
@@ -176,6 +176,7 @@ func (r *rep) sender() {
 			// enough queues and be fast enough to avoid this.
 			m.Free()
 		}
+		r.Unlock()
 	}
 }
 
@@ -211,11 +212,11 @@ func (r *rep) RemoveEndpoint(ep mangos.Endpoint) {
 	r.Lock()
 	pe := r.eps[id]
 	delete(r.eps, id)
-	r.Unlock()
 
 	if pe != nil {
 		close(pe.q)
 	}
+	r.Unlock()
 }
 
 // We save the backtrace from this message.  This means that if the app calls
