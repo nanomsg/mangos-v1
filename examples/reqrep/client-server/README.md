@@ -34,8 +34,8 @@ The labels correspond to the following client/server _command-line options_:
  |-----------------|---------------------|----------------------------------------------|
  | recon           | `-recon`            | `Dial()` - Connection retry interval         |
  | reconMax        | `-reconMax`         | Maximum connection retry interval (backoff)  |
- | Retry Intvl     | `-retry`            | `SendMsg()` retry interval (REQ client only) |
- | Send Timeout    | `-send`             | `SendMsg()` message expiry deadline          |
+ | Retry Intvl     | `-retry`            | `Send()` retry interval (REQ client only)    |
+ | Send Timeout    | `-send`             | `Send()` message expiry deadline             |
  | Receive Timeout | `-recv`             | Maximum allowed wait time for `RecvMsg()`    |
  | -               | `-rq`               | Read queue length                            |
  | -               | `-wq`               | Write queue length                           |
