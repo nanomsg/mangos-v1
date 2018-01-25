@@ -30,14 +30,14 @@ The following diagram shows the various timings that influence the req/rep inter
 
 The labels correspond to the following client/server _command-line options_:
 
- | Name in image   | Cient/server Option | Meaning                  |
- |-----------------|---------------------|--------------------------|
- | Receive Timeout | `-recv`     | Overall receive timeout          |
- | Send Timeout    | `-send`     | Send socket timeout              |
- | recon           | `-recon`    | Connection retry interval        |
- | reconMax        | `-reconMax` | Maximum retry interval (backoff) |
- | Retry Intvl     | `-retry`    | Retry interval (REQ client only) |
- | -               | `-rq`       | Read queue length                |
- | -               | `-wq`       | Write queue length               |
+ | Name in image   | Cient/server Option | Meaning                                      |
+ |-----------------|---------------------|----------------------------------------------|
+ | recon           | `-recon`            | Connection retry interval                    |
+ | reconMax        | `-reconMax`         | Maximum connection retry interval (backoff)  |
+ | Retry Intvl     | `-retry`            | `Dial()` retry interval (REQ client only)    |
+ | Send Timeout    | `-send`             | `SendMsg()` message expiry deadline          |
+ | Receive Timeout | `-recv`             | Maximum allowed wait time for `RecvMsg()`    |
+ | -               | `-rq`               | Read queue length                            |
+ | -               | `-wq`               | Write queue length                           |
 
 The rx/tx _queue length_ is important - for best results use values of 0 or 1.
