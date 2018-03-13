@@ -13,7 +13,9 @@ protocols.  This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.  It has no external dependencies.
 
 The reference implementation of the SP protocols is available as
-[nanomsg](http://www.nanomsg.org)
+[nanomsg&trade;](http://www.nanomsg.org); there is also an effort to implement
+an improved and more capable version of nanomsg called
+[NNG&trade;](https://github.com/nanomsg/nng).
  
 The design is intended to make it easy to add new transports with almost trivial
 effort, as well as new topologies ("protocols" in SP terminology.)
@@ -33,9 +35,14 @@ Note that ipc:// is not supported on Windows (by either this or the reference
 implementation.)  Forcing the local TCP port in Dial is not supported yet (this
 is rarely useful).
 
-Basic interoperability with nanomsg has been verified (you can do so yourself
-with nanocat and macat) for all protocols nanomsg supports.  Additionally there
-are a number of projects that use the two products together.
+Basic interoperability with nanomsg and NNG has been verified (you can do
+so yourself with nanocat and macat) for all protocols and transports
+that NNG and nanomsg support.
+Additionally there are a number of projects that use the two products together.
+
+There is a third party experimental QUIC transport available at
+[quic-mangos(https://github.com/lthibault/quic-mangos).  (An RFE to make this
+transport official exists.)
 
 If you find this useful, I would appreciate knowing about it.  I can be reached
 via my email address, garrett -at- damore -dot- org
@@ -89,3 +96,4 @@ each example program.
 Enjoy!
 
 Copyright 2017 The Mangos Authors
+Nanomsg&trade; and NNG&trade; are trademarks of Garrett D'Amore.
