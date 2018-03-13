@@ -8,9 +8,11 @@
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/go-mangos/mangos)
 [![Go Report Card](https://goreportcard.com/badge/github.com/go-mangos/mangos)](https://goreportcard.com/report/github.com/go-mangos/mangos)
 
-package mangos is an implementation in pure Go of the SP ("Scalable Protocols")
-protocols.  This makes heavy use of go channels, internally, but it can operate
-on systems that lack support for cgo.  It has no external dependencies.
+Package mangos is an implementation in pure Go of the SP
+("Scalability Protocols")
+messaging system.
+This makes heavy use of go channels, internally, but it can operate
+on systems that lack support for cgo.
 
 The reference implementation of the SP protocols is available as
 [nanomsg&trade;](http://www.nanomsg.org); there is also an effort to implement
@@ -85,15 +87,15 @@ There are also internal benchmarks available:
 ## Examples
 
 Some examples are posted in the directories under examples/
-The examples are rewrites (in Go) of Tim Dysinger's libnanomsg examples,
-which are located at
+in this project.
 
-http://nanomsg.org/gettingstarted/index.html
+These examples are rewrites (in Go) of Tim Dysinger's 
+[Getting Started with Nanomsg](http://nanomsg.org/gettingstarted/index.html).
 
 godoc in the example directories will yield information about how to run
 each example program.
 
 Enjoy!
 
-Copyright 2017 The Mangos Authors
-Nanomsg&trade; and NNG&trade; are trademarks of Garrett D'Amore.
+Copyright 2017 The Mangos Authors +
+Nanomsg&trade; and NNG&trade; are [trademarks](http://nanomsg.org/trademarks.html) of Garrett D'Amore.
