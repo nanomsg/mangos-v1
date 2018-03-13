@@ -43,7 +43,7 @@ that NNG and nanomsg support.
 Additionally there are a number of projects that use the two products together.
 
 There is a third party experimental QUIC transport available at
-[quic-mangos(https://github.com/lthibault/quic-mangos).  (An RFE to make this
+[quic-mangos](https://github.com/lthibault/quic-mangos).  (An RFE to make this
 transport official exists.)
 
 If you find this useful, I would appreciate knowing about it.  I can be reached
@@ -97,5 +97,6 @@ each example program.
 
 Enjoy!
 
-Copyright 2017 The Mangos Authors +
+Copyright 2017 The Mangos Authors
+
 Nanomsg&trade; and NNG&trade; are [trademarks](http://nanomsg.org/trademarks.html) of Garrett D'Amore.
