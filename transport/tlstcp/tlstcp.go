@@ -68,15 +68,22 @@ func newOptions(t *tlsTran) options {
 }
 
 type dialer struct {
-	addr *net.TCPAddr
+	addr string
 	sock mangos.Socket
 	opts options
 }
 
-func (d *dialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (_ mangos.Pipe, err error) {
+	var (
+		addr   *net.TCPAddr
+		config *tls.Config
+	)
 
-	var config *tls.Config
-	tconn, err := net.DialTCP("tcp", nil, d.addr)
+	if addr, err = mangos.ResolveTCPAddr(d.addr); err != nil {
+		return nil, err
+	}
+
+	tconn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -193,10 +200,13 @@ func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 		return nil, err
 	}
 
-	d := &dialer{sock: sock, opts: newOptions(t)}
-	if d.addr, err = mangos.ResolveTCPAddr(addr); err != nil {
+	// check to ensure the provided addr resolves correctly.
+	if _, err = mangos.ResolveTCPAddr(addr); err != nil {
 		return nil, err
 	}
+
+	d := &dialer{sock: sock, opts: newOptions(t), addr: addr}
+
 	return d, nil
 }
 
