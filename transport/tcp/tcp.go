@@ -72,14 +72,21 @@ func (o options) configTCP(conn *net.TCPConn) error {
 }
 
 type dialer struct {
-	addr *net.TCPAddr
+	addr string
 	sock mangos.Socket
 	opts options
 }
 
-func (d *dialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (_ mangos.Pipe, err error) {
+	var (
+		addr *net.TCPAddr
+	)
 
-	conn, err := net.DialTCP("tcp", nil, d.addr)
+	if addr, err = mangos.ResolveTCPAddr(d.addr); err != nil {
+		return nil, err
+	}
+
+	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +94,7 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 		conn.Close()
 		return nil, err
 	}
+
 	return mangos.NewConnPipe(conn, d.sock)
 }
 
@@ -160,15 +168,17 @@ func (t *tcpTran) Scheme() string {
 
 func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
 	var err error
-	d := &dialer{sock: sock, opts: newOptions()}
-
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	if d.addr, err = mangos.ResolveTCPAddr(addr); err != nil {
+	// check to ensure the provided addr resolves correctly.
+	if _, err = mangos.ResolveTCPAddr(addr); err != nil {
 		return nil, err
 	}
+
+	d := &dialer{addr: addr, sock: sock, opts: newOptions()}
+
 	return d, nil
 }
 
