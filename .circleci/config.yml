@@ -34,7 +34,7 @@ jobs:
     steps:
       - checkout
       - run: go get -v -t -d ./...
-      - run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+      - run: bash .circleci/coverage.sh
       - run: bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
 
 workflows:
