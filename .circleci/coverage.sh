@@ -9,6 +9,7 @@ trap "rm -rf $scratch" 0
 
 template=${scratch}/covXXXXXX
 pkgs=github.com/go-mangos/mangos/...
+export GOPATH=${HOME}/go
 
 find . -type d -print | while read dir; do
 	(
@@ -21,14 +22,6 @@ find . -type d -print | while read dir; do
 	fi
 	)
 done
-
-#for pkg in $(go list ./...); do
-#	echo "Testing ${pkg}"
-#	cover=cover${num}.txt
-#	covers="$covers $cover"
-#	go test -coverpkg=./... -covermode=count -coverprofile=${cover} ${pkg}
-#	num=$(( num + 1 ))
-#done
 
 # Merge all test runs.
 go get github.com/wadey/gocovmerge

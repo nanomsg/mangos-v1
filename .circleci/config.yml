@@ -33,6 +33,7 @@ jobs:
     working_directory: ~/go/src/github.com/go-mangos/mangos
     steps:
       - checkout
+      - run: echo "$GOPATH"
       - run: go get -v -t -d ./...
       - run: bash .circleci/coverage.sh
       - run: bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
