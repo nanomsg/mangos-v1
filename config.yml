@@ -1,0 +1,48 @@
+version: 2
+jobs:
+  build-1.10:
+    docker:
+      - image: circleci/golang:1.10
+    working_directory: ~/go/src/github.com/go-mangos/mangos
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
+
+  build-1.9:
+    docker:
+      - image: circleci/golang:1.9
+    working_directory: ~/go/src/github.com/go-mangos/mangos
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
+
+  build-1.8:
+    docker:
+      - image: circleci/golang:1.8
+    working_directory: ~/go/src/github.com/go-mangos/mangos
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
+
+  build-coverage:
+    docker:
+      - image: circleci/golang:1.10
+    working_directory: ~/go/src/github.com/go-mangos/mangos
+    steps:
+      - checkout
+      - go test -race -coverprofile=coverage.txt -covermode=atomic
+      - run: go get -v -t -d ./...
+      - run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+      - run: bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build-1.10
+      - build-1.9
+      - build-1.8
+      - build-coverage
