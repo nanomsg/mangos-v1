@@ -1,4 +1,4 @@
-// Copyright 2017 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -583,11 +582,6 @@ func slowStart(t *testing.T, cases []TestCase) bool {
 // RunTests runs tests.
 func RunTests(t *testing.T, addr string, cases []TestCase) {
 
-	if strings.HasPrefix(addr, "ipc://") && runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows yet")
-		return
-	}
-
 	// We need to inject a slight bit of sleep to allow any sessions to
 	// drain before we close connections.
 	defer time.Sleep(50 * time.Millisecond)
@@ -629,7 +623,7 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 var AddrTestTCP = "tcp://127.0.0.1:59093"
 
 // AddrTestIPC is a suitable IPC address for testing.
-var AddrTestIPC = "ipc:///tmp/MYTEST_IPC"
+var AddrTestIPC = "ipc://MYTEST_IPC_SOCK"
 
 // AddrTestInp is a suitable Inproc address for testing.
 var AddrTestInp = "inproc://MYTEST_INPROC"

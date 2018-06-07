@@ -15,7 +15,6 @@
 package test
 
 import (
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -294,11 +293,7 @@ func TestDeviceLoopInp(t *testing.T) {
 }
 
 func TestDeviceLoopIPC(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-	} else {
-		testDevLoop(t, AddrTestIPC)
-	}
+	testDevLoop(t, AddrTestIPC)
 }
 
 func TestDeviceLoopTLS(t *testing.T) {

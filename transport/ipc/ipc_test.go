@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -21,12 +21,10 @@ import (
 	"github.com/go-mangos/mangos/test"
 )
 
-var tt = test.NewTranTest(NewTransport(), "ipc:///tmp/test1234")
+var tt = test.NewTranTest(NewTransport(), "ipc://test1234")
 
 func TestIpcListenAndAccept(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
-		t.Skip("IPC not supported on Windows")
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
@@ -36,8 +34,6 @@ func TestIpcListenAndAccept(t *testing.T) {
 
 func TestIpcDuplicateListen(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
-		t.Skip("IPC not supported on Windows")
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
@@ -47,8 +43,6 @@ func TestIpcDuplicateListen(t *testing.T) {
 
 func TestIpcConnRefused(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
-		t.Skip("IPC not supported on Windows")
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
@@ -58,8 +52,6 @@ func TestIpcConnRefused(t *testing.T) {
 
 func TestIpcSendRecv(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
-		t.Skip("IPC not supported on Windows")
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:
@@ -69,8 +61,6 @@ func TestIpcSendRecv(t *testing.T) {
 
 func TestIpcAll(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
-		t.Skip("IPC not supported on Windows")
 	case "plan9":
 		t.Skip("IPC not supported on Plan9")
 	default:

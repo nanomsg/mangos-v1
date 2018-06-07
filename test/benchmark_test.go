@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,7 +15,6 @@
 package test
 
 import (
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -28,11 +27,6 @@ import (
 )
 
 func benchmarkReq(t *testing.B, url string, size int) {
-
-	if strings.HasPrefix(url, "ipc://") && runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
 
 	srvopts := make(map[string]interface{})
 	cliopts := make(map[string]interface{})
@@ -111,11 +105,6 @@ func benchmarkReq(t *testing.B, url string, size int) {
 
 func benchmarkPair(t *testing.B, url string, size int) {
 
-	if strings.HasPrefix(url, "ipc://") && runtime.GOOS == "windows" {
-		t.Skip("IPC not supported on Windows")
-		return
-	}
-
 	srvopts := make(map[string]interface{})
 	cliopts := make(map[string]interface{})
 
@@ -187,7 +176,7 @@ func benchmarkPair(t *testing.B, url string, size int) {
 
 var benchInpAddr = "inproc://benchmark_test"
 var benchTCPAddr = "tcp://127.0.0.1:33833"
-var benchIPCAddr = "ipc:///tmp/benchmark_test"
+var benchIPCAddr = "ipc://benchmark_test_sock"
 var benchTLSAddr = "tls+tcp://127.0.0.1:44844"
 var benchWSAddr = "ws://127.0.0.1:55855/BENCHMARK"
 var benchWSSAddr = "wss://127.0.0.1:55856/BENCHMARK"
