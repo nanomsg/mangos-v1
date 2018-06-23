@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/req"
-	"github.com/go-mangos/mangos/transport/ipc"
-	"github.com/go-mangos/mangos/transport/tcp"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go-mangos/transport/ipc"
+	"nanomsg.org/go-mangos/transport/tcp"
 )
 
 // synchronize our output messaging so we don't overlap

@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -18,7 +18,7 @@ package tcp
 import (
 	"net"
 
-	"github.com/go-mangos/mangos"
+	"nanomsg.org/go-mangos"
 )
 
 // options is used for shared GetOption/SetOption logic.

@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/rep"
-	"github.com/go-mangos/mangos/protocol/req"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/rep"
+	"nanomsg.org/go-mangos/protocol/req"
 )
 
 // TranTest provides a common test structure for transports, so that they

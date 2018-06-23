@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -17,7 +17,7 @@ package ws
 import (
 	"testing"
 
-	"github.com/go-mangos/mangos/test"
+	"nanomsg.org/go-mangos/test"
 )
 
 var tt = test.NewTranTest(NewTransport(), "ws://127.0.0.1:3395/mysock")

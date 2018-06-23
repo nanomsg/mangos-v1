@@ -1,4 +1,4 @@
-// Copyright 2014 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -31,10 +31,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/pair"
-	"github.com/go-mangos/mangos/transport/ipc"
-	"github.com/go-mangos/mangos/transport/tcp"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/pair"
+	"nanomsg.org/go-mangos/transport/ipc"
+	"nanomsg.org/go-mangos/transport/tcp"
 )
 
 func die(format string, v ...interface{}) {

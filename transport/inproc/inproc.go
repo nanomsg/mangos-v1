@@ -1,4 +1,4 @@
-// Copyright 2017 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-mangos/mangos"
+	"nanomsg.org/go-mangos"
 )
 
 // inproc implements the Pipe interface on top of channels.

@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/pair"
-	"github.com/go-mangos/mangos/protocol/rep"
-	"github.com/go-mangos/mangos/protocol/req"
-	"github.com/go-mangos/mangos/transport/all"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/pair"
+	"nanomsg.org/go-mangos/protocol/rep"
+	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go-mangos/transport/all"
 )
 
 func benchmarkReq(t *testing.B, url string, size int) {

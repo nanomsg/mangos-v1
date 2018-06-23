@@ -5,7 +5,7 @@ If you're thinking of contributing, here's what you should know.
  1. First check to make sure if an issue for the problem you're addressing,
     or feature you're adding, has already been filed.  If not, file one here:
 
-	https://github.com/go-mangos/mangos/issues
+	https://github.com/nanomsg/mangos/issues
 
     Please indicate in the description of the issue that you're working on
     the issue, so we don't duplicate effort.

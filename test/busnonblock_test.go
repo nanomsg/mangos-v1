@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/bus"
-	"github.com/go-mangos/mangos/transport/tcp"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/bus"
+	"nanomsg.org/go-mangos/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

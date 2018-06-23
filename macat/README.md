@@ -2,7 +2,7 @@
 
 The **macat** command is a command‐line interface to send and receive data
 via the
-[mangos](https://github.com/go-mangos/mangos) implementation of the SP
+[mangos](https://github.com/nanomsg/mangos) implementation of the SP
 [nanomsg](http://www.nanomsg.org) protocols. It is designed to be suitable
 for use as a drop‐in replacement for nanocat(1).
 
@@ -100,7 +100,7 @@ macat <*OPTIONS*>
 
 The security model for macat is that authentication should be mutual by
 default.  Therefore, the user should normally supply both a certificate/key
-(either in a single file, or in separate files with *--key*), and a CA 
+(either in a single file, or in separate files with *--key*), and a CA
 certificate file (perhaps consisting of many certificates) which should have
 been used to sign the peer's certificate.  This is true for **BOTH** client
 and server.  (This is a but unlike traditional HTTPS, where it mutual

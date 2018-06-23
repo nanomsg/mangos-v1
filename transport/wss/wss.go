@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -17,8 +17,8 @@
 package wss
 
 import (
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/transport/ws"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport/ws"
 )
 
 type wssTran struct {

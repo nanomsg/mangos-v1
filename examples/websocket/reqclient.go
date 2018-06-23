@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-mangos/mangos/protocol/req"
-	"github.com/go-mangos/mangos/transport/ws"
+	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go-mangos/transport/ws"
 )
 
 // reqClient implements the client for REQ.

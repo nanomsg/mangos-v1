@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,11 +19,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-mangos/mangos"
-	"github.com/go-mangos/mangos/protocol/pair"
-	"github.com/go-mangos/mangos/transport/all"
 	"log"
 	"time"
+
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/pair"
+	"nanomsg.org/go-mangos/transport/all"
 )
 
 // LatencyServer is the server side -- very much equivalent to local_lat in
