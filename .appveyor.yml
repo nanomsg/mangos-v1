@@ -1,5 +1,5 @@
 version: 1.0.{build}
-clone_folder: c:\gopath\src\github.com\go-mangos\mangos
+clone_folder: c:\gopath\src\nanomsg.org\go-mangos
 environment:
   GOPATH: c:\gopath
 build_script:
