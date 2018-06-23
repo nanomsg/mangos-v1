@@ -1,8 +1,8 @@
 ## mangos <img src=mangos.jpg align=right>
 
 
-[![Linux Status](https://img.shields.io/travis/go-mangos/mangos.svg?label=linux)](https://travis-ci.org/go-mangos/mangos)
-[![Windows Status](https://img.shields.io/appveyor/ci/gdamore/mangos.svg?label=windows)](https://ci.appveyor.com/project/gdamore/mangos)
+[![Linux Status](https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux)](https://circleci.com/gh/nanomsg/mangos)
+[![Windows Status](https://img.shields.io/appveyor/ci/nanomsg/mangos.svg?label=windows)](https://ci.appveyor.com/project/nanomsg/mangos)
 [![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/nanomsg/mangos/blob/master/LICENSE)
 [![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/go-mangos/mangos)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/nanomsg.org/go-mangos)
@@ -14,11 +14,11 @@ messaging system.
 This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.
 
-NOTE: The repository has moved from github.com/go-mangos/mangos.
-Please import using nanomsg.org/go-mangos.  Also, be advised that
-the master branch of this repository may contain breaking changes.
-Therefore, consider using a tag, such as v1, to ensure that you have
-the latest stable version.
+> NOTE: The repository has moved from github.com/go-mangos/mangos.
+> Please import using nanomsg.org/go-mangos.  Also, be advised that
+> the master branch of this repository may contain breaking changes.
+> Therefore, consider using a tag, such as v1, to ensure that you have
+> the latest stable version.
 
 The reference implementation of the SP protocols is available as
 [nanomsg&trade;](http://www.nanomsg.org); there is also an effort to implement
