@@ -619,50 +619,70 @@ func RunTests(t *testing.T, addr string, cases []TestCase) {
 
 // We have to expose these, so that device tests can use them.
 
-// AddrTestTCP is a suitable TCP address for testing.
-var AddrTestTCP = "tcp://127.0.0.1:59093"
+var currPort uint16
+var currLock sync.Mutex
 
-// AddrTestIPC is a suitable IPC address for testing.
-var AddrTestIPC = "ipc://MYTEST_IPC_SOCK"
+func init() {
+	currPort = uint16(time.Now().UnixNano()%20000 + 20000)
+}
 
-// AddrTestInp is a suitable Inproc address for testing.
-var AddrTestInp = "inproc://MYTEST_INPROC"
+func NextPort() uint16 {
+	currLock.Lock()
+	defer currLock.Unlock()
+	p := currPort
+	currPort++
+	return p
+}
 
-// AddrTestTLS is a suitable TLS address for testing.
-var AddrTestTLS = "tls+tcp://127.0.0.1:63934"
+func AddrTestIPC() string {
+	return (fmt.Sprintf("ipc://mangostest%d", NextPort()))
+}
 
-// AddrTestWS is a suitable websocket address for testing.
-var AddrTestWS = "ws://127.0.0.1:63935/"
+func AddrTestWSS() string {
+	return (fmt.Sprintf("wss://127.0.0.1:%d/", NextPort()))
+}
 
-// AddrTestWSS is a suitable secure websocket address for testing.
-var AddrTestWSS = "wss://127.0.0.1:63936/"
+func AddrTestWS() string {
+	return (fmt.Sprintf("ws://127.0.0.1:%d/", NextPort()))
+}
+func AddrTestTCP() string {
+	return (fmt.Sprintf("tcp://127.0.0.1:%d", NextPort()))
+}
+
+func AddrTestTLS() string {
+	return (fmt.Sprintf("tls+tcp://127.0.0.1:%d", NextPort()))
+}
+
+func AddrTestInp() string {
+	return (fmt.Sprintf("inproc://test_%d", NextPort()))
+}
 
 // RunTestsTCP runs the TCP tests.
 func RunTestsTCP(t *testing.T, cases []TestCase) {
-	RunTests(t, AddrTestTCP, cases)
+	RunTests(t, AddrTestTCP(), cases)
 }
 
 // RunTestsIPC runs the IPC tests.
 func RunTestsIPC(t *testing.T, cases []TestCase) {
-	RunTests(t, AddrTestIPC, cases)
+	RunTests(t, AddrTestIPC(), cases)
 }
 
 // RunTestsInp runs the inproc tests.
 func RunTestsInp(t *testing.T, cases []TestCase) {
-	RunTests(t, AddrTestInp, cases)
+	RunTests(t, AddrTestInp(), cases)
 }
 
 // RunTestsTLS runs the TLS tests.
 func RunTestsTLS(t *testing.T, cases []TestCase) {
-	RunTests(t, AddrTestTLS, cases)
+	RunTests(t, AddrTestTLS(), cases)
 }
 
 // RunTestsWS runs the websock tests.
 func RunTestsWS(t *testing.T, cases []TestCase) {
-	RunTests(t, AddrTestWS, cases)
+	RunTests(t, AddrTestWS(), cases)
 }
 
 // RunTestsWSS runs the websock tests.
 func RunTestsWSS(t *testing.T, cases []TestCase) {
-	RunTests(t, AddrTestWSS, cases)
+	RunTests(t, AddrTestWSS(), cases)
 }

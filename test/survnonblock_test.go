@@ -60,6 +60,6 @@ func testSurvNonBlock(addr string, tran mangos.Transport) {
 
 func TestSurveyorNonBlockTCP(t *testing.T) {
 	Convey("Testing Survey Send (TCP) is Non-Blocking", t, func() {
-		testSurvNonBlock(AddrTestTCP, tcp.NewTransport())
+		testSurvNonBlock(AddrTestTCP(), tcp.NewTransport())
 	})
 }

@@ -130,6 +130,7 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 	clis := make([]mangos.Socket, 0, nhop)
 	srvs := make([]mangos.Socket, 0, nhop)
 	inp := inproc.NewTransport()
+	a := AddrTestInp()
 
 	for i := 0; i < nhop; i++ {
 		s, err := srv()
@@ -141,7 +142,7 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 
 		s.AddTransport(inp)
 
-		err = s.Listen(AddrTestInp + fmt.Sprintf("HOP%d", i))
+		err = s.Listen(a + fmt.Sprintf("HOP%d", i))
 		if err != nil {
 			t.Errorf("Failed listen: %v", err)
 			return
@@ -166,7 +167,7 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 
 		s.AddTransport(inp)
 
-		err = s.Dial(AddrTestInp + fmt.Sprintf("HOP%d", i))
+		err = s.Dial(a + fmt.Sprintf("HOP%d", i))
 		if err != nil {
 			t.Errorf("Failed dial: %v", err)
 			return

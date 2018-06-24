@@ -81,7 +81,7 @@ func TestPortHook(t *testing.T) {
 		srvtest := &hooktest{allow: true, t: t}
 		clitest := &hooktest{allow: true, t: t}
 
-		addr := AddrTestTCP
+		addr := AddrTestTCP()
 
 		srvtest.expect = []hookinfo{{
 			action: mangos.PortActionAdd,

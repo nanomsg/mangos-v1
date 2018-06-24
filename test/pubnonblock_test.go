@@ -60,6 +60,6 @@ func testPubNonBlock(addr string, tran mangos.Transport) {
 
 func TestPubNonBlockTCP(t *testing.T) {
 	Convey("Testing Pub Send (TCP) is Non-Blocking", t, func() {
-		testPubNonBlock(AddrTestTCP, tcp.NewTransport())
+		testPubNonBlock(AddrTestTCP(), tcp.NewTransport())
 	})
 }

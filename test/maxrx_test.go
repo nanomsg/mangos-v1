@@ -190,9 +190,9 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 }
 
 func TestMaxRxTCP(t *testing.T) {
-	testMaxRx(t, AddrTestTCP, tcp.NewTransport())
+	testMaxRx(t, AddrTestTCP(), tcp.NewTransport())
 }
 
 func TestMaxRxWS(t *testing.T) {
-	testMaxRx(t, AddrTestWS, ws.NewTransport())
+	testMaxRx(t, AddrTestWS(), ws.NewTransport())
 }

@@ -70,6 +70,6 @@ func testBestEffort(addr string, tran mangos.Transport) {
 
 func TestBestEffortTCP(t *testing.T) {
 	Convey("Testing TCP Best Effort", t, func() {
-		testBestEffort(AddrTestTCP, tcp.NewTransport())
+		testBestEffort(AddrTestTCP(), tcp.NewTransport())
 	})
 }

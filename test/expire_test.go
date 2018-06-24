@@ -27,7 +27,7 @@ import (
 
 func TestExpireDrop(t *testing.T) {
 	inp := inproc.NewTransport()
-	addr := AddrTestInp + "EXPIRE"
+	addr := AddrTestInp()
 
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows clock resolution too coarse")

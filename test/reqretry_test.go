@@ -29,7 +29,8 @@ import (
 
 func TestReqRetry(t *testing.T) {
 	Convey("Testing Req Retry", t, func() {
-		addr := "inproc://port"
+		//addr := "inproc://port"
+		addr := AddrTestInp()
 
 		// Let's first try request issued with no connection, and
 		// completing immediately after connect is established.
@@ -51,6 +52,9 @@ func TestReqRetry(t *testing.T) {
 			d, err := sockreq.NewDialer(addr, nil)
 			So(err, ShouldBeNil)
 			So(d, ShouldNotBeNil)
+
+			err = sockreq.SetOption(mangos.OptionReconnectTime, time.Millisecond*100)
+			So(err, ShouldBeNil)
 
 			l, err := sockrep.NewListener(addr, nil)
 			So(err, ShouldBeNil)
@@ -83,7 +87,9 @@ func TestReqRetry(t *testing.T) {
 				m.Free()
 			})
 
-			Convey("A request is reissued on server re-connect", func() {
+			// Following is skipped for now because of the backout
+			// of e5e6478f44cda1eb8427b590755270e2704a990d
+			SkipConvey("A request is reissued on server re-connect", func() {
 
 				rep2, err := rep.NewSocket()
 				So(err, ShouldBeNil)
@@ -110,8 +116,8 @@ func TestReqRetry(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				// Now close the connection -- no reply!
-				sockrep.Close()
 				l.Close()
+				sockrep.Close()
 
 				// Open the new one on the other socket
 				err = l2.Listen()

@@ -279,31 +279,31 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 }
 
 func TestDeviceChain(t *testing.T) {
-	testDevChain(t, AddrTestTCP, AddrTestWS, AddrTestInp)
+	testDevChain(t, AddrTestTCP(), AddrTestWS(), AddrTestInp())
 	// Some platforms (windows) need a little time to wind up the close
 	time.Sleep(100 * time.Millisecond)
 }
 
 func TestDeviceLoopTCP(t *testing.T) {
-	testDevLoop(t, AddrTestTCP)
+	testDevLoop(t, AddrTestTCP())
 }
 
 func TestDeviceLoopInp(t *testing.T) {
-	testDevLoop(t, AddrTestInp)
+	testDevLoop(t, AddrTestInp())
 }
 
 func TestDeviceLoopIPC(t *testing.T) {
-	testDevLoop(t, AddrTestIPC)
+	testDevLoop(t, AddrTestIPC())
 }
 
 func TestDeviceLoopTLS(t *testing.T) {
-	testDevLoop(t, AddrTestTLS)
+	testDevLoop(t, AddrTestTLS())
 }
 
 func TestDeviceLoopWS(t *testing.T) {
-	testDevLoop(t, AddrTestWS)
+	testDevLoop(t, AddrTestWS())
 }
 
 func TestDeviceLoopWSS(t *testing.T) {
-	testDevLoop(t, AddrTestWSS)
+	testDevLoop(t, AddrTestWSS())
 }

@@ -60,6 +60,6 @@ func testStarNonBlock(addr string, tran mangos.Transport) {
 
 func TestStarNonBlockTCP(t *testing.T) {
 	Convey("Testing STAR Send (TCP) is Non-Blocking", t, func() {
-		testStarNonBlock(AddrTestTCP, tcp.NewTransport())
+		testStarNonBlock(AddrTestTCP(), tcp.NewTransport())
 	})
 }

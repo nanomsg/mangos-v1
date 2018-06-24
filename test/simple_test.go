@@ -46,10 +46,12 @@ func TestSimpleCorrect(t *testing.T) {
 		rx.AddTransport(tcp.NewTransport())
 
 		Convey("When a simple TCP pair is created", func() {
-			e = rx.Listen(AddrTestTCP)
+
+			a := AddrTestTCP()
+			e = rx.Listen(a)
 			So(e, ShouldBeNil)
 
-			e = tx.Dial(AddrTestTCP)
+			e = tx.Dial(a)
 			So(e, ShouldBeNil)
 
 			iter := 100000
