@@ -59,11 +59,11 @@ via my email address, garrett -at- damore -dot- org
 
 ### Using *go get*
 
-    $ go get -u github.com/nanomsg/go-mangos
+    $ go get -u nanomsg.org/go-mangos
 
 After this command *mangos* is ready to use. Its source will be in:
 
-    $GOPATH/src/pkg/github.com/nanomsg.org/go-mangos
+    $GOPATH/src/pkg/nanomsg.org/go-mangos
 
 You can use `go get -u -a` to update all installed packages.
 
