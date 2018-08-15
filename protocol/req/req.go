@@ -300,7 +300,10 @@ func (r *req) GetOption(option string) (interface{}, error) {
 	}
 }
 
+// NewProtocol returns a new REQ protocol instance.
+func NewProtocol() mangos.Protocol { return &req{} }
+
 // NewSocket allocates a new Socket using the REQ protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&req{}), nil
+	return mangos.MakeSocket(NewProtocol()), nil
 }

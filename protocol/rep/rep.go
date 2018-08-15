@@ -291,7 +291,10 @@ func (r *rep) GetOption(name string) (interface{}, error) {
 	}
 }
 
+// NewProtocol returns a new REP protocol instance.
+func NewProtocol() mangos.Protocol { return &rep{} }
+
 // NewSocket allocates a new Socket using the REP protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&rep{}), nil
+	return mangos.MakeSocket(NewProtocol()), nil
 }
