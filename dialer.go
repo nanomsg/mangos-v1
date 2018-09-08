@@ -28,8 +28,8 @@ type Dialer interface {
 	// Address returns the string (full URL) of the Listener.
 	Address() string
 
-	// SetOption sets an option the Listener. Setting options
-	// can only be done before Listen() has been called.
+	// SetOption sets an option on the Dialer. Setting options
+	// can only be done before Dial() has been called.
 	SetOption(name string, value interface{}) error
 
 	// GetOption gets an option value from the Listener.
