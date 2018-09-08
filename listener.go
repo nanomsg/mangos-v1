@@ -27,7 +27,7 @@ type Listener interface {
 	// Address returns the string (full URL) of the Listener.
 	Address() string
 
-	// SetOption sets an option the Listener. Setting options
+	// SetOption sets an option on the Listener. Setting options
 	// can only be done before Listen() has been called.
 	SetOption(name string, value interface{}) error
 
