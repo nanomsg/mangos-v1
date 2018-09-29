@@ -18,6 +18,7 @@ package tlstcp
 import (
 	"crypto/tls"
 	"net"
+	"time"
 
 	"nanomsg.org/go-mangos"
 )
@@ -54,6 +55,11 @@ func (o options) configTCP(conn *net.TCPConn) error {
 	}
 	if v, ok := o[mangos.OptionKeepAlive]; ok {
 		if err := conn.SetKeepAlive(v.(bool)); err != nil {
+			return err
+		}
+	}
+	if v, ok := o[mangos.OptionKeepAliveTime]; ok {
+		if err := conn.SetKeepAlivePeriod(v.(time.Duration)); err != nil {
 			return err
 		}
 	}

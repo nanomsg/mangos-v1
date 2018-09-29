@@ -339,6 +339,15 @@ func TestTCPOptions(t *testing.T) {
 		}
 	}
 
+	// Positive KeepAliveTime test
+	if err := d.SetOption(mangos.OptionKeepAliveTime, time.Duration(10*time.Second)); err != nil {
+		t.Errorf("Set option failed for OptionKeepAliveTime: %v", err)
+	}
+	// Negative KeepAliveTime test
+	if err := d.SetOption(mangos.OptionKeepAliveTime, time.Duration(-10*time.Second)); err != mangos.ErrBadValue {
+		t.Errorf("Expected ErrBadOption, but did not get it")
+	}
+
 	// Negative test: try a bad option
 	if err = d.SetOption("NO-SUCH-OPTION", 0); err != mangos.ErrBadOption {
 		t.Errorf("Expected ErrBadOption, but did not get it")

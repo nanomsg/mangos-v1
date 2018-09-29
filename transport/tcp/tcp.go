@@ -17,6 +17,7 @@ package tcp
 
 import (
 	"net"
+	"time"
 
 	"nanomsg.org/go-mangos"
 )
@@ -46,6 +47,18 @@ func (o options) set(name string, val interface{}) error {
 		default:
 			return mangos.ErrBadValue
 		}
+	case mangos.OptionKeepAliveTime:
+		switch v := val.(type) {
+		case time.Duration:
+			if v.Nanoseconds() > 0 {
+				o[name] = v
+				return nil
+			} else {
+				return mangos.ErrBadValue
+			}
+		default:
+			return mangos.ErrBadValue
+		}
 	}
 	return mangos.ErrBadOption
 }
@@ -54,6 +67,7 @@ func newOptions() options {
 	o := make(map[string]interface{})
 	o[mangos.OptionNoDelay] = true
 	o[mangos.OptionKeepAlive] = true
+	o[mangos.OptionKeepAliveTime] = time.Duration(10 * time.Second)
 	return options(o)
 }
 
@@ -65,6 +79,11 @@ func (o options) configTCP(conn *net.TCPConn) error {
 	}
 	if v, ok := o[mangos.OptionKeepAlive]; ok {
 		if err := conn.SetKeepAlive(v.(bool)); err != nil {
+			return err
+		}
+	}
+	if v, ok := o[mangos.OptionKeepAliveTime]; ok {
+		if err := conn.SetKeepAlivePeriod(v.(time.Duration)); err != nil {
 			return err
 		}
 	}
