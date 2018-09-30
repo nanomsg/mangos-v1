@@ -50,7 +50,7 @@ func (o options) set(name string, val interface{}) error {
 	case mangos.OptionKeepAliveTime:
 		switch v := val.(type) {
 		case time.Duration:
-			if v.Nanoseconds() > 0 {
+			if v.Nanoseconds() >= 0 {
 				o[name] = v
 				return nil
 			} else {
