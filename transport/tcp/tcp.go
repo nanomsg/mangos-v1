@@ -67,7 +67,6 @@ func newOptions() options {
 	o := make(map[string]interface{})
 	o[mangos.OptionNoDelay] = true
 	o[mangos.OptionKeepAlive] = true
-	o[mangos.OptionKeepAliveTime] = time.Duration(10 * time.Second)
 	return options(o)
 }
 
