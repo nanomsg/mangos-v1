@@ -93,6 +93,11 @@ const (
 	// Default is true.
 	OptionKeepAlive = "KEEPALIVE"
 
+	// OptionKeepAliveTime is used to set TCP KeepAlive time in seconds.
+	// Value is a time.Duration. Default is OS dependent.
+	// Default is true.
+	OptionKeepAliveTime = "KEEPALIVETIME"
+
 	// OptionNoDelay is used to configure Nagle -- when true messages are
 	// sent as soon as possible, otherwise some buffering may occur.
 	// Value is a boolean.  Default is true.
