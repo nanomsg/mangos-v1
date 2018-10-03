@@ -49,7 +49,7 @@ func addSubHandler(mux *http.ServeMux, port int) {
 	if l, e := sock.NewListener(url, nil); e != nil {
 		die("bad listener: %v", e)
 	} else if h, e := l.GetOption(ws.OptionWebSocketHandler); e != nil {
-		die("cannot get handler:", e)
+		die("cannot get handler: %v", e)
 	} else {
 		mux.Handle("/sub", h.(http.Handler))
 		l.Listen()
