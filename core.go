@@ -87,6 +87,11 @@ func (sock *socket) addPipe(tranpipe Pipe, d *dialer, l *listener) *pipe {
 		}
 		sock.Lock()
 	}
+	if sock.pipes == nil {
+		sock.Unlock()
+		p.Close()
+		return nil
+	}
 	p.sock = sock
 	sock.pipes[p] = struct{}{}
 	sock.Unlock()
