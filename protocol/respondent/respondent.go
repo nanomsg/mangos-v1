@@ -285,10 +285,12 @@ func (x *resp) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol returns a new RESP protocol instance.
-func NewProtocol() mangos.Protocol { return &resp{} }
-
 // NewSocket allocates a new Socket using the RESPONDENT protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(NewProtocol()), nil
+	return mangos.MakeSocket(&resp{raw: false}), nil
+}
+
+// NewRawSocket allocates a raw Socket using the RESPONDENT protocol.
+func NewRawSocket() (mangos.Socket, error) {
+	return mangos.MakeSocket(&resp{raw: true}), nil
 }

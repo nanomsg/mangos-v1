@@ -278,12 +278,12 @@ func (x *surveyor) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewProtocol returns a new SURVEYOR protocol instance.
-func NewProtocol() mangos.Protocol {
-	return &surveyor{duration: defaultSurveyTime}
-}
-
 // NewSocket allocates a new Socket using the SURVEYOR protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(NewProtocol()), nil
+	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime, raw: false}), nil
+}
+
+// NewRawSocket allocates a raw Socket using the SURVEYOR protocol.
+func NewRawSocket() (mangos.Socket, error) {
+	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime, raw: true}), nil
 }
