@@ -158,16 +158,7 @@ func (*pub) PeerName() string {
 }
 
 func (p *pub) SetOption(name string, v interface{}) error {
-	var ok bool
-	switch name {
-	case mangos.OptionRaw:
-		if p.raw, ok = v.(bool); !ok {
-			return mangos.ErrBadValue
-		}
-		return nil
-	default:
-		return mangos.ErrBadOption
-	}
+	return mangos.ErrBadOption
 }
 
 func (p *pub) GetOption(name string) (interface{}, error) {

@@ -204,16 +204,7 @@ func (x *bus) RecvHook(m *mangos.Message) bool {
 }
 
 func (x *bus) SetOption(name string, v interface{}) error {
-	var ok bool
-	switch name {
-	case mangos.OptionRaw:
-		if x.raw, ok = v.(bool); !ok {
-			return mangos.ErrBadValue
-		}
-		return nil
-	default:
-		return mangos.ErrBadOption
-	}
+	return mangos.ErrBadOption
 }
 
 func (x *bus) GetOption(name string) (interface{}, error) {

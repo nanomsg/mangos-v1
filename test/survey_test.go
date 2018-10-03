@@ -164,25 +164,26 @@ func TestSurveyWSS(t *testing.T) {
 }
 
 func TestSurveyTTLZero(t *testing.T) {
-	SetTTLZero(t, respondent.NewSocket)
+	SetTTLZero(t, respondent.NewRawSocket)
 }
 
 func TestSurveyTTLNegative(t *testing.T) {
-	SetTTLNegative(t, respondent.NewSocket)
+	SetTTLNegative(t, respondent.NewRawSocket)
 }
 
 func TestSurveyTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, respondent.NewSocket)
+	SetTTLTooBig(t, respondent.NewRawSocket)
 }
 
 func TestSurveyTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, respondent.NewSocket)
+	SetTTLNotInt(t, respondent.NewRawSocket)
 }
 
 func TestSurveyTTLSet(t *testing.T) {
-	SetTTL(t, respondent.NewSocket)
+	SetTTL(t, respondent.NewRawSocket)
 }
 
 func TestSurveyTTLDrop(t *testing.T) {
-	TTLDropTest(t, surveyor.NewSocket, respondent.NewSocket)
+	TTLDropTest(t, surveyor.NewSocket, respondent.NewSocket,
+		surveyor.NewRawSocket, respondent.NewRawSocket)
 }

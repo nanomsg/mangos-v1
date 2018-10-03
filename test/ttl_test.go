@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -125,7 +125,9 @@ func SetTTL(t *testing.T, f newSockFunc) {
 
 // TTLDropTest is a generic test for dropping based on TTL expiration.
 // F1 makes the client socket, f2 makes the server socket.
-func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
+func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
+	rawcli newSockFunc, rawsrv newSockFunc) {
+
 	nhop := 3
 	clis := make([]mangos.Socket, 0, nhop)
 	srvs := make([]mangos.Socket, 0, nhop)
@@ -133,7 +135,13 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 	a := AddrTestInp()
 
 	for i := 0; i < nhop; i++ {
-		s, err := srv()
+		var fn newSockFunc
+		if i == nhop-1 {
+			fn = srv
+		} else {
+			fn = rawsrv
+		}
+		s, err := fn()
 		if err != nil {
 			t.Errorf("Failed to make server: %v", err)
 			return
@@ -148,17 +156,17 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc) {
 			return
 		}
 
-		err = s.SetOption(mangos.OptionRaw, true)
-		if err != nil {
-			t.Errorf("Failed set raw mode: %v", err)
-			return
-		}
-
 		srvs = append(srvs, s)
 	}
 
 	for i := 0; i < nhop; i++ {
-		s, err := cli()
+		var fn newSockFunc
+		if i == 0 {
+			fn = cli
+		} else {
+			fn = rawcli
+		}
+		s, err := fn()
 		if err != nil {
 			t.Errorf("Failed to make client: %v", err)
 			return

@@ -248,18 +248,7 @@ func (*resp) PeerName() string {
 }
 
 func (x *resp) SetOption(name string, v interface{}) error {
-	var ok bool
 	switch name {
-	case mangos.OptionRaw:
-		if x.raw, ok = v.(bool); !ok {
-			return mangos.ErrBadValue
-		}
-		if x.raw {
-			x.sock.SetSendError(nil)
-		} else {
-			x.sock.SetSendError(mangos.ErrProtoState)
-		}
-		return nil
 	case mangos.OptionTTL:
 		if ttl, ok := v.(int); !ok {
 			return mangos.ErrBadValue
