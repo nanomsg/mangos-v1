@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -29,11 +29,9 @@ var pipes struct {
 // pipe wraps the Pipe data structure with the stuff we need to keep
 // for the core.  It implements the Endpoint interface.
 type pipe struct {
-	pipe   Pipe
-	closeq chan struct{} // only closed, never passes data
-	id     uint32
-	index  int // index in master list of pipes for socket
-
+	pipe    Pipe
+	closeq  chan struct{} // only closed, never passes data
+	id      uint32
 	l       *listener
 	d       *dialer
 	sock    *socket
@@ -48,7 +46,7 @@ func init() {
 }
 
 func newPipe(tranpipe Pipe) *pipe {
-	p := &pipe{pipe: tranpipe, index: -1}
+	p := &pipe{pipe: tranpipe}
 	p.closeq = make(chan struct{})
 	for {
 		pipes.Lock()
