@@ -215,13 +215,13 @@ type ProtocolBase interface {
 
 	// Number returns a 16-bit value for the protocol number,
 	// as assigned by the SP governing body.
-	ProtocolNumber() uint16
+	Proto() uint16
 
 	// ProtocolName returns our name.
-	ProtocolName() string
+	ProtoName() string
 
 	// PeerNumber() returns a 16-bit number for our peer protocol.
-	PeerNumber() uint16
+	Peer() uint16
 
 	// PeerName() returns the name of our peer protocol.
 	PeerName() string

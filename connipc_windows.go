@@ -23,7 +23,7 @@ import (
 )
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
+func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, error) {
 	p := &connipc{
 		conn: conn{
 			c:     c,

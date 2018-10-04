@@ -213,7 +213,7 @@ type dialer struct {
 	maxrx    int
 }
 
-func (d *dialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (mangos.TranPipe, error) {
 	var w *wsPipe
 
 	wd := &websocket.Dialer{}
@@ -360,7 +360,7 @@ func (l *listener) Listen() error {
 	return nil
 }
 
-func (l *listener) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (mangos.TranPipe, error) {
 	var w *wsPipe
 
 	l.lock.Lock()
@@ -470,7 +470,7 @@ func (wsTran) Scheme() string {
 	return "ws"
 }
 
-func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	iswss := strings.HasPrefix(addr, "wss://")
 	opts := make(map[string]interface{})
 
@@ -494,7 +494,7 @@ func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, err
 	return d, nil
 }
 
-func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
 	l, e := t.listener(addr, sock)
 	if e == nil {
 		if v, e := sock.GetOption(mangos.OptionMaxRecvSize); e == nil {

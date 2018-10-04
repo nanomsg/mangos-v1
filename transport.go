@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,14 +19,14 @@ import (
 	"strings"
 )
 
-// Pipe behaves like a full-duplex message-oriented connection between two
+// TranPipe behaves like a full-duplex message-oriented connection between two
 // peers.  Callers may call operations on a Pipe simultaneously from
 // different goroutines.  (These are different from net.Conn because they
 // provide message oriented semantics.)
 //
 // Pipe is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type Pipe interface {
+type TranPipe interface {
 
 	// Send sends a complete message.  In the event of a partial send,
 	// the Pipe will be closed, and an error is returned.  For reasons
@@ -68,14 +68,14 @@ type Pipe interface {
 	GetProp(string) (interface{}, error)
 }
 
-// PipeDialer represents the client side of a connection.  Clients initiate
+// TranDialer represents the client side of a connection.  Clients initiate
 // the connection.
 //
-// PipeDialer is only intended for use by transport implementors, and should
+// TranDialer is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type PipeDialer interface {
+type TranDialer interface {
 	// Dial is used to initiate a connection to a remote peer.
-	Dial() (Pipe, error)
+	Dial() (TranPipe, error)
 
 	// SetOption sets a local option on the dialer.
 	// ErrBadOption can be returned for unrecognized options.
@@ -87,12 +87,15 @@ type PipeDialer interface {
 	GetOption(name string) (value interface{}, err error)
 }
 
-// PipeListener represents the server side of a connection.  Servers respond
+// PipeDialer is the legacy name for TranDialer
+// type PipeDialer = TranDialer
+
+// TranListener represents the server side of a connection.  Servers respond
 // to a connection request from clients.
 //
-// PipeListener is only intended for use by transport implementors, and should
+// TranListener is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type PipeListener interface {
+type TranListener interface {
 
 	// Listen actually begins listening on the interface.  It is
 	// called just prior to the Accept() routine normally. It is
@@ -102,7 +105,7 @@ type PipeListener interface {
 	// Accept completes the server side of a connection.  Once the
 	// connection is established and initial handshaking is complete,
 	// the resulting connection is returned to the client.
-	Accept() (Pipe, error)
+	Accept() (TranPipe, error)
 
 	// Close ceases any listening activity, and will specifically close
 	// any underlying file descriptor.  Once this is done, the only way
@@ -125,6 +128,9 @@ type PipeListener interface {
 	Address() string
 }
 
+// PipeListener is the legacy name for TranListener
+// type PipeListener = TranListener
+
 // Transport is the interface for transport suppliers to implement.
 type Transport interface {
 	// Scheme returns a string used as the prefix for SP "addresses".
@@ -133,13 +139,13 @@ type Transport interface {
 	Scheme() string
 
 	// NewDialer creates a new Dialer for this Transport.
-	NewDialer(url string, sock Socket) (PipeDialer, error)
+	NewDialer(url string, sock Socket) (TranDialer, error)
 
 	// NewListener creates a new PipeListener for this Transport.
 	// This generally also arranges for an OS-level file descriptor to be
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
-	NewListener(url string, sock Socket) (PipeListener, error)
+	NewListener(url string, sock Socket) (TranListener, error)
 }
 
 // StripScheme removes the leading scheme (such as "http://") from an address

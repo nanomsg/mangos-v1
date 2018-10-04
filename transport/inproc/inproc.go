@@ -164,7 +164,7 @@ type dialer struct {
 	peerProto uint16
 }
 
-func (d *dialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (mangos.TranPipe, error) {
 
 	var server *inproc
 	client := &inproc{
@@ -239,7 +239,7 @@ func (l *listener) Address() string {
 	return l.addr
 }
 
-func (l *listener) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (mangos.TranPipe, error) {
 	server := &inproc{
 		selfProto: l.selfProto,
 		peerProto: l.peerProto,
@@ -290,7 +290,7 @@ func (t *inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	if _, err := mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
@@ -302,7 +302,7 @@ func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDial
 	return d, nil
 }
 
-func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
 	if _, err := mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}

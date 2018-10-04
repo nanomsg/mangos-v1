@@ -29,11 +29,11 @@ func (wssTran) Scheme() string {
 	return "wss"
 }
 
-func (w *wssTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (w *wssTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	return w.w.NewDialer(addr, sock)
 }
 
-func (w *wssTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (w *wssTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
 	return w.w.NewListener(addr, sock)
 }
 

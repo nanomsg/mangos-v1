@@ -29,7 +29,7 @@ var pipes struct {
 // pipe wraps the Pipe data structure with the stuff we need to keep
 // for the core.  It implements the Endpoint interface.
 type pipe struct {
-	pipe    Pipe
+	pipe    TranPipe
 	closeq  chan struct{} // only closed, never passes data
 	id      uint32
 	l       *listener
@@ -45,7 +45,7 @@ func init() {
 	pipes.nextid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
 }
 
-func newPipe(tranpipe Pipe) *pipe {
+func newPipe(tranpipe TranPipe) *pipe {
 	p := &pipe{pipe: tranpipe}
 	p.closeq = make(chan struct{})
 	for {

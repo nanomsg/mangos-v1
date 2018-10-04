@@ -67,7 +67,7 @@ type socket struct {
 	porthook PortHook
 }
 
-func (sock *socket) addPipe(tranpipe Pipe, d *dialer, l *listener) *pipe {
+func (sock *socket) addPipe(tranpipe TranPipe, d *dialer, l *listener) *pipe {
 	p := newPipe(tranpipe)
 	p.d = d
 	p.l = l
@@ -576,7 +576,7 @@ func (sock *socket) SetPortHook(newhook PortHook) PortHook {
 }
 
 type dialer struct {
-	d      PipeDialer
+	d      TranDialer
 	sock   *socket
 	addr   string
 	closed bool
@@ -672,7 +672,7 @@ func (d *dialer) dialer() {
 }
 
 type listener struct {
-	l    PipeListener
+	l    TranListener
 	sock *socket
 	addr string
 }
