@@ -19,6 +19,10 @@ package mangos
 // messaging topology.  Applications can have more than one Socket open
 // at a time.
 type Socket interface {
+	// Info returns information about the protocol (numbers and names)
+	// and peer protocol.
+	Info() ProtocolInfo
+
 	// Close closes the open Socket.  Further operations on the socket
 	// will return ErrClosed.
 	Close() error
@@ -77,9 +81,4 @@ type Socket interface {
 	// added or removed from this socket (connect/disconnect).  The previous
 	// hook is returned (nil if none.)
 	SetPortHook(PortHook) PortHook
-
-	Peer() uint16
-	Proto() uint16
-	ProtoName() string
-	PeerName() string
 }

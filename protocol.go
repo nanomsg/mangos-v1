@@ -177,6 +177,14 @@ func NullRecv(ep Endpoint) {
 // NEW PROTOCOL STUFF
 //
 
+// ProtocolInfo is a description of the protocol.
+type ProtocolInfo struct {
+	Self     uint16
+	Peer     uint16
+	SelfName string
+	PeerName string
+}
+
 // ProtocolContext is a "context" for a protocol, which contains the
 // various stateful operations such as timers, etc. necessary for
 // running the protocol.  This is separable from the protocol itself
@@ -213,18 +221,8 @@ type ProtocolContext interface {
 type ProtocolBase interface {
 	ProtocolContext
 
-	// Number returns a 16-bit value for the protocol number,
-	// as assigned by the SP governing body.
-	Proto() uint16
-
-	// ProtocolName returns our name.
-	ProtoName() string
-
-	// PeerNumber() returns a 16-bit number for our peer protocol.
-	Peer() uint16
-
-	// PeerName() returns the name of our peer protocol.
-	PeerName() string
+	// Info returns the information describing this protocol.
+	Info() ProtocolInfo
 
 	// XXX: Revisit these when we can use Pipe natively.
 

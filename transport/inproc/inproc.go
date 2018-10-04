@@ -20,12 +20,13 @@ import (
 	"sync"
 
 	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport"
 )
 
 // inproc implements the Pipe interface on top of channels.
 type inproc struct {
-	rq        chan *mangos.Message
-	wq        chan *mangos.Message
+	rq        chan *transport.Message
+	wq        chan *transport.Message
 	closeq    chan struct{}
 	readyq    chan struct{}
 	selfProto uint16
@@ -70,7 +71,7 @@ func init() {
 	listeners.cv.L = &listeners.mx
 }
 
-func (p *inproc) Recv() (*mangos.Message, error) {
+func (p *inproc) Recv() (*transport.Message, error) {
 
 	if p.peer == nil {
 		return nil, mangos.ErrClosed
@@ -164,7 +165,7 @@ type dialer struct {
 	peerProto uint16
 }
 
-func (d *dialer) Dial() (mangos.TranPipe, error) {
+func (d *dialer) Dial() (transport.Pipe, error) {
 
 	var server *inproc
 	client := &inproc{
@@ -203,8 +204,8 @@ func (d *dialer) Dial() (mangos.TranPipe, error) {
 
 	listeners.mx.Unlock()
 
-	server.wq = make(chan *mangos.Message)
-	server.rq = make(chan *mangos.Message)
+	server.wq = make(chan *transport.Message)
+	server.rq = make(chan *transport.Message)
 	client.rq = server.wq
 	client.wq = server.rq
 	server.peer = client
@@ -290,31 +291,31 @@ func (t *inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
-	if _, err := mangos.StripScheme(t, addr); err != nil {
+func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+	if _, err := transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 	d := &dialer{
 		addr:      addr,
-		selfProto: sock.Proto(),
-		peerProto: sock.Peer(),
+		selfProto: sock.Info().Self,
+		peerProto: sock.Info().Peer,
 	}
 	return d, nil
 }
 
-func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
-	if _, err := mangos.StripScheme(t, addr); err != nil {
+func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+	if _, err := transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 	l := &listener{
 		addr:      addr,
-		selfProto: sock.Proto(),
-		peerProto: sock.Peer(),
+		selfProto: sock.Info().Self,
+		peerProto: sock.Info().Peer,
 	}
 	return l, nil
 }
 
 // NewTransport allocates a new inproc:// transport.
-func NewTransport() mangos.Transport {
+func NewTransport() transport.Transport {
 	return &inprocTran{}
 }

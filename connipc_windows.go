@@ -27,8 +27,7 @@ func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, er
 	p := &connipc{
 		conn: conn{
 			c:     c,
-			proto: sock.Proto(),
-			peer:  sock.Peer(),
+			proto: sock.Info(),
 			sock:  sock,
 		},
 	}
