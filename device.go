@@ -42,10 +42,7 @@ func Device(s1 Socket, s2 Socket) error {
 		return ErrClosed
 	}
 
-	p1 := s1.GetProtocol()
-	p2 := s2.GetProtocol()
-
-	if !ValidPeers(p1, p2) {
+	if (s1.Proto() != s2.Peer()) || (s2.Proto() != s1.Peer()) {
 		return ErrBadProto
 	}
 
