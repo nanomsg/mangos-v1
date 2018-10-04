@@ -21,7 +21,7 @@ import (
 	"sync"
 )
 
-// conn implements the Pipe interface on top of net.Conn.  The
+// conn implements the TranPipe interface on top of net.Conn.  The
 // assumption is that transports using this have similar wire protocols,
 // and conn is meant to be used as a building block.
 type conn struct {
@@ -42,8 +42,8 @@ type connipc struct {
 	conn
 }
 
-// Recv implements the Pipe Recv method.  The message received is expected as
-// a 64-bit size (network byte order) followed by the message itself.
+// Recv implements the TranPipe Recv method.  The message received is expected
+// as a 64-bit size (network byte order) followed by the message itself.
 func (p *conn) Recv() (*Message, error) {
 
 	var sz int64
@@ -68,7 +68,7 @@ func (p *conn) Recv() (*Message, error) {
 	return msg, nil
 }
 
-// Send implements the Pipe Send method.  The message is sent as a 64-bit
+// Send implements the TranPipe Send method.  The message is sent as a 64-bit
 // size (network byte order) followed by the message itself.
 func (p *conn) Send(msg *Message) error {
 
@@ -104,7 +104,7 @@ func (p *conn) RemoteProtocol() uint16 {
 	return p.peer
 }
 
-// Close implements the Pipe Close method.
+// Close implements the TranPipe Close method.
 func (p *conn) Close() error {
 	p.Lock()
 	defer p.Unlock()
@@ -115,7 +115,7 @@ func (p *conn) Close() error {
 	return nil
 }
 
-// IsOpen implements the PipeIsOpen method.
+// IsOpen implements the TranPipeIsOpen method.
 func (p *conn) IsOpen() bool {
 	return p.open
 }
@@ -136,7 +136,7 @@ func (p *conn) GetProp(n string) (interface{}, error) {
 // and the Transport enclosing structure.   Using this layered interface,
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
-func NewConnPipe(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
+func NewConnPipe(c net.Conn, sock Socket, props ...interface{}) (TranPipe, error) {
 	p := &conn{
 		c:     c,
 		proto: sock.Proto(),

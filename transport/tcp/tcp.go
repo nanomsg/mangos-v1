@@ -53,9 +53,9 @@ func (o options) set(name string, val interface{}) error {
 			if v.Nanoseconds() >= 0 {
 				o[name] = v
 				return nil
-			} else {
-				return mangos.ErrBadValue
 			}
+			return mangos.ErrBadValue
+
 		default:
 			return mangos.ErrBadValue
 		}
@@ -95,7 +95,7 @@ type dialer struct {
 	opts options
 }
 
-func (d *dialer) Dial() (_ mangos.Pipe, err error) {
+func (d *dialer) Dial() (_ mangos.TranPipe, err error) {
 	var (
 		addr *net.TCPAddr
 	)
@@ -132,7 +132,7 @@ type listener struct {
 	opts     options
 }
 
-func (l *listener) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (mangos.TranPipe, error) {
 
 	if l.listener == nil {
 		return nil, mangos.ErrClosed
@@ -184,7 +184,7 @@ func (t *tcpTran) Scheme() string {
 	return "tcp"
 }
 
-func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	var err error
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 	return d, nil
 }
 
-func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
 	var err error
 	l := &listener{sock: sock, opts: newOptions()}
 

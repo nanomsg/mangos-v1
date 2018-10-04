@@ -79,7 +79,7 @@ type dialer struct {
 	opts options
 }
 
-func (d *dialer) Dial() (_ mangos.Pipe, err error) {
+func (d *dialer) Dial() (_ mangos.TranPipe, err error) {
 	var (
 		addr   *net.TCPAddr
 		config *tls.Config
@@ -156,7 +156,7 @@ func (l *listener) Address() string {
 	return "tls+tcp://" + l.addr.String()
 }
 
-func (l *listener) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (mangos.TranPipe, error) {
 
 	tconn, err := l.listener.AcceptTCP()
 	if err != nil {
@@ -199,7 +199,7 @@ func (t *tlsTran) Scheme() string {
 	return "tls+tcp"
 }
 
-func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	var err error
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
@@ -217,7 +217,7 @@ func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
 	var err error
 	l := &listener{sock: sock, opts: newOptions(t)}
 

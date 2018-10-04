@@ -50,7 +50,7 @@ type dialer struct {
 }
 
 // Dial implements the PipeDialer Dial method
-func (d *dialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (mangos.TranPipe, error) {
 
 	conn, err := net.DialUnix("unix", nil, d.addr)
 	if err != nil {
@@ -91,7 +91,7 @@ func (l *listener) Address() string {
 }
 
 // Accept implements the the PipeListener Accept method.
-func (l *listener) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (mangos.TranPipe, error) {
 
 	conn, err := l.listener.AcceptUnix()
 	if err != nil {
@@ -124,7 +124,7 @@ func (t *ipcTran) Scheme() string {
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	var err error
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
@@ -139,7 +139,7 @@ func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 }
 
 // NewListener implements the Transport NewListener method.
-func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
 	var err error
 	l := &listener{sock: sock}
 
