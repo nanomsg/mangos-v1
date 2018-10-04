@@ -24,13 +24,14 @@ import (
 
 // inproc implements the Pipe interface on top of channels.
 type inproc struct {
-	rq     chan *mangos.Message
-	wq     chan *mangos.Message
-	closeq chan struct{}
-	readyq chan struct{}
-	proto  mangos.Protocol
-	addr   addr
-	peer   *inproc
+	rq        chan *mangos.Message
+	wq        chan *mangos.Message
+	closeq    chan struct{}
+	readyq    chan struct{}
+	selfProto uint16
+	peerProto uint16
+	addr      addr
+	peer      *inproc
 	sync.Mutex
 }
 
@@ -50,7 +51,8 @@ func (addr) Network() string {
 
 type listener struct {
 	addr      string
-	proto     mangos.Protocol
+	selfProto uint16
+	peerProto uint16
 	accepters []*inproc
 }
 
@@ -120,11 +122,11 @@ func (p *inproc) Send(m *mangos.Message) error {
 }
 
 func (p *inproc) LocalProtocol() uint16 {
-	return p.proto.Number()
+	return p.selfProto
 }
 
 func (p *inproc) RemoteProtocol() uint16 {
-	return p.proto.PeerNumber()
+	return p.peerProto
 }
 
 func (p *inproc) Close() error {
@@ -157,14 +159,19 @@ func (p *inproc) GetProp(name string) (interface{}, error) {
 }
 
 type dialer struct {
-	addr  string
-	proto mangos.Protocol
+	addr      string
+	selfProto uint16
+	peerProto uint16
 }
 
 func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	var server *inproc
-	client := &inproc{proto: d.proto, addr: addr(d.addr)}
+	client := &inproc{
+		selfProto: d.selfProto,
+		peerProto: d.peerProto,
+		addr:      addr(d.addr),
+	}
 	client.readyq = make(chan struct{})
 	client.closeq = make(chan struct{})
 
@@ -179,7 +186,8 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 			return nil, mangos.ErrConnRefused
 		}
 
-		if !mangos.ValidPeers(client.proto, l.proto) {
+		if (client.selfProto != l.peerProto) ||
+			(client.peerProto != l.selfProto) {
 			return nil, mangos.ErrBadProto
 		}
 
@@ -232,7 +240,11 @@ func (l *listener) Address() string {
 }
 
 func (l *listener) Accept() (mangos.Pipe, error) {
-	server := &inproc{proto: l.proto, addr: addr(l.addr)}
+	server := &inproc{
+		selfProto: l.selfProto,
+		peerProto: l.peerProto,
+		addr:      addr(l.addr),
+	}
 	server.readyq = make(chan struct{})
 	server.closeq = make(chan struct{})
 
@@ -282,14 +294,23 @@ func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDial
 	if _, err := mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
-	return &dialer{addr: addr, proto: sock.GetProtocol()}, nil
+	d := &dialer{
+		addr:      addr,
+		selfProto: sock.Proto(),
+		peerProto: sock.Peer(),
+	}
+	return d, nil
 }
 
 func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	if _, err := mangos.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
-	l := &listener{addr: addr, proto: sock.GetProtocol()}
+	l := &listener{
+		addr:      addr,
+		selfProto: sock.Proto(),
+		peerProto: sock.Peer(),
+	}
 	return l, nil
 }
 

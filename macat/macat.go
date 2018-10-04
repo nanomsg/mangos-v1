@@ -557,7 +557,7 @@ func main() {
 		fatalf("No address specified.")
 	}
 
-	if sock.GetProtocol().Number() != mangos.ProtoSub {
+	if sock.Proto() != mangos.ProtoSub {
 		if len(subscriptions) > 0 {
 			fatalf("Subscription only valid with SUB protocol.")
 		}
@@ -617,7 +617,7 @@ func main() {
 	time.Sleep(time.Second * time.Duration(sendDelay))
 
 	// Start main processing
-	switch sock.GetProtocol().Number() {
+	switch sock.Proto() {
 
 	case mangos.ProtoPull:
 		fallthrough

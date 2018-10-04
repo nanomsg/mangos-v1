@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -69,9 +69,6 @@ type Socket interface {
 	// SetOption is used to set an option for a socket.
 	SetOption(name string, value interface{}) error
 
-	// Protocol is used to get the underlying Protocol.
-	GetProtocol() Protocol
-
 	// AddTransport adds a new Transport to the socket.  Transport specific
 	// options may have been configured on the Transport prior to this.
 	AddTransport(Transport)
@@ -80,4 +77,9 @@ type Socket interface {
 	// added or removed from this socket (connect/disconnect).  The previous
 	// hook is returned (nil if none.)
 	SetPortHook(PortHook) PortHook
+
+	Peer() uint16
+	Proto() uint16
+	ProtoName() string
+	PeerName() string
 }

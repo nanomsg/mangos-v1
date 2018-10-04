@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -17,6 +17,10 @@ package mangos
 import (
 	"time"
 )
+
+//
+// LEGACY PROTOCOL STUFF
+//
 
 // Endpoint represents the handle that a Protocol implementation has
 // to the underlying stream transport.  It can be thought of as one side
@@ -154,6 +158,87 @@ type ProtocolSocket interface {
 	SetSendError(error)
 }
 
+// NullRecv simply loops, receiving and discarding messages, until the
+// Endpoint returns back a nil message.  This allows the Endpoint to notice
+// a dropped connection.  It is intended for use by Protocols that are write
+// only -- it lets them become aware of a loss of connectivity even when they
+// have no data to send.
+func NullRecv(ep Endpoint) {
+	for {
+		var m *Message
+		if m = ep.RecvMsg(); m == nil {
+			return
+		}
+		m.Free()
+	}
+}
+
+//
+// NEW PROTOCOL STUFF
+//
+
+// ProtocolContext is a "context" for a protocol, which contains the
+// various stateful operations such as timers, etc. necessary for
+// running the protocol.  This is separable from the protocol itself
+// as the protocol may permit the creation of multiple contexts.
+type ProtocolContext interface {
+	// Close closes the context.
+	Close() error
+
+	// SendMsg sends the message.  The message may be queued, or
+	// may be delivered immediately, depending on the nature of
+	// the protocol.  On success, the context assumes ownership
+	// of the message.  On error, the caller retains ownership,
+	// and may either resend the message or dispose of it otherwise.
+	SendMsg(*Message) error
+
+	// RecvMsg receives a complete message, including the message header,
+	// which is useful for protocols in raw mode.
+	RecvMsg() (*Message, error)
+
+	// GetOption is used to retrieve the current value of an option.
+	// If the protocol doesn't recognize the option, EBadOption should
+	// be returned.
+	GetOption(string) (interface{}, error)
+
+	// SetOption is used to set an option.  EBadOption is returned if
+	// the option name is not recognized, EBadValue if the value is
+	// invalid.
+	SetOption(string, interface{}) error
+}
+
+// ProtocolBase provides the protocol-specific handling for sockets.
+// This is the new style API for sockets, and is how protocols provide
+// their specific handling.
+type ProtocolBase interface {
+	ProtocolContext
+
+	// Number returns a 16-bit value for the protocol number,
+	// as assigned by the SP governing body.
+	ProtocolNumber() uint16
+
+	// ProtocolName returns our name.
+	ProtocolName() string
+
+	// PeerNumber() returns a 16-bit number for our peer protocol.
+	PeerNumber() uint16
+
+	// PeerName() returns the name of our peer protocol.
+	PeerName() string
+
+	// XXX: Revisit these when we can use Pipe natively.
+
+	// AddPipe is called when a new Pipe is added to the socket.
+	// Typically this is as a result of connect or accept completing.
+	AddPipe(Endpoint) error
+
+	// RemovePipe is called when a Pipe is removed from the socket.
+	// Typically this indicates a disconnected or closed connection.
+	RemovePipe(Endpoint)
+
+	OpenContext() (ProtocolContext, error)
+}
+
 // Useful constants for protocol numbers.  Note that the major protocol number
 // is stored in the upper 12 bits, and the minor (subprotocol) is located in
 // the bottom 4 bits.
@@ -190,32 +275,4 @@ func ProtocolName(number uint16) string {
 		ProtoRespondent: "respondent",
 		ProtoBus:        "bus"}
 	return names[number]
-}
-
-// ValidPeers returns true if the two sockets are capable of
-// peering to one another.  For example, REQ can peer with REP,
-// but not with BUS.
-func ValidPeers(p1, p2 Protocol) bool {
-	if p1.Number() != p2.PeerNumber() {
-		return false
-	}
-	if p2.Number() != p1.PeerNumber() {
-		return false
-	}
-	return true
-}
-
-// NullRecv simply loops, receiving and discarding messages, until the
-// Endpoint returns back a nil message.  This allows the Endpoint to notice
-// a dropped connection.  It is intended for use by Protocols that are write
-// only -- it lets them become aware of a loss of connectivity even when they
-// have no data to send.
-func NullRecv(ep Endpoint) {
-	for {
-		var m *Message
-		if m = ep.RecvMsg(); m == nil {
-			return
-		}
-		m.Free()
-	}
 }

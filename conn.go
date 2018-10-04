@@ -26,7 +26,8 @@ import (
 // and conn is meant to be used as a building block.
 type conn struct {
 	c     net.Conn
-	proto Protocol
+	proto uint16
+	peer  uint16
 	sock  Socket
 	open  bool
 	props map[string]interface{}
@@ -95,12 +96,12 @@ func (p *conn) Send(msg *Message) error {
 
 // LocalProtocol returns our local protocol number.
 func (p *conn) LocalProtocol() uint16 {
-	return p.proto.Number()
+	return p.proto
 }
 
 // RemoteProtocol returns our peer's protocol number.
 func (p *conn) RemoteProtocol() uint16 {
-	return p.proto.PeerNumber()
+	return p.peer
 }
 
 // Close implements the Pipe Close method.
@@ -136,7 +137,12 @@ func (p *conn) GetProp(n string) (interface{}, error) {
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
 func NewConnPipe(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
-	p := &conn{c: c, proto: sock.GetProtocol(), sock: sock}
+	p := &conn{
+		c:     c,
+		proto: sock.Proto(),
+		peer:  sock.Peer(),
+		sock:  sock,
+	}
 
 	if err := p.handshake(props); err != nil {
 		return nil, err
@@ -181,7 +187,7 @@ func (p *conn) handshake(props []interface{}) error {
 		p.maxrx = int64(v.(int))
 	}
 
-	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Number()}
+	h := connHeader{S: 'S', P: 'P', Proto: p.proto}
 	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {
 		return err
 	}
@@ -200,7 +206,7 @@ func (p *conn) handshake(props []interface{}) error {
 	}
 
 	// The protocol number lives as 16-bits (big-endian) at offset 4.
-	if h.Proto != p.proto.PeerNumber() {
+	if h.Proto != p.peer {
 		p.c.Close()
 		return ErrBadProto
 	}

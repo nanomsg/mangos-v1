@@ -24,7 +24,14 @@ import (
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
 func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
-	p := &connipc{conn: conn{c: c, proto: sock.GetProtocol(), sock: sock}}
+	p := &connipc{
+		conn: conn{
+			c:     c,
+			proto: sock.Proto(),
+			peer:  sock.Peer(),
+			sock:  sock,
+		},
+	}
 
 	if err := p.handshake(props); err != nil {
 		return nil, err

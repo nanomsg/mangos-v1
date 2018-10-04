@@ -551,8 +551,20 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 	return nil, ErrBadOption
 }
 
-func (sock *socket) GetProtocol() Protocol {
-	return sock.proto
+func (sock *socket) ProtoName() string {
+	return sock.proto.Name()
+}
+
+func (sock *socket) PeerName() string {
+	return sock.proto.PeerName()
+}
+
+func (sock *socket) Proto() uint16 {
+	return sock.proto.Number()
+}
+
+func (sock *socket) Peer() uint16 {
+	return sock.proto.PeerNumber()
 }
 
 func (sock *socket) SetPortHook(newhook PortHook) PortHook {
