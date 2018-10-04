@@ -18,27 +18,28 @@ package wss
 
 import (
 	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport"
 	"nanomsg.org/go-mangos/transport/ws"
 )
 
 type wssTran struct {
-	w mangos.Transport
+	w transport.Transport
 }
 
 func (wssTran) Scheme() string {
 	return "wss"
 }
 
-func (w *wssTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
+func (w *wssTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	return w.w.NewDialer(addr, sock)
 }
 
-func (w *wssTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
+func (w *wssTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	return w.w.NewListener(addr, sock)
 }
 
 // NewTransport allocates a new wss:// transport.
-func NewTransport() mangos.Transport {
+func NewTransport() transport.Transport {
 	w := &wssTran{w: ws.NewTransport()}
 	return w
 }

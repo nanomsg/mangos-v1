@@ -122,17 +122,14 @@ func (o options) set(name string, val interface{}) error {
 
 // wsPipe implements the Pipe interface on a websocket
 type wsPipe struct {
-	ws       *websocket.Conn
-	peerName string
-	selfName string
-	peer     uint16
-	self     uint16
-	addr     string
-	open     bool
-	wg       sync.WaitGroup
-	props    map[string]interface{}
-	iswss    bool
-	dtype    int
+	ws    *websocket.Conn
+	proto mangos.ProtocolInfo
+	addr  string
+	open  bool
+	wg    sync.WaitGroup
+	props map[string]interface{}
+	iswss bool
+	dtype int
 	sync.Mutex
 }
 
@@ -173,11 +170,11 @@ func (w *wsPipe) Send(m *mangos.Message) error {
 }
 
 func (w *wsPipe) LocalProtocol() uint16 {
-	return w.self
+	return w.proto.Self
 }
 
 func (w *wsPipe) RemoteProtocol() uint16 {
-	return w.peer
+	return w.proto.Peer
 }
 
 func (w *wsPipe) Close() error {
@@ -203,14 +200,11 @@ func (w *wsPipe) GetProp(name string) (interface{}, error) {
 }
 
 type dialer struct {
-	addr     string // url
-	peerName string
-	selfName string
-	peer     uint16
-	self     uint16
-	opts     options
-	iswss    bool
-	maxrx    int
+	addr  string // url
+	proto mangos.ProtocolInfo
+	opts  options
+	iswss bool
+	maxrx int
 }
 
 func (d *dialer) Dial() (mangos.TranPipe, error) {
@@ -218,18 +212,15 @@ func (d *dialer) Dial() (mangos.TranPipe, error) {
 
 	wd := &websocket.Dialer{}
 
-	wd.Subprotocols = []string{d.peerName + ".sp.nanomsg.org"}
+	wd.Subprotocols = []string{d.proto.PeerName + ".sp.nanomsg.org"}
 	if v, ok := d.opts[mangos.OptionTLSConfig]; ok {
 		wd.TLSClientConfig = v.(*tls.Config)
 	}
 
 	w = &wsPipe{
-		self:     d.self,
-		peer:     d.peer,
-		selfName: d.selfName,
-		peerName: d.peerName,
-		addr:     d.addr,
-		open:     true,
+		addr:  d.addr,
+		proto: d.proto,
+		open:  true,
 	}
 	w.dtype = websocket.BinaryMessage
 	w.props = make(map[string]interface{})
@@ -269,10 +260,7 @@ type listener struct {
 	mux      *http.ServeMux
 	url      *url.URL
 	listener net.Listener
-	peerName string
-	selfName string
-	peer     uint16
-	self     uint16
+	proto    mangos.ProtocolInfo
 	opts     options
 	iswss    bool
 	maxrx    int
@@ -391,20 +379,17 @@ func (l *listener) handler(ws *websocket.Conn, req *http.Request) {
 		return
 	}
 
-	if ws.Subprotocol() != l.selfName+".sp.nanomsg.org" {
+	if ws.Subprotocol() != l.proto.SelfName+".sp.nanomsg.org" {
 		ws.Close()
 		l.lock.Unlock()
 		return
 	}
 
 	w := &wsPipe{
-		ws:       ws,
-		addr:     l.addr,
-		self:     l.self,
-		peer:     l.peer,
-		selfName: l.selfName,
-		peerName: l.peerName,
-		open:     true,
+		ws:    ws,
+		addr:  l.addr,
+		proto: l.proto,
+		open:  true,
 	}
 	w.dtype = websocket.BinaryMessage
 	w.iswss = l.iswss
@@ -482,14 +467,11 @@ func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, err
 	}
 
 	d := &dialer{
-		addr:     addr,
-		self:     sock.Proto(),
-		peer:     sock.Peer(),
-		selfName: sock.ProtoName(),
-		peerName: sock.PeerName(),
-		iswss:    iswss,
-		opts:     opts,
-		maxrx:    maxrx,
+		addr:  addr,
+		proto: sock.Info(),
+		iswss: iswss,
+		opts:  opts,
+		maxrx: maxrx,
 	}
 	return d, nil
 }
@@ -508,14 +490,12 @@ func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListene
 func (wsTran) listener(addr string, sock mangos.Socket) (*listener, error) {
 	var err error
 	l := &listener{
-		self:     sock.Proto(),
-		peer:     sock.Peer(),
-		selfName: sock.ProtoName(),
-		peerName: sock.PeerName(),
-		opts:     make(map[string]interface{}),
+		addr:  addr,
+		proto: sock.Info(),
+		opts:  make(map[string]interface{}),
 	}
 	l.cv.L = &l.lock
-	l.ug.Subprotocols = []string{l.selfName + ".sp.nanomsg.org"}
+	l.ug.Subprotocols = []string{l.proto.SelfName + ".sp.nanomsg.org"}
 
 	if strings.HasPrefix(addr, "wss://") {
 		l.iswss = true

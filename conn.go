@@ -21,13 +21,14 @@ import (
 	"sync"
 )
 
+// XXX: Consider moving this into the Transport package
+
 // conn implements the TranPipe interface on top of net.Conn.  The
 // assumption is that transports using this have similar wire protocols,
 // and conn is meant to be used as a building block.
 type conn struct {
 	c     net.Conn
-	proto uint16
-	peer  uint16
+	proto ProtocolInfo
 	sock  Socket
 	open  bool
 	props map[string]interface{}
@@ -96,12 +97,12 @@ func (p *conn) Send(msg *Message) error {
 
 // LocalProtocol returns our local protocol number.
 func (p *conn) LocalProtocol() uint16 {
-	return p.proto
+	return p.proto.Self
 }
 
 // RemoteProtocol returns our peer's protocol number.
 func (p *conn) RemoteProtocol() uint16 {
-	return p.peer
+	return p.proto.Peer
 }
 
 // Close implements the TranPipe Close method.
@@ -139,8 +140,7 @@ func (p *conn) GetProp(n string) (interface{}, error) {
 func NewConnPipe(c net.Conn, sock Socket, props ...interface{}) (TranPipe, error) {
 	p := &conn{
 		c:     c,
-		proto: sock.Proto(),
-		peer:  sock.Peer(),
+		proto: sock.Info(),
 		sock:  sock,
 	}
 
@@ -187,7 +187,7 @@ func (p *conn) handshake(props []interface{}) error {
 		p.maxrx = int64(v.(int))
 	}
 
-	h := connHeader{S: 'S', P: 'P', Proto: p.proto}
+	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Self}
 	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func (p *conn) handshake(props []interface{}) error {
 	}
 
 	// The protocol number lives as 16-bits (big-endian) at offset 4.
-	if h.Proto != p.peer {
+	if h.Proto != p.proto.Peer {
 		p.c.Close()
 		return ErrBadProto
 	}

@@ -42,7 +42,9 @@ func Device(s1 Socket, s2 Socket) error {
 		return ErrClosed
 	}
 
-	if (s1.Proto() != s2.Peer()) || (s2.Proto() != s1.Peer()) {
+	info1 := s1.Info()
+	info2 := s2.Info()
+	if (info1.Self != info2.Peer) || (info2.Self != info1.Peer) {
 		return ErrBadProto
 	}
 

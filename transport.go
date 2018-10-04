@@ -87,9 +87,6 @@ type TranDialer interface {
 	GetOption(name string) (value interface{}, err error)
 }
 
-// PipeDialer is the legacy name for TranDialer
-// type PipeDialer = TranDialer
-
 // TranListener represents the server side of a connection.  Servers respond
 // to a connection request from clients.
 //
@@ -127,9 +124,6 @@ type TranListener interface {
 	// until Listen() has been called.
 	Address() string
 }
-
-// PipeListener is the legacy name for TranListener
-// type PipeListener = TranListener
 
 // Transport is the interface for transport suppliers to implement.
 type Transport interface {

@@ -208,12 +208,12 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 		return
 	}
 
-	t.Logf("Socket for sending is %s", rq.ProtoName())
+	t.Logf("Socket for sending is %s", rq.Info().SelfName)
 	if err = rq.Send([]byte("GOOD")); err != nil {
 		t.Errorf("Failed first send: %v", err)
 		return
 	}
-	t.Logf("Socket for receiving is %s", rp.ProtoName())
+	t.Logf("Socket for receiving is %s", rp.Info().SelfName)
 	v, err := rp.Recv()
 	if err != nil {
 		t.Errorf("Failed first recv: %v", err)
