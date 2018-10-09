@@ -108,6 +108,10 @@ func (sock *socket) remPipe(p *pipe) {
 	sock.Unlock()
 }
 
+func (sock *socket) OpenContext() (Context, error) {
+	return nil, ErrNoContext
+}
+
 func newSocket(proto Protocol) *socket {
 	sock := new(socket)
 	sock.uwqLen = defaultQLen
