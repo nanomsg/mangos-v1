@@ -125,7 +125,7 @@ const (
 	// A value of 0 removes the limit, but should not be used unless
 	// absolutely sure that the peer is trustworthy.
 	//
-	// Not all transports honor this lmit.  For example, this limit
+	// Not all transports honor this limit.  For example, this limit
 	// makes no sense when used with inproc.
 	//
 	// Note that the size includes any Protocol specific header.  It is
@@ -133,6 +133,8 @@ const (
 	//
 	// This option is only intended to prevent gross abuse  of the system,
 	// and not a substitute for proper application message verification.
+	//
+	// This option is type int64.
 	OptionMaxRecvSize = "MAX-RCV-SIZE"
 
 	// OptionReconnectTime is the initial interval used for connection
@@ -159,4 +161,26 @@ const (
 	// message will be silently discarded.  The value is a boolean, and
 	// defaults to False.
 	OptionBestEffort = "BEST-EFFORT"
+
+	// OptionLocalAddr expresses a local address.  For dialers, this is
+	// the (often random) address that was locally bound.  For listeners,
+	// it is usually the service address.  The value is a net.Addr.  This
+	// is generally a read-only value for pipes, though it might sometimes
+	// be available on dialers or listeners.
+	OptionLocalAddr = "LOCAL-ADDR"
+
+	// OptionRemoteAddr expresses a remote address.  For dialers, this is
+	// the service address.  For listeners, its the address of the far
+	// end dialer.  The value is a net.Addr.  It is generally read-only
+	// and available only on pipes and dialers.
+	OptionRemoteAddr = "REMOTE-ADDR"
+
+	// OptionTLSConnState is used to supply TLS connection details. The
+	// value is a tls.ConnectionState.  It is only valid when TLS is used.
+	// This is available on pipes that are using TLS.
+	OptionTLSConnState = "TLS-STATE"
+
+	// OptionHTTPRequest conveys an *http.Request.  This read-only option
+	// only exists for Pipes using websocket connections.
+	OptionHTTPRequest = "HTTP-REQUEST"
 )

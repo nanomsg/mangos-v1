@@ -12,53 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package impl
 
 import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport"
 )
 
+// The pipes global state is just an ID allocator; it manages the
+// list of which IDs are in use.  Nothing looks things up this way,
+// so this doesn't keep references to other state.
 var pipes struct {
-	byid   map[uint32]*pipe
-	nextid uint32
 	sync.Mutex
+	IDs    map[uint32]struct{}
+	nextID uint32
 }
 
 // pipe wraps the Pipe data structure with the stuff we need to keep
 // for the core.  It implements the Endpoint interface.
 type pipe struct {
-	pipe    TranPipe
-	closeq  chan struct{} // only closed, never passes data
-	id      uint32
-	l       *listener
-	d       *dialer
-	sock    *socket
-	closing bool // true if we were closed
-
 	sync.Mutex
+	id     uint32
+	p      transport.Pipe
+	l      *listener
+	d      *dialer
+	s      *socket
+	closed bool // true if we were closed
 }
 
 func init() {
-	pipes.byid = make(map[uint32]*pipe)
-	pipes.nextid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
+	pipes.IDs = make(map[uint32]struct{})
+	pipes.nextID = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
 }
 
-func newPipe(tranpipe TranPipe) *pipe {
-	p := &pipe{pipe: tranpipe}
-	p.closeq = make(chan struct{})
+func newPipe(tp transport.Pipe, s *socket, d *dialer, l *listener) *pipe {
+	p := &pipe{
+		p: tp,
+		d: d,
+		l: l,
+		s: s,
+	}
+	pipes.Lock()
 	for {
-		pipes.Lock()
-		p.id = pipes.nextid & 0x7fffffff
-		pipes.nextid++
-		if p.id != 0 && pipes.byid[p.id] == nil {
-			pipes.byid[p.id] = p
-			pipes.Unlock()
+		p.id = pipes.nextID & 0x7fffffff
+		pipes.nextID++
+		if p.id == 0 {
+			continue
+		}
+		if _, ok := pipes.IDs[p.id]; !ok {
+			pipes.IDs[p.id] = struct{}{}
 			break
 		}
-		pipes.Unlock()
 	}
+	pipes.Unlock()
 	return p
 }
 
@@ -67,44 +77,47 @@ func (p *pipe) GetID() uint32 {
 }
 
 func (p *pipe) Close() error {
-	var hook PortHook
+	s := p.s
+
 	p.Lock()
-	sock := p.sock
-	if sock != nil {
-		hook = sock.porthook
-	}
-	if p.closing {
+	if p.closed {
 		p.Unlock()
 		return nil
 	}
-	p.closing = true
+	p.closed = true
 	p.Unlock()
-	close(p.closeq)
-	if sock != nil {
-		sock.remPipe(p)
+
+	if s != nil {
+		s.remPipe(p)
 	}
-	p.pipe.Close()
+	p.p.Close()
+
+	// If the pipe was from a inform it so that it can redial.
+	if d := p.d; d != nil {
+		go d.pipeClosed()
+	}
+
+	// This is last, as we keep the ID reserved until everything is
+	// done with it.
 	pipes.Lock()
-	delete(pipes.byid, p.id)
+	delete(pipes.IDs, p.id)
 	pipes.Unlock()
-	if hook != nil {
-		hook(PortActionRemove, p)
-	}
+
 	return nil
 }
 
-func (p *pipe) SendMsg(msg *Message) error {
+func (p *pipe) SendMsg(msg *mangos.Message) error {
 
-	if err := p.pipe.Send(msg); err != nil {
+	if err := p.p.Send(msg); err != nil {
 		p.Close()
 		return err
 	}
 	return nil
 }
 
-func (p *pipe) RecvMsg() *Message {
+func (p *pipe) RecvMsg() *mangos.Message {
 
-	msg, err := p.pipe.Recv()
+	msg, err := p.p.Recv()
 	if err != nil {
 		p.Close()
 		return nil
@@ -124,11 +137,11 @@ func (p *pipe) Address() string {
 }
 
 func (p *pipe) GetOption(name string) (interface{}, error) {
-	return p.pipe.GetOption(name)
+	return p.p.GetOption(name)
 }
 
 func (p *pipe) IsOpen() bool {
-	return p.pipe.IsOpen()
+	return p.p.IsOpen()
 }
 
 func (p *pipe) IsClient() bool {
@@ -140,17 +153,17 @@ func (p *pipe) IsServer() bool {
 }
 
 func (p *pipe) LocalProtocol() uint16 {
-	return p.pipe.LocalProtocol()
+	return p.p.LocalProtocol()
 }
 
 func (p *pipe) RemoteProtocol() uint16 {
-	return p.pipe.RemoteProtocol()
+	return p.p.RemoteProtocol()
 }
 
-func (p *pipe) Dialer() Dialer {
+func (p *pipe) Dialer() mangos.Dialer {
 	return p.d
 }
 
-func (p *pipe) Listener() Listener {
+func (p *pipe) Listener() mangos.Listener {
 	return p.l
 }

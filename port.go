@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -25,9 +25,9 @@ type Port interface {
 	// This matches the string passed to Dial() or Listen().
 	Address() string
 
-	// GetProp returns an arbitrary property.  The details will vary
+	// GetOption returns an arbitrary option.  The details will vary
 	// for different transport types.
-	GetProp(name string) (interface{}, error)
+	GetOption(name string) (interface{}, error)
 
 	// IsOpen determines whether this is open or not.
 	IsOpen() bool

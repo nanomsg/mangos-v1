@@ -1,4 +1,4 @@
-// +build !windows
+// +build windows
 
 // Copyright 2018 The Mangos Authors
 //
@@ -14,21 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package transport
 
 import (
 	"encoding/binary"
 	"io"
 	"net"
+
+	"nanomsg.org/go-mangos"
 )
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, error) {
+func NewConnPipeIPC(c net.Conn, proto ProtocolInfo, props ...interface{}) (Pipe, error) {
 	p := &connipc{
 		conn: conn{
 			c:     c,
-			proto: sock.Info(),
-			sock:  sock,
+			proto: proto,
 		},
 	}
 
@@ -42,23 +43,22 @@ func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, er
 func (p *connipc) Send(msg *Message) error {
 
 	l := uint64(len(msg.Header) + len(msg.Body))
-	//	one := [1]byte{1}
 	var err error
 
+	// On Windows, we have to put everything into a contiguous buffer.
+	// This is to workaround bugs in legacy libnanomsg.  Eventually we
+	// might do away with this logic, but only when legacy libnanomsg
+	// has been fixed.  This puts some pressure on the gc too, which
+	// makes me pretty sad.
+
 	// send length header
-	header := make([]byte, 9)
-	header[0] = 1
-	binary.BigEndian.PutUint64(header[1:], l)
+	buf := make([]byte, 9, 9+l)
+	buf[0] = 1
+	binary.BigEndian.PutUint64(buf[1:], l)
+	buf = append(buf, msg.Header...)
+	buf = append(buf, msg.Body...)
 
-	if _, err = p.c.Write(header[:]); err != nil {
-		return err
-	}
-
-	if _, err = p.c.Write(msg.Header); err != nil {
-		return err
-	}
-	// hope this works
-	if _, err = p.c.Write(msg.Body); err != nil {
+	if _, err = p.c.Write(buf[:]); err != nil {
 		return err
 	}
 	msg.Free()
@@ -81,10 +81,10 @@ func (p *connipc) Recv() (*Message, error) {
 
 	// Limit messages to the maximum receive value, if not
 	// unlimited.  This avoids a potential denaial of service.
-	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
+	if sz < 0 || (p.maxrx > 0 && sz > int64(p.maxrx)) {
 		return nil, ErrTooLong
 	}
-	msg = NewMessage(int(sz))
+	msg = mangos.NewMessage(int(sz))
 	msg.Body = msg.Body[0:sz]
 	if _, err = io.ReadFull(p.c, msg.Body); err != nil {
 		msg.Free()

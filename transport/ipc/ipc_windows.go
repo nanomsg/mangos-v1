@@ -22,6 +22,7 @@ import (
 
 	"github.com/Microsoft/go-winio"
 	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport"
 )
 
 // The options here are pretty specific to Windows Named Pipes.
@@ -57,20 +58,20 @@ func (p pipeAddr) String() string {
 }
 
 type dialer struct {
-	path string
-	sock mangos.Socket
+	path  string
+	proto transport.ProtocolInfo
+	opts  map[string]interface{}
 }
 
 // Dial implements the PipeDialer Dial method.
-func (d *dialer) Dial() (mangos.TranPipe, error) {
+func (d *dialer) Dial() (transport.Pipe, error) {
 
 	conn, err := winio.DialPipe("\\\\.\\pipe\\"+d.path, nil)
 	if err != nil {
 		return nil, err
 	}
 	addr := pipeAddr(d.path)
-	return mangos.NewConnPipeIPC(conn, d.sock,
-		mangos.PropLocalAddr, addr, mangos.PropRemoteAddr, addr)
+	return mangos.NewConnPipeIPC(conn, d.proto, d.opts)
 }
 
 // SetOption implements a stub PipeDialer SetOption method.
@@ -108,12 +109,19 @@ type listener struct {
 	path     string
 	sock     mangos.Socket
 	listener net.Listener
-	config   winio.PipeConfig
 }
 
 // Listen implements the PipeListener Listen method.
 func (l *listener) Listen() error {
-	listener, err := winio.ListenPipe("\\\\.\\pipe\\"+l.path, &l.config)
+
+	config := &winio.PipeConfig{
+		InputBufferSize:    l.opts[OptionInputBufferSize].(int32),
+		OutputBufferSize:   l.opts[OptionOutputBufferSize].(int32),
+		SecurityDescriptor: l.opts[OptionSecurityDescriptor].(string),
+		MessageMode:        false,
+	}
+
+	listener, err := winio.ListenPipe("\\\\.\\pipe\\"+l.path, config)
 	if err != nil {
 		return err
 	}
@@ -133,8 +141,7 @@ func (l *listener) Accept() (mangos.TranPipe, error) {
 		return nil, err
 	}
 	addr := pipeAddr(l.path)
-	return mangos.NewConnPipeIPC(conn, l.sock,
-		mangos.PropLocalAddr, addr, mangos.PropRemoteAddr, addr)
+	return transport.NewConnPipeIPC(conn, l.proto, l.opts)
 }
 
 // Close implements the PipeListener Close method.
@@ -149,29 +156,27 @@ func (l *listener) Close() error {
 func (l *listener) SetOption(name string, val interface{}) error {
 	switch name {
 	case OptionInputBufferSize:
-		switch v := val.(type) {
-		case int32:
-			l.config.InputBufferSize = v
-			return nil
-		default:
-			return mangos.ErrBadValue
-		}
+		fallthrough
 	case OptionOutputBufferSize:
-		switch v := val.(type) {
-		case int32:
-			l.config.OutputBufferSize = v
+		if v, ok := val.(int32); ok {
+			l.opts[name] = v
 			return nil
-		default:
-			return mangos.ErrBadValue
 		}
+		return mangos.ErrBadValue
+
 	case OptionSecurityDescriptor:
-		switch v := val.(type) {
-		case string:
-			l.config.SecurityDescriptor = v
+		if v, ok := val.(string); ok {
+			l.opts[name] = v
 			return nil
-		default:
-			return mangos.ErrBadValue
 		}
+		return mangos.ErrBadValue
+
+	case mangos.OptionMaxRecvSize:
+		if v, ok := val.(int); ok {
+			l.opts[name] = v
+			return nil
+		}
+		return mangos.ErrBadValue
 	default:
 		return mangos.ErrBadOption
 	}
@@ -179,13 +184,8 @@ func (l *listener) SetOption(name string, val interface{}) error {
 
 // GetOption implements a stub PipeListener GetOption method.
 func (l *listener) GetOption(name string) (interface{}, error) {
-	switch name {
-	case OptionInputBufferSize:
-		return l.config.InputBufferSize, nil
-	case OptionOutputBufferSize:
-		return l.config.OutputBufferSize, nil
-	case OptionSecurityDescriptor:
-		return l.config.SecurityDescriptor, nil
+	if v, ok := l.opts[name]; ok {
+		return v, nil
 	}
 	return nil, mangos.ErrBadOption
 }
@@ -201,34 +201,48 @@ func (t *ipcTran) Scheme() string {
 func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
 	var err error
 
-	if addr, err = mangos.StripScheme(t, addr); err != nil {
+	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	d := &dialer{sock: sock}
-	d.path = addr
+	d := &dialer{
+		proto: sock.Info(),
+		path:  addr,
+		opts:  make(map[string]interface{}),
+	}
+
+	d.opts[mangos.OptionLocalAddr] = addr
+	d.opts[mangos.OptionRemoteAddr] = addr
+	d.opts[mangos.OptionMaxRecvSize] = 0
+
 	return d, nil
 }
 
 // NewListener implements the Transport NewListener method.
-func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
+func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	var err error
-	l := &listener{sock: sock}
-	l.config.OutputBufferSize = 4096
-	l.config.InputBufferSize = 4096
-	l.config.SecurityDescriptor = ""
-	l.config.MessageMode = false
 
-	if addr, err = mangos.StripScheme(t, addr); err != nil {
+	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	l.path = addr
+	l := &listener{
+		proto: sock.Info(),
+		path:  addr,
+		opts:  make(map[string]interface{}),
+	}
+
+	l.opts[OptionInputBufferSize] = int32(4096)
+	l.opts[OptionOutputBufferSize] = int32(4096)
+	l.opts[OptionSecurityDescriptor] = ""
+	l.opts[mangos.OptionLocalAddr] = addr
+	l.opts[mangos.OptionRemoteAddr] = addr
+	l.opts[mangos.OptionMaxRecvSize] = int64(0)
 
 	return l, nil
 }
 
 // NewTransport allocates a new IPC transport.
-func NewTransport() mangos.Transport {
+func NewTransport() transport.Transport {
 	return &ipcTran{}
 }
