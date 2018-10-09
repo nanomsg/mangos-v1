@@ -81,8 +81,8 @@ func TestMaxRxSizeSet(t *testing.T) {
 		t.Errorf("Failed GetOption: %v", err)
 		return
 	}
-	if val, ok := v.(int); !ok {
-		t.Errorf("Returned value not type int")
+	if val, ok := v.(int64); !ok {
+		t.Errorf("Returned value not type int64")
 	} else if val != 100 {
 		t.Errorf("Returned value %d not %d", val, 100)
 	}
@@ -101,7 +101,7 @@ func TestMaxRxSizeDefault(t *testing.T) {
 		t.Errorf("Failed GetOption: %v", err)
 		return
 	}
-	if val, ok := v.(int); !ok {
+	if val, ok := v.(int64); !ok {
 		t.Errorf("Returned value not type int")
 	} else if val != 1024*1024 {
 		t.Errorf("Returned value %d not %d", val, 1024*1024)

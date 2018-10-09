@@ -27,6 +27,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport"
 )
 
 // Some special options
@@ -116,20 +117,27 @@ func (o options) set(name string, val interface{}) error {
 		default:
 			return mangos.ErrBadValue
 		}
+	case mangos.OptionMaxRecvSize:
+		switch v := val.(type) {
+		case int64:
+			o[name] = v
+		default:
+			return mangos.ErrBadValue
+		}
 	}
 	return mangos.ErrBadOption
 }
 
 // wsPipe implements the Pipe interface on a websocket
 type wsPipe struct {
-	ws    *websocket.Conn
-	proto mangos.ProtocolInfo
-	addr  string
-	open  bool
-	wg    sync.WaitGroup
-	props map[string]interface{}
-	iswss bool
-	dtype int
+	ws      *websocket.Conn
+	proto   transport.ProtocolInfo
+	addr    string
+	open    bool
+	wg      sync.WaitGroup
+	options map[string]interface{}
+	iswss   bool
+	dtype   int
 	sync.Mutex
 }
 
@@ -192,11 +200,11 @@ func (w *wsPipe) IsOpen() bool {
 	return w.open
 }
 
-func (w *wsPipe) GetProp(name string) (interface{}, error) {
-	if v, ok := w.props[name]; ok {
+func (w *wsPipe) GetOption(name string) (interface{}, error) {
+	if v, ok := w.options[name]; ok {
 		return v, nil
 	}
-	return nil, mangos.ErrBadProperty
+	return nil, mangos.ErrBadOption
 }
 
 type dialer struct {
@@ -204,10 +212,10 @@ type dialer struct {
 	proto mangos.ProtocolInfo
 	opts  options
 	iswss bool
-	maxrx int
+	maxrx int64
 }
 
-func (d *dialer) Dial() (mangos.TranPipe, error) {
+func (d *dialer) Dial() (transport.Pipe, error) {
 	var w *wsPipe
 
 	wd := &websocket.Dialer{}
@@ -218,22 +226,26 @@ func (d *dialer) Dial() (mangos.TranPipe, error) {
 	}
 
 	w = &wsPipe{
-		addr:  d.addr,
-		proto: d.proto,
-		open:  true,
+		addr:    d.addr,
+		proto:   d.proto,
+		open:    true,
+		dtype:   websocket.BinaryMessage,
+		options: make(map[string]interface{}),
 	}
-	w.dtype = websocket.BinaryMessage
-	w.props = make(map[string]interface{})
 
-	var err error
+	maxrx := int64(0)
+	v, err := d.opts.get(mangos.OptionMaxRecvSize)
+	if err == nil {
+		maxrx, _ = v.(int64)
+	}
 	if w.ws, _, err = wd.Dial(d.addr, nil); err != nil {
 		return nil, err
 	}
-	w.ws.SetReadLimit(int64(d.maxrx))
-	w.props[mangos.PropLocalAddr] = w.ws.LocalAddr()
-	w.props[mangos.PropRemoteAddr] = w.ws.RemoteAddr()
+	w.ws.SetReadLimit(maxrx)
+	w.options[mangos.OptionLocalAddr] = w.ws.LocalAddr()
+	w.options[mangos.OptionRemoteAddr] = w.ws.RemoteAddr()
 	if tlsConn, ok := w.ws.UnderlyingConn().(*tls.Conn); ok {
-		w.props[mangos.PropTLSConnState] = tlsConn.ConnectionState()
+		w.options[mangos.OptionTLSConnState] = tlsConn.ConnectionState()
 	}
 
 	w.wg.Add(1)
@@ -260,10 +272,10 @@ type listener struct {
 	mux      *http.ServeMux
 	url      *url.URL
 	listener net.Listener
-	proto    mangos.ProtocolInfo
+	proto    transport.ProtocolInfo
 	opts     options
 	iswss    bool
-	maxrx    int
+	maxrx    int64
 }
 
 func (l *listener) SetOption(n string, v interface{}) error {
@@ -327,7 +339,7 @@ func (l *listener) Listen() error {
 	// case of a port already in use.  This also lets us configure
 	// properties of the underlying TCP connection.
 
-	if taddr, err = mangos.ResolveTCPAddr(l.url.Host); err != nil {
+	if taddr, err = transport.ResolveTCPAddr(l.url.Host); err != nil {
 		return err
 	}
 
@@ -348,7 +360,7 @@ func (l *listener) Listen() error {
 	return nil
 }
 
-func (l *listener) Accept() (mangos.TranPipe, error) {
+func (l *listener) Accept() (transport.Pipe, error) {
 	var w *wsPipe
 
 	l.lock.Lock()
@@ -386,21 +398,26 @@ func (l *listener) handler(ws *websocket.Conn, req *http.Request) {
 	}
 
 	w := &wsPipe{
-		ws:    ws,
-		addr:  l.addr,
-		proto: l.proto,
-		open:  true,
+		ws:      ws,
+		addr:    l.addr,
+		proto:   l.proto,
+		open:    true,
+		dtype:   websocket.BinaryMessage,
+		iswss:   l.iswss,
+		options: make(map[string]interface{}),
 	}
-	w.dtype = websocket.BinaryMessage
-	w.iswss = l.iswss
-	w.ws.SetReadLimit(int64(l.maxrx))
+	maxrx := int64(0)
+	v, err := l.opts.get(mangos.OptionMaxRecvSize)
+	if err == nil {
+		maxrx, _ = v.(int64)
+	}
 
-	w.props = make(map[string]interface{})
-	w.props[mangos.PropLocalAddr] = ws.LocalAddr()
-	w.props[mangos.PropRemoteAddr] = ws.RemoteAddr()
+	w.ws.SetReadLimit(maxrx)
+	w.options[mangos.OptionLocalAddr] = ws.LocalAddr()
+	w.options[mangos.OptionRemoteAddr] = ws.RemoteAddr()
 
 	if req.TLS != nil {
-		w.props[mangos.PropTLSConnState] = *req.TLS
+		w.options[mangos.OptionTLSConnState] = *req.TLS
 	}
 
 	w.wg.Add(1)
@@ -455,33 +472,25 @@ func (wsTran) Scheme() string {
 	return "ws"
 }
 
-func (wsTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
+func (wsTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	iswss := strings.HasPrefix(addr, "wss://")
 	opts := make(map[string]interface{})
 
 	opts[mangos.OptionNoDelay] = true
 	opts[mangos.OptionKeepAlive] = true
-	maxrx := 0
-	if v, e := sock.GetOption(mangos.OptionMaxRecvSize); e == nil {
-		maxrx = v.(int)
-	}
 
 	d := &dialer{
 		addr:  addr,
 		proto: sock.Info(),
 		iswss: iswss,
 		opts:  opts,
-		maxrx: maxrx,
 	}
 	return d, nil
 }
 
-func (t wsTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
+func (t wsTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	l, e := t.listener(addr, sock)
 	if e == nil {
-		if v, e := sock.GetOption(mangos.OptionMaxRecvSize); e == nil {
-			l.maxrx = v.(int)
-		}
 		l.mux.Handle(l.url.Path, l)
 	}
 	return l, e

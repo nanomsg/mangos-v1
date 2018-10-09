@@ -148,11 +148,11 @@ func (p *inproc) IsOpen() bool {
 	}
 }
 
-func (p *inproc) GetProp(name string) (interface{}, error) {
+func (p *inproc) GetOption(name string) (interface{}, error) {
 	switch name {
-	case mangos.PropRemoteAddr:
+	case mangos.OptionRemoteAddr:
 		return p.addr, nil
-	case mangos.PropLocalAddr:
+	case mangos.OptionLocalAddr:
 		return p.addr, nil
 	}
 	// We have no special properties
@@ -230,6 +230,7 @@ func (l *listener) Listen() error {
 		listeners.mx.Unlock()
 		return mangos.ErrAddrInUse
 	}
+
 	listeners.byAddr[l.addr] = l
 	listeners.cv.Broadcast()
 	listeners.mx.Unlock()

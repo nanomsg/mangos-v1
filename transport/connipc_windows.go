@@ -14,21 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package transport
 
 import (
 	"encoding/binary"
 	"io"
 	"net"
+
+	"nanomsg.org/go-mangos"
 )
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, error) {
+func NewConnPipeIPC(c net.Conn, proto ProtocolInfo, props ...interface{}) (Pipe, error) {
 	p := &connipc{
 		conn: conn{
 			c:     c,
-			proto: sock.Info(),
-			sock:  sock,
+			proto: proto,
 		},
 	}
 
@@ -83,7 +84,7 @@ func (p *connipc) Recv() (*Message, error) {
 	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
 		return nil, ErrTooLong
 	}
-	msg = NewMessage(int(sz))
+	msg = mangos.NewMessage(int(sz))
 	msg.Body = msg.Body[0:sz]
 	if _, err = io.ReadFull(p.c, msg.Body); err != nil {
 		msg.Free()

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/transport"
 )
 
 // options is used for shared GetOption/SetOption logic.
@@ -47,6 +48,13 @@ func (o options) set(name string, val interface{}) error {
 		default:
 			return mangos.ErrBadValue
 		}
+	case mangos.OptionMaxRecvSize:
+		switch v := val.(type) {
+		case int64:
+			o[name] = v
+			return nil
+		}
+		return mangos.ErrBadValue
 	case mangos.OptionKeepAliveTime:
 		switch v := val.(type) {
 		case time.Duration:
@@ -67,6 +75,7 @@ func newOptions() options {
 	o := make(map[string]interface{})
 	o[mangos.OptionNoDelay] = true
 	o[mangos.OptionKeepAlive] = true
+	o[mangos.OptionMaxRecvSize] = int64(0)
 	return options(o)
 }
 
@@ -90,17 +99,17 @@ func (o options) configTCP(conn *net.TCPConn) error {
 }
 
 type dialer struct {
-	addr string
-	sock mangos.Socket
-	opts options
+	addr  string
+	proto transport.ProtocolInfo
+	opts  options
 }
 
-func (d *dialer) Dial() (_ mangos.TranPipe, err error) {
+func (d *dialer) Dial() (_ transport.Pipe, err error) {
 	var (
 		addr *net.TCPAddr
 	)
 
-	if addr, err = mangos.ResolveTCPAddr(d.addr); err != nil {
+	if addr, err = transport.ResolveTCPAddr(d.addr); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +122,7 @@ func (d *dialer) Dial() (_ mangos.TranPipe, err error) {
 		return nil, err
 	}
 
-	return mangos.NewConnPipe(conn, d.sock)
+	return transport.NewConnPipe(conn, d.proto, d.opts)
 }
 
 func (d *dialer) SetOption(n string, v interface{}) error {
@@ -127,12 +136,12 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 type listener struct {
 	addr     *net.TCPAddr
 	bound    net.Addr
-	sock     mangos.Socket
+	proto    transport.ProtocolInfo
 	listener *net.TCPListener
 	opts     options
 }
 
-func (l *listener) Accept() (mangos.TranPipe, error) {
+func (l *listener) Accept() (transport.Pipe, error) {
 
 	if l.listener == nil {
 		return nil, mangos.ErrClosed
@@ -145,7 +154,7 @@ func (l *listener) Accept() (mangos.TranPipe, error) {
 		conn.Close()
 		return nil, err
 	}
-	return mangos.NewConnPipe(conn, l.sock)
+	return transport.NewConnPipe(conn, l.proto, l.opts)
 }
 
 func (l *listener) Listen() (err error) {
@@ -184,31 +193,31 @@ func (t *tcpTran) Scheme() string {
 	return "tcp"
 }
 
-func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
+func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	var err error
-	if addr, err = mangos.StripScheme(t, addr); err != nil {
+	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
 	// check to ensure the provided addr resolves correctly.
-	if _, err = mangos.ResolveTCPAddr(addr); err != nil {
+	if _, err = transport.ResolveTCPAddr(addr); err != nil {
 		return nil, err
 	}
 
-	d := &dialer{addr: addr, sock: sock, opts: newOptions()}
+	d := &dialer{addr: addr, proto: sock.Info(), opts: newOptions()}
 
 	return d, nil
 }
 
-func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListener, error) {
+func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	var err error
-	l := &listener{sock: sock, opts: newOptions()}
+	l := &listener{proto: sock.Info(), opts: newOptions()}
 
-	if addr, err = mangos.StripScheme(t, addr); err != nil {
+	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	if l.addr, err = mangos.ResolveTCPAddr(addr); err != nil {
+	if l.addr, err = transport.ResolveTCPAddr(addr); err != nil {
 		return nil, err
 	}
 
@@ -216,6 +225,6 @@ func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (mangos.TranListe
 }
 
 // NewTransport allocates a new TCP transport.
-func NewTransport() mangos.Transport {
+func NewTransport() transport.Transport {
 	return &tcpTran{}
 }

@@ -94,13 +94,13 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 			t.Errorf("Dial failed: %v", err)
 			return
 		}
-		if v, err := client.GetProp(mangos.PropLocalAddr); err == nil {
+		if v, err := client.GetOption(mangos.OptionLocalAddr); err == nil {
 			addr := v.(net.Addr)
 			t.Logf("Dialed on local net %s addr %s", addr.Network(), addr.String())
 		} else {
 			t.Logf("err is %v", err.Error())
 		}
-		if v, err := client.GetProp(mangos.PropRemoteAddr); err == nil {
+		if v, err := client.GetOption(mangos.OptionRemoteAddr); err == nil {
 			addr := v.(net.Addr)
 			t.Logf("Dialed remote peer %s addr %s", addr.Network(), addr.String())
 		}
@@ -118,11 +118,11 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 		t.Errorf("Accept failed: %v", err)
 		return
 	}
-	if v, err := server.GetProp(mangos.PropLocalAddr); err == nil {
+	if v, err := server.GetOption(mangos.OptionLocalAddr); err == nil {
 		addr := v.(net.Addr)
 		t.Logf("Accepted on local net %s addr %s", addr.Network(), addr.String())
 	}
-	if v, err := server.GetProp(mangos.PropRemoteAddr); err == nil {
+	if v, err := server.GetOption(mangos.OptionRemoteAddr); err == nil {
 		addr := v.(net.Addr)
 		t.Logf("Accepted remote peer %s addr %s", addr.Network(), addr.String())
 	}

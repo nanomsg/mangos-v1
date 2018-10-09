@@ -29,7 +29,6 @@ import (
 
 func TestReqRetry(t *testing.T) {
 	Convey("Testing Req Retry", t, func() {
-		//addr := "inproc://port"
 		addr := AddrTestInp()
 
 		// Let's first try request issued with no connection, and
@@ -66,6 +65,7 @@ func TestReqRetry(t *testing.T) {
 			Convey("A request is issued on late server connect", func() {
 				m := mangos.NewMessage(0)
 				m.Body = append(m.Body, []byte("hello")...)
+				sockreq.SetOption(mangos.OptionBestEffort, true)
 				err = sockreq.SendMsg(m)
 				So(err, ShouldBeNil)
 
@@ -135,7 +135,6 @@ func TestReqRetry(t *testing.T) {
 
 				m.Free()
 			})
-
 		})
 	})
 }

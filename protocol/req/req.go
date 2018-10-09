@@ -291,7 +291,7 @@ func (r *req) GetOption(option string) (interface{}, error) {
 }
 
 // NewSocket allocates a new Socket using the REQ protocol.
-func NewSocket() (mangos.Socket, error) {
+func NewSocketOld() (mangos.Socket, error) {
 	return mangos.MakeSocket(&req{raw: false}), nil
 }
 

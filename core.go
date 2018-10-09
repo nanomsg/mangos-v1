@@ -25,7 +25,7 @@ import (
 const defaultQLen = 128
 
 // defaultMaxRxSize is the default maximum Rx size
-const defaultMaxRxSize = 1024 * 1024
+const defaultMaxRxSize = int64(1024 * 1024)
 
 // socket is the meaty part of the core information.
 type socket struct {
@@ -51,7 +51,7 @@ type socket struct {
 	reconntime time.Duration // reconnect time after error or disconnect
 	reconnmax  time.Duration // max reconnect interval
 	linger     time.Duration
-	maxRxSize  int // max recv size
+	maxRxSize  int64 // max recv size
 
 	pipes map[*pipe]struct{}
 
@@ -375,6 +375,24 @@ func (sock *socket) NewDialer(addr string, options map[string]interface{}) (Dial
 			return nil, err
 		}
 	}
+	if _, ok := options[OptionMaxRecvSize]; !ok {
+		err = d.d.SetOption(OptionMaxRecvSize, sock.maxRxSize)
+		if err != nil && err != ErrBadOption {
+			return nil, err
+		}
+	}
+	if _, ok := options[OptionReconnectTime]; !ok {
+		err = d.d.SetOption(OptionReconnectTime, sock.reconntime)
+		if err != nil && err != ErrBadOption {
+			return nil, err
+		}
+	}
+	if _, ok := options[OptionMaxReconnectTime]; !ok {
+		err = d.d.SetOption(OptionMaxReconnectTime, sock.reconnmax)
+		if err != nil && err != ErrBadOption {
+			return nil, err
+		}
+	}
 	return d, nil
 }
 
@@ -415,6 +433,13 @@ func (sock *socket) NewListener(addr string, options map[string]interface{}) (Li
 			return nil, err
 		}
 	}
+	if _, ok := options[OptionMaxRecvSize]; !ok {
+		err = l.l.SetOption(OptionMaxRecvSize, sock.maxRxSize)
+		if err != nil && err != ErrBadOption {
+			return nil, err
+		}
+	}
+
 	return l, nil
 }
 
@@ -475,6 +500,12 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		defer sock.Unlock()
 		switch value := value.(type) {
 		case int:
+			if value < 0 {
+				return ErrBadValue
+			}
+			sock.maxRxSize = int64(value)
+			return nil
+		case int64:
 			if value < 0 {
 				return ErrBadValue
 			}

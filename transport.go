@@ -14,10 +14,9 @@
 
 package mangos
 
-import (
-	"net"
-	"strings"
-)
+// XXX: The interfaces listed here will eventually move to the Transport
+// package, to be named without the Tran prefix, and then this file will
+// go away.
 
 // TranPipe behaves like a full-duplex message-oriented connection between two
 // peers.  Callers may call operations on a Pipe simultaneously from
@@ -61,11 +60,11 @@ type TranPipe interface {
 	// IsOpen returns true if the underlying connection is open.
 	IsOpen() bool
 
-	// GetProp returns an arbitrary transport specific property.
-	// These are like options, but are read-only and specific to a single
-	// connection.  If the property doesn't exist, then ErrBadProperty
-	// should be returned.
-	GetProp(string) (interface{}, error)
+	// GetOption returns an arbitrary transport specific option on a
+	// pipe.  Options for pipes are read-only and specific to that
+	// particular connection. If the property doesn't exist, then
+	// ErrBadOption should be returned.
+	GetOption(string) (interface{}, error)
 }
 
 // TranDialer represents the client side of a connection.  Clients initiate
@@ -140,23 +139,4 @@ type Transport interface {
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
 	NewListener(url string, sock Socket) (TranListener, error)
-}
-
-// StripScheme removes the leading scheme (such as "http://") from an address
-// string.  This is mostly a utility for benefit of transport providers.
-func StripScheme(t Transport, addr string) (string, error) {
-	if !strings.HasPrefix(addr, t.Scheme()+"://") {
-		return addr, ErrBadTran
-	}
-	return addr[len(t.Scheme()+"://"):], nil
-}
-
-// ResolveTCPAddr is like net.ResolveTCPAddr, but it handles the
-// wildcard used in nanomsg URLs, replacing it with an empty
-// string to indicate that all local interfaces be used.
-func ResolveTCPAddr(addr string) (*net.TCPAddr, error) {
-	if strings.HasPrefix(addr, "*") {
-		addr = addr[1:]
-	}
-	return net.ResolveTCPAddr("tcp", addr)
 }

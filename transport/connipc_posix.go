@@ -14,25 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package transport
 
 import (
 	"encoding/binary"
 	"io"
 	"net"
+
+	"nanomsg.org/go-mangos"
 )
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, error) {
+func NewConnPipeIPC(c net.Conn, proto ProtocolInfo, options map[string]interface{}) (Pipe, error) {
 	p := &connipc{
 		conn: conn{
-			c:     c,
-			proto: sock.Info(),
-			sock:  sock,
+			c:       c,
+			proto:   proto,
+			options: make(map[string]interface{}),
 		},
 	}
+	p.options[mangos.OptionMaxRecvSize] = int64(0)
+	for n, v := range options {
+		p.options[n] = v
+	}
+	p.maxrx = p.options[mangos.OptionMaxRecvSize].(int64)
 
-	if err := p.handshake(props); err != nil {
+	if err := p.handshake(); err != nil {
 		return nil, err
 	}
 
@@ -42,7 +49,6 @@ func NewConnPipeIPC(c net.Conn, sock Socket, props ...interface{}) (TranPipe, er
 func (p *connipc) Send(msg *Message) error {
 
 	l := uint64(len(msg.Header) + len(msg.Body))
-	//	one := [1]byte{1}
 	var err error
 
 	// send length header
@@ -82,9 +88,9 @@ func (p *connipc) Recv() (*Message, error) {
 	// Limit messages to the maximum receive value, if not
 	// unlimited.  This avoids a potential denaial of service.
 	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
-		return nil, ErrTooLong
+		return nil, mangos.ErrTooLong
 	}
-	msg = NewMessage(int(sz))
+	msg = mangos.NewMessage(int(sz))
 	msg.Body = msg.Body[0:sz]
 	if _, err = io.ReadFull(p.c, msg.Body); err != nil {
 		msg.Free()
