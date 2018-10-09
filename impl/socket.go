@@ -55,6 +55,10 @@ type socket struct {
 	porthook mangos.PortHook // called when a port is added or removed
 }
 
+type context struct {
+	mangos.ProtocolContext
+}
+
 func (s *socket) addPipe(tp transport.Pipe, d *dialer, l *listener) {
 	p := newPipe(tp, s, d, l)
 
@@ -147,6 +151,30 @@ func (s *socket) Close() error {
 
 	s.proto.Close()
 	return nil
+}
+
+func (ctx context) Send(b []byte) error {
+	msg := mangos.NewMessage(len(b))
+	msg.Body = append(msg.Body, b...)
+	return ctx.SendMsg(msg)
+}
+func (ctx context) Recv() ([]byte, error) {
+	msg, err := ctx.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	b := make([]byte, 0, len(msg.Body))
+	b = append(b, msg.Body...)
+	msg.Free()
+	return b, nil
+}
+
+func (s *socket) OpenContext() (mangos.Context, error) {
+	c, err := s.proto.OpenContext()
+	if err != nil {
+		return nil, err
+	}
+	return &context{c}, nil
 }
 
 func (s *socket) SendMsg(msg *Message) error {

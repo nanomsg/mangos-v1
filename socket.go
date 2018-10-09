@@ -82,3 +82,39 @@ type Socket interface {
 	// hook is returned (nil if none.)
 	SetPortHook(PortHook) PortHook
 }
+
+// Context is a protocol context, and represents the upper side operations
+// that applications will want to use.  Every socket has a default context,
+// but only a certain protocols will allow the creation of additional
+// Context instances (only if separate stateful contexts make sense for
+// a given protocol).
+type Context interface {
+
+	// Close closes the open Socket.  Further operations on the socket
+	// will return ErrClosed.
+	Close() error
+
+	// GetOption is used to retrieve an option for a socket.
+	GetOption(name string) (interface{}, error)
+
+	// SetOption is used to set an option for a socket.
+	SetOption(name string, value interface{}) error
+
+	// Send puts the message on the outbound send queue.  It blocks
+	// until the message can be queued, or the send deadline expires.
+	// If a queued message is later dropped for any reason,
+	// there will be no notification back to the application.
+	Send([]byte) error
+
+	// Recv receives a complete message.  The entire message is received.
+	Recv() ([]byte, error)
+
+	// SendMsg puts the message on the outbound send.  It works like Send,
+	// but allows the caller to supply message headers.  AGAIN, the Socket
+	// ASSUMES OWNERSHIP OF THE MESSAGE.
+	SendMsg(*Message) error
+
+	// RecvMsg receives a complete message, including the message header,
+	// which is useful for protocols in raw mode.
+	RecvMsg() (*Message, error)
+}

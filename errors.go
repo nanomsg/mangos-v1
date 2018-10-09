@@ -44,4 +44,5 @@ var (
 	ErrTLSNoCert   = errors.New("missing TLS certificates")
 	ErrNotRaw      = errors.New("socket not raw")
 	ErrCanceled    = errors.New("operation canceled")
+	ErrNoContext   = errors.New("protocol does not support contexts")
 )
