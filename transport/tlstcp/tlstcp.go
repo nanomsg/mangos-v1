@@ -36,24 +36,35 @@ func (o options) get(name string) (interface{}, error) {
 func (o options) set(name string, val interface{}) error {
 	switch name {
 	case mangos.OptionTLSConfig:
-		switch v := val.(type) {
-		case *tls.Config:
+		if v, ok := val.(*tls.Config); ok {
 			o[name] = v
-		default:
-			return mangos.ErrBadValue
+			return nil
 		}
+		return mangos.ErrBadValue
 	case mangos.OptionMaxRecvSize:
-		switch v := val.(type) {
-		case int64:
+		if v, ok := val.(int); ok {
+			o[name] = v
+			return nil
+		}
+		return mangos.ErrBadValue
+	case mangos.OptionNoDelay:
+		fallthrough
+	case mangos.OptionKeepAlive:
+		if v, ok := val.(bool); ok {
 			o[name] = v
 			return nil
 		}
 		return mangos.ErrBadValue
 
-	default:
-		return mangos.ErrBadOption
+	case mangos.OptionKeepAliveTime:
+		if v, ok := val.(time.Duration); ok && v.Nanoseconds() > 0 {
+			o[name] = v
+			return nil
+		}
+		return mangos.ErrBadValue
 	}
-	return nil
+
+	return mangos.ErrBadOption
 }
 
 func (o options) configTCP(conn *net.TCPConn) error {

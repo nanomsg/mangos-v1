@@ -31,7 +31,7 @@ type conn struct {
 	proto   ProtocolInfo
 	open    bool
 	options map[string]interface{}
-	maxrx   int64
+	maxrx   int
 	sync.Mutex
 }
 
@@ -56,7 +56,7 @@ func (p *conn) Recv() (*Message, error) {
 
 	// Limit messages to the maximum receive value, if not
 	// unlimited.  This avoids a potential denaial of service.
-	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
+	if sz < 0 || (p.maxrx > 0 && sz > int64(p.maxrx)) {
 		return nil, mangos.ErrTooLong
 	}
 	msg = mangos.NewMessage(int(sz))
@@ -149,7 +149,7 @@ func NewConnPipe(c net.Conn, proto ProtocolInfo, options map[string]interface{})
 	for n, v := range options {
 		p.options[n] = v
 	}
-	p.maxrx = p.options[mangos.OptionMaxRecvSize].(int64)
+	p.maxrx = p.options[mangos.OptionMaxRecvSize].(int)
 
 	if err := p.handshake(); err != nil {
 		return nil, err

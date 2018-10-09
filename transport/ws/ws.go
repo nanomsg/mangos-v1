@@ -94,36 +94,24 @@ func (o options) set(name string, val interface{}) error {
 	case mangos.OptionNoDelay:
 		fallthrough
 	case mangos.OptionKeepAlive:
-		switch v := val.(type) {
-		case bool:
+		fallthrough
+	case OptionWebSocketCheckOrigin:
+		if v, ok := val.(bool); ok {
 			o[name] = v
 			return nil
-		default:
-			return mangos.ErrBadValue
 		}
 	case mangos.OptionTLSConfig:
-		switch v := val.(type) {
-		case *tls.Config:
+		if v, ok := val.(*tls.Config); ok {
 			o[name] = v
 			return nil
-		default:
-			return mangos.ErrBadValue
 		}
-	case OptionWebSocketCheckOrigin:
-		switch v := val.(type) {
-		case bool:
-			o[name] = v
-			return nil
-		default:
-			return mangos.ErrBadValue
-		}
+		return mangos.ErrBadValue
 	case mangos.OptionMaxRecvSize:
-		switch v := val.(type) {
-		case int64:
+		if v, ok := val.(int); ok {
 			o[name] = v
-		default:
-			return mangos.ErrBadValue
+			return nil
 		}
+		return mangos.ErrBadValue
 	}
 	return mangos.ErrBadOption
 }
@@ -212,7 +200,6 @@ type dialer struct {
 	proto mangos.ProtocolInfo
 	opts  options
 	iswss bool
-	maxrx int64
 }
 
 func (d *dialer) Dial() (transport.Pipe, error) {
@@ -233,15 +220,15 @@ func (d *dialer) Dial() (transport.Pipe, error) {
 		options: make(map[string]interface{}),
 	}
 
-	maxrx := int64(0)
+	maxrx := 0
 	v, err := d.opts.get(mangos.OptionMaxRecvSize)
 	if err == nil {
-		maxrx, _ = v.(int64)
+		maxrx, _ = v.(int)
 	}
 	if w.ws, _, err = wd.Dial(d.addr, nil); err != nil {
 		return nil, err
 	}
-	w.ws.SetReadLimit(maxrx)
+	w.ws.SetReadLimit(int64(maxrx))
 	w.options[mangos.OptionLocalAddr] = w.ws.LocalAddr()
 	w.options[mangos.OptionRemoteAddr] = w.ws.RemoteAddr()
 	if tlsConn, ok := w.ws.UnderlyingConn().(*tls.Conn); ok {
@@ -275,7 +262,6 @@ type listener struct {
 	proto    transport.ProtocolInfo
 	opts     options
 	iswss    bool
-	maxrx    int64
 }
 
 func (l *listener) SetOption(n string, v interface{}) error {
@@ -406,13 +392,13 @@ func (l *listener) handler(ws *websocket.Conn, req *http.Request) {
 		iswss:   l.iswss,
 		options: make(map[string]interface{}),
 	}
-	maxrx := int64(0)
+	maxrx := 0
 	v, err := l.opts.get(mangos.OptionMaxRecvSize)
 	if err == nil {
-		maxrx, _ = v.(int64)
+		maxrx, _ = v.(int)
 	}
 
-	w.ws.SetReadLimit(maxrx)
+	w.ws.SetReadLimit(int64(maxrx))
 	w.options[mangos.OptionLocalAddr] = ws.LocalAddr()
 	w.options[mangos.OptionRemoteAddr] = ws.RemoteAddr()
 

@@ -43,7 +43,7 @@ type socket struct {
 	closed        bool          // true if Socket was closed at API level
 	reconnMinTime time.Duration // reconnect time after error or disconnect
 	reconnMaxTime time.Duration // max reconnect interval
-	maxRxSize     int64         // max recv size
+	maxRxSize     int           // max recv size
 
 	listeners []*listener
 	dialers   []*dialer
@@ -325,18 +325,9 @@ func (s *socket) SetOption(name string, value interface{}) error {
 
 	switch name {
 	case mangos.OptionMaxRecvSize:
-		switch value := value.(type) {
-		case int64:
-			if value < 0 {
-				return mangos.ErrBadValue
-			}
-			s.maxRxSize = value
-		case int:
-			if value < 0 {
-				return mangos.ErrBadValue
-			}
-			s.maxRxSize = int64(value)
-		default:
+		if v, ok := value.(int); ok && v >= 0 {
+			s.maxRxSize = v
+		} else {
 			return mangos.ErrBadValue
 		}
 		break

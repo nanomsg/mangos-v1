@@ -25,7 +25,7 @@ import (
 const defaultQLen = 128
 
 // defaultMaxRxSize is the default maximum Rx size
-const defaultMaxRxSize = int64(1024 * 1024)
+const defaultMaxRxSize = 1024 * 1024
 
 // socket is the meaty part of the core information.
 type socket struct {
@@ -51,7 +51,7 @@ type socket struct {
 	reconntime time.Duration // reconnect time after error or disconnect
 	reconnmax  time.Duration // max reconnect interval
 	linger     time.Duration
-	maxRxSize  int64 // max recv size
+	maxRxSize  int // max recv size
 
 	pipes map[*pipe]struct{}
 
@@ -500,12 +500,6 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		defer sock.Unlock()
 		switch value := value.(type) {
 		case int:
-			if value < 0 {
-				return ErrBadValue
-			}
-			sock.maxRxSize = int64(value)
-			return nil
-		case int64:
 			if value < 0 {
 				return ErrBadValue
 			}

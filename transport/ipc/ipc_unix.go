@@ -43,8 +43,7 @@ func (o options) get(name string) (interface{}, error) {
 func (o options) set(name string, val interface{}) error {
 	switch name {
 	case mangos.OptionMaxRecvSize:
-		switch v := val.(type) {
-		case int64:
+		if v, ok := val.(int); ok {
 			o[name] = v
 			return nil
 		}
@@ -150,6 +149,7 @@ func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, 
 		proto: sock.Info(),
 		opts:  make(map[string]interface{}),
 	}
+	d.opts[mangos.OptionMaxRecvSize] = 0
 	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
@@ -163,6 +163,7 @@ func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listen
 		proto: sock.Info(),
 		opts:  make(map[string]interface{}),
 	}
+	l.opts[mangos.OptionMaxRecvSize] = 0
 
 	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err

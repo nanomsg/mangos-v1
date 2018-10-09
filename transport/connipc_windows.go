@@ -81,7 +81,7 @@ func (p *connipc) Recv() (*Message, error) {
 
 	// Limit messages to the maximum receive value, if not
 	// unlimited.  This avoids a potential denaial of service.
-	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
+	if sz < 0 || (p.maxrx > 0 && sz > int64(p.maxrx)) {
 		return nil, ErrTooLong
 	}
 	msg = mangos.NewMessage(int(sz))

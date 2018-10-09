@@ -41,32 +41,25 @@ func (o options) set(name string, val interface{}) error {
 	case mangos.OptionNoDelay:
 		fallthrough
 	case mangos.OptionKeepAlive:
-		switch v := val.(type) {
-		case bool:
-			o[name] = v
-			return nil
-		default:
-			return mangos.ErrBadValue
-		}
-	case mangos.OptionMaxRecvSize:
-		switch v := val.(type) {
-		case int64:
+		if v, ok := val.(bool); ok {
 			o[name] = v
 			return nil
 		}
 		return mangos.ErrBadValue
-	case mangos.OptionKeepAliveTime:
-		switch v := val.(type) {
-		case time.Duration:
-			if v.Nanoseconds() >= 0 {
-				o[name] = v
-				return nil
-			}
-			return mangos.ErrBadValue
 
-		default:
-			return mangos.ErrBadValue
+	case mangos.OptionKeepAliveTime:
+		if v, ok := val.(time.Duration); ok && v.Nanoseconds() > 0 {
+			o[name] = v
+			return nil
 		}
+		return mangos.ErrBadValue
+
+	case mangos.OptionMaxRecvSize:
+		if v, ok := val.(int); ok {
+			o[name] = v
+			return nil
+		}
+		return mangos.ErrBadValue
 	}
 	return mangos.ErrBadOption
 }
@@ -75,7 +68,7 @@ func newOptions() options {
 	o := make(map[string]interface{})
 	o[mangos.OptionNoDelay] = true
 	o[mangos.OptionKeepAlive] = true
-	o[mangos.OptionMaxRecvSize] = int64(0)
+	o[mangos.OptionMaxRecvSize] = 0
 	return options(o)
 }
 

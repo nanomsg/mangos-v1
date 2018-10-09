@@ -172,7 +172,7 @@ func (l *listener) SetOption(name string, val interface{}) error {
 		return mangos.ErrBadValue
 
 	case mangos.OptionMaxRecvSize:
-		if v, ok := val.(int64); ok {
+		if v, ok := val.(int); ok {
 			l.opts[name] = v
 			return nil
 		}
@@ -213,7 +213,7 @@ func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer,
 
 	d.opts[mangos.OptionLocalAddr] = addr
 	d.opts[mangos.OptionRemoteAddr] = addr
-	d.opts[mangos.OptionMaxRecvSize] = int64(0)
+	d.opts[mangos.OptionMaxRecvSize] = 0
 
 	return d, nil
 }
