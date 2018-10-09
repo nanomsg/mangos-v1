@@ -18,7 +18,7 @@ package mangos
 // channel.  There is one of these associated with a given TCP connection,
 // for example.  This interface is intended for application use.
 //
-// Note that applicatons cannot send or receive data on a Port directly.
+// Note that applications cannot send or receive data on a Port directly.
 type Port interface {
 
 	// Address returns the address (URL form) associated with the port.
