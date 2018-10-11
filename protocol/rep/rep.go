@@ -280,8 +280,8 @@ func (r *rep) GetOption(name string) (interface{}, error) {
 	}
 }
 
-// NewSocket allocates a new Socket using the REP protocol.
-func NewSocket() (mangos.Socket, error) {
+// NewSocketOLD allocates a new Socket using the REP protocol.
+func NewSocketOLD() (mangos.Socket, error) {
 	return mangos.MakeSocket(&rep{raw: false}), nil
 }
 
