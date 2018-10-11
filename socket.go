@@ -73,6 +73,10 @@ type Socket interface {
 	// SetOption is used to set an option for a socket.
 	SetOption(name string, value interface{}) error
 
+	// OpenContext creates a new Context.  If a protocol does not
+	// support separate contexts, this will return an error.
+	OpenContext() (Context, error)
+
 	// AddTransport adds a new Transport to the socket.  Transport specific
 	// options may have been configured on the Transport prior to this.
 	AddTransport(Transport)
