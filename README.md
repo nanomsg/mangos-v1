@@ -1,6 +1,5 @@
 ## mangos <img src=mangos.jpg align=right>
 
-
 [![Linux Status](https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux)](https://circleci.com/gh/nanomsg/mangos)
 [![Windows Status](https://img.shields.io/appveyor/ci/nanomsg/mangos.svg?label=windows)](https://ci.appveyor.com/project/nanomsg/mangos)
 [![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/nanomsg/mangos/blob/master/LICENSE)
@@ -8,22 +7,23 @@
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/nanomsg.org/go-mangos)
 [![Go Report Card](https://goreportcard.com/badge/nanomsg.org/go-mangos)](https://goreportcard.com/report/nanomsg.org/go-mangos)
 
+> WARNING:  THIS IS A WORK-IN-PROGRESS AND NOT READY FOR GENERAL USE YET.
+> This represents version 2 of mangos, and contains breaking changes and
+> rather different API.  To use the the original version of mangos please
+> see https://github.com/nanomsg/mangos
+
 Package mangos is an implementation in pure Go of the SP
-("Scalability Protocols")
-messaging system.
-This makes heavy use of go channels, internally, but it can operate
-on systems that lack support for cgo.
+("Scalability Protocols") messaging system.
+These are colloquially  known as a "nanomsg".
 
-> NOTE: The repository has moved from github.com/go-mangos/mangos.
-> Please import using nanomsg.org/go-mangos.  Also, be advised that
-> the master branch of this repository may contain breaking changes.
-> Therefore, consider using a tag, such as v1, to ensure that you have
-> the latest stable version.
-
-The reference implementation of the SP protocols is available as
-[nanomsg&trade;](http://www.nanomsg.org); there is also an effort to implement
-an improved and more capable version of nanomsg called
+The modern C implemenation of the SP protocols is available as
 [NNG&trade;](https://github.com/nanomsg/nng).
+
+The original implementation of the SP protocols is available as
+[nanomsg&trade;](http://www.nanomsg.org).
+
+Generally (modulo a few caveats) all of these implementations can
+interoperate.
 
 The design is intended to make it easy to add new transports with almost trivial
 effort, as well as new topologies ("protocols" in SP terminology.)
