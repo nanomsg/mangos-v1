@@ -19,8 +19,8 @@ import (
 	"net"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/transport"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport"
 )
 
 // options is used for shared GetOption/SetOption logic.

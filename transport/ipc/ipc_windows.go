@@ -21,8 +21,8 @@ import (
 	"net"
 
 	"github.com/Microsoft/go-winio"
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/transport"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport"
 )
 
 // The options here are pretty specific to Windows Named Pipes.

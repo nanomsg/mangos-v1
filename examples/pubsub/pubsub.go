@@ -33,11 +33,11 @@ import (
 	"os"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/pub"
-	"nanomsg.org/go-mangos/protocol/sub"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/pub"
+	"nanomsg.org/go/mangos/v2/protocol/sub"
+	"nanomsg.org/go/mangos/v2/transport/ipc"
+	"nanomsg.org/go/mangos/v2/transport/tcp"
 )
 
 func die(format string, v ...interface{}) {

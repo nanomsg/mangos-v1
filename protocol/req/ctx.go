@@ -22,8 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/impl"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/impl"
 )
 
 type reqPipe struct {

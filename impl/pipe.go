@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/transport"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport"
 )
 
 // The pipes global state is just an ID allocator; it manages the

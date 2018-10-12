@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2"
 )
 
 const defaultSurveyTime = time.Second

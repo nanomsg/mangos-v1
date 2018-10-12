@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/pair"
-	"nanomsg.org/go-mangos/transport/inproc"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/pair"
+	"nanomsg.org/go/mangos/v2/transport/inproc"
 )
 
 func TestExpireDrop(t *testing.T) {

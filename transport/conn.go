@@ -20,7 +20,7 @@ import (
 	"net"
 	"sync"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2"
 )
 
 // conn implements the Pipe interface on top of net.Conn.  The

@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"sync"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/req"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/transport/ipc"
+	"nanomsg.org/go/mangos/v2/transport/tcp"
 )
 
 // synchronize our output messaging so we don't overlap

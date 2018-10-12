@@ -18,8 +18,8 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/bus"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/bus"
 )
 
 type busTest struct {

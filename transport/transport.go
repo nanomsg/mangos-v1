@@ -18,7 +18,7 @@ import (
 	"net"
 	"strings"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2"
 )
 
 // Currently these types are just aliases, in order to avoid

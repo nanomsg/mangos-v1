@@ -35,10 +35,10 @@ import (
 	"os"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/bus"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/bus"
+	"nanomsg.org/go/mangos/v2/transport/ipc"
+	"nanomsg.org/go/mangos/v2/transport/tcp"
 )
 
 func die(format string, v ...interface{}) {

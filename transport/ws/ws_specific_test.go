@@ -20,8 +20,8 @@ import (
 	"net/http"
 	"testing"
 
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
 	//"nanomsg.org/go-mangos/test"
 )
 
