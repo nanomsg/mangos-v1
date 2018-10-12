@@ -47,33 +47,6 @@ not something novice developers should do, but we've ample experience with
 these constructs from our C and kernel background.  We've long wanted to
 fix these in mangos.
 
-Nanomsg Affiliation
--------------------
-
-When we started mangos, mangos was an "outsider" to the nanomsg organization.
-We intentionally wanted to avoid creating any false impressions of being
-officially blessed by the nanomsg team.  Of course, times have changed,
-and we've taken over the nanomsg project.  It's time to bring mangos into
-the nanomsg umbrella.  In mangos 2.0, the import path will be moving from
-go-mangos (a separate dedicated organization) to nanomsg.org.  Mangos
-is *the* officially recommended Scalability Protocols implementation for
-Golang applications.  Most likely the import path will become just
-nanomsg.org/mangos or possibly nanomsg.org/go-mangos. (We anticipate that
-the actual code will continue to be hosted on GitHub, but in light of
-recent news about the Microsoft acquisition, it seems like a good time
-to stop hard coding GitHub in our package import paths -- the freedom
-to depart if things go south at GitHub seems a worthwhile goal.)
-
-Abandoning Compat Package
--------------------------
-
-(resolved with #323.)
-The compat package was built to make transitioning from op/go-nanomsg
-as easy as possible.  (That package is just a native binding to the C
-library, and hasn't received any updates in about 2 years.  We think nobody
-is really using it anymore.)  We intend to remove the compat package
-from mangos as part of the mangos 2.0 effort.
-
 Modern Golang
 -------------
 
