@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -30,6 +30,41 @@ func usage() {
 	os.Exit(1)
 }
 
+func doRemoteReqRepLatency(args []string) {
+	if len(args) < 3 {
+		log.Fatalf("Usage: remote_lat <connect-to> <msg-size> <roundtrips>")
+	}
+	addr := args[0]
+	msgSize, err := strconv.Atoi(args[1])
+	if err != nil {
+		log.Fatalf("Bad msgsize: %v", err)
+	}
+	roundTrips, err := strconv.Atoi(args[2])
+	if err != nil {
+		log.Fatalf("Bad roundtrips: %v", err)
+	}
+	ReqRepLatencyClient(addr, msgSize, roundTrips)
+	os.Exit(0)
+}
+
+func doLocalReqRepLatency(args []string) {
+	if len(args) < 3 {
+		log.Fatalf("Usage: local_lat <connect-to> <msg-size> <roundtrips>")
+	}
+	addr := args[0]
+	msgSize, err := strconv.Atoi(args[1])
+	if err != nil {
+		log.Fatalf("Bad msgsize: %v", err)
+	}
+	roundTrips, err := strconv.Atoi(args[2])
+	if err != nil {
+		log.Fatalf("Bad roundtrips: %v", err)
+	}
+	ReqRepLatencyServer(addr, msgSize, roundTrips)
+	os.Exit(0)
+}
+
+
 func doRemoteLatency(args []string) {
 	if len(args) < 3 {
 		log.Fatalf("Usage: remote_lat <connect-to> <msg-size> <roundtrips>")
@@ -46,6 +81,7 @@ func doRemoteLatency(args []string) {
 	LatencyClient(addr, msgSize, roundTrips)
 	os.Exit(0)
 }
+
 
 func doLocalLatency(args []string) {
 	if len(args) < 3 {
@@ -140,6 +176,12 @@ func main() {
 	tries := 0
 	for tries = 0; tries < 2; tries++ {
 		switch path.Base(args[0]) {
+		case "remote_reqlat":
+			doRemoteReqRepLatency(args[1:])
+
+		case "local_reqlat":
+			doLocalReqRepLatency(args[1:])
+
 		case "latency_client":
 			fallthrough
 		case "remote_lat":
