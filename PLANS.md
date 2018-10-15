@@ -67,7 +67,6 @@ to depart if things go south at GitHub seems a worthwhile goal.)
 Abandoning Compat Package
 -------------------------
 
-(resolved with #323.)
 The compat package was built to make transitioning from op/go-nanomsg
 as easy as possible.  (That package is just a native binding to the C
 library, and hasn't received any updates in about 2 years.  We think nobody
