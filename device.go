@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2015 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -18,7 +18,8 @@ package mangos
 // same socket is listed (or either socket is nil), then a loopback device
 // is established instead.  Note that the single socket case is only valid
 // for protocols where the underlying protocol can peer for itself (e.g. PAIR,
-// or BUS, but not REQ/REP or PUB/SUB!)
+// or BUS, but not REQ/REP or PUB/SUB!)  Both sockets will be placed into RAW
+// mode.
 //
 // If the plumbing is successful, nil will be returned.  Two threads will be
 // established to forward messages in each direction.  If either socket returns
@@ -26,9 +27,6 @@ package mangos
 // This means that closing either socket will generally cause the goroutines
 // to exit.  Apart from closing the socket(s), no further operations should be
 // performed against the socket.
-//
-// Both sockets should be RAW; use of a "cooked" socket will result in
-// ErrNotRaw.
 func Device(s1 Socket, s2 Socket) error {
 	// Is one of the sockets nil?
 	if s1 == nil {
@@ -49,15 +47,11 @@ func Device(s1 Socket, s2 Socket) error {
 		return ErrBadProto
 	}
 
-	if val, err := s1.GetOption(OptionRaw); err != nil {
+	if err := s1.SetOption(OptionRaw, true); err != nil {
 		return err
-	} else if raw, ok := val.(bool); !ok || !raw {
-		return ErrNotRaw
 	}
-	if val, err := s2.GetOption(OptionRaw); err != nil {
+	if err := s2.SetOption(OptionRaw, true); err != nil {
 		return err
-	} else if raw, ok := val.(bool); !ok || !raw {
-		return ErrNotRaw
 	}
 
 	go forwarder(s1, s2)

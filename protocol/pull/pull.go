@@ -79,7 +79,16 @@ func (*pull) SendHook(msg *mangos.Message) bool {
 }
 
 func (x *pull) SetOption(name string, v interface{}) error {
-	return mangos.ErrBadOption
+	var ok bool
+	switch name {
+	case mangos.OptionRaw:
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		return nil
+	default:
+		return mangos.ErrBadOption
+	}
 }
 
 func (x *pull) GetOption(name string) (interface{}, error) {

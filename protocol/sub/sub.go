@@ -111,10 +111,16 @@ func (s *sub) SetOption(name string, value interface{}) error {
 	defer s.Unlock()
 
 	var vb []byte
+	var ok bool
 
 	// Check names first, because type check below is only valid for
 	// subscription options.
 	switch name {
+	case mangos.OptionRaw:
+		if s.raw, ok = value.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		return nil
 	case mangos.OptionSubscribe:
 	case mangos.OptionUnsubscribe:
 	default:

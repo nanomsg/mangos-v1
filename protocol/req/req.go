@@ -263,6 +263,16 @@ func (r *req) RecvHook(m *mangos.Message) bool {
 func (r *req) SetOption(option string, value interface{}) error {
 	var ok bool
 	switch option {
+	case mangos.OptionRaw:
+		if r.raw, ok = value.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		if r.raw {
+			r.sock.SetRecvError(nil)
+		} else {
+			r.sock.SetRecvError(mangos.ErrProtoState)
+		}
+		return nil
 	case mangos.OptionRetryTime:
 		r.Lock()
 		r.retry, ok = value.(time.Duration)

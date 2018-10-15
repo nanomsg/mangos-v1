@@ -61,8 +61,11 @@ func server(url string, nworkers int) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if sock, err = rep.NewRawSocket(); err != nil {
+	if sock, err = rep.NewSocket(); err != nil {
 		die("can't get new rep socket: %s", err)
+	}
+	if err = sock.SetOption(mangos.OptionRaw, true); err != nil {
+		die("can't set raw mode: %s", err)
 	}
 	sock.AddTransport(ipc.NewTransport())
 	sock.AddTransport(tcp.NewTransport())

@@ -42,5 +42,4 @@ var (
 	ErrBadProperty = errors.New("invalid property name")
 	ErrTLSNoConfig = errors.New("missing TLS configuration")
 	ErrTLSNoCert   = errors.New("missing TLS certificates")
-	ErrNotRaw      = errors.New("socket not raw")
 )

@@ -32,13 +32,13 @@ import (
 )
 
 func TestDeviceBadPair(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := req.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
-	s2, err := pair.NewRawSocket()
+	s2, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
@@ -59,7 +59,7 @@ func TestDeviceBadPair(t *testing.T) {
 }
 
 func TestDeviceBadSingle(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := req.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -80,7 +80,7 @@ func TestDeviceBadSingle(t *testing.T) {
 }
 
 func TestDeviceFirstNil(t *testing.T) {
-	s1, err := pair.NewRawSocket()
+	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -98,7 +98,7 @@ func TestDeviceFirstNil(t *testing.T) {
 }
 
 func TestDeviceSecondNil(t *testing.T) {
-	s1, err := pair.NewRawSocket()
+	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -129,7 +129,7 @@ func TestDeviceBothNil(t *testing.T) {
 	}
 }
 
-func TestDeviceCooked(t *testing.T) {
+func TestDeviceReqRep(t *testing.T) {
 	s1, err := req.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
@@ -137,32 +137,6 @@ func TestDeviceCooked(t *testing.T) {
 	}
 	defer s1.Close()
 	s2, err := rep.NewSocket()
-	if err != nil {
-		t.Errorf("Failed to open S2: %v", err)
-		return
-	}
-	defer s2.Close()
-
-	switch err := mangos.Device(s1, s2); err {
-	case mangos.ErrNotRaw:
-		t.Logf("Got expected err: %v", err)
-		return
-	case nil:
-		t.Errorf("Cooked sockets succeeded")
-		return
-	default:
-		t.Errorf("Got unexpected err: %v", err)
-		return
-	}
-}
-func TestDeviceReqRep(t *testing.T) {
-	s1, err := req.NewRawSocket()
-	if err != nil {
-		t.Errorf("Failed to open S1: %v", err)
-		return
-	}
-	defer s1.Close()
-	s2, err := rep.NewRawSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
@@ -220,7 +194,7 @@ func deviceCaseClient() []TestCase {
 }
 
 func testDevLoop(t *testing.T, addr string) {
-	s1, err := pair.NewRawSocket()
+	s1, err := pair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -257,7 +231,7 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 	var err error
 	s := make([]mangos.Socket, 5)
 	for i := 0; i < 5; i++ {
-		if s[i], err = pair.NewRawSocket(); err != nil {
+		if s[i], err = pair.NewSocket(); err != nil {
 			t.Errorf("Failed to open S1_1: %v", err)
 			return
 		}

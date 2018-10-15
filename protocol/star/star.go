@@ -211,7 +211,13 @@ func (*star) PeerName() string {
 }
 
 func (x *star) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
+	case mangos.OptionRaw:
+		if x.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		return nil
 	case mangos.OptionTTL:
 		if ttl, ok := v.(int); !ok {
 			return mangos.ErrBadValue

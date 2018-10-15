@@ -227,6 +227,17 @@ func (x *surveyor) RecvHook(m *mangos.Message) bool {
 func (x *surveyor) SetOption(name string, val interface{}) error {
 	var ok bool
 	switch name {
+	case mangos.OptionRaw:
+		if x.raw, ok = val.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		if x.raw {
+			x.timer.Stop()
+			x.sock.SetRecvError(nil)
+		} else {
+			x.sock.SetRecvError(mangos.ErrProtoState)
+		}
+		return nil
 	case mangos.OptionSurveyTime:
 		x.Lock()
 		x.duration, ok = val.(time.Duration)

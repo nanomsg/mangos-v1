@@ -195,25 +195,25 @@ func TestStar(t *testing.T) {
 }
 
 func TestStarTTLZero(t *testing.T) {
-	SetTTLZero(t, star.NewRawSocket)
+	SetTTLZero(t, star.NewSocket)
 }
 
 func TestStarTTLNegative(t *testing.T) {
-	SetTTLNegative(t, star.NewRawSocket)
+	SetTTLNegative(t, star.NewSocket)
 }
 
 func TestStarTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, star.NewRawSocket)
+	SetTTLTooBig(t, star.NewSocket)
 }
 
 func TestStarTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, star.NewRawSocket)
+	SetTTLNotInt(t, star.NewSocket)
 }
 
 func TestStarTTLSet(t *testing.T) {
-	SetTTL(t, star.NewRawSocket)
+	SetTTL(t, star.NewSocket)
 }
 
 func TestStarTTLDrop(t *testing.T) {
-	TTLDropTest(t, star.NewSocket, star.NewSocket, star.NewRawSocket, star.NewRawSocket)
+	TTLDropTest(t, star.NewSocket, star.NewSocket)
 }

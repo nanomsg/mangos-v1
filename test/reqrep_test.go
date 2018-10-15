@@ -150,25 +150,25 @@ func TestReqRepWSS(t *testing.T) {
 }
 
 func TestReqRepTTLZero(t *testing.T) {
-	SetTTLZero(t, rep.NewRawSocket)
+	SetTTLZero(t, rep.NewSocket)
 }
 
 func TestReqRepTTLNegative(t *testing.T) {
-	SetTTLNegative(t, rep.NewRawSocket)
+	SetTTLNegative(t, rep.NewSocket)
 }
 
 func TestReqRepTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, rep.NewRawSocket)
+	SetTTLTooBig(t, rep.NewSocket)
 }
 
 func TestReqRepTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, rep.NewRawSocket)
+	SetTTLNotInt(t, rep.NewSocket)
 }
 
 func TestReqRepTTLSet(t *testing.T) {
-	SetTTL(t, rep.NewRawSocket)
+	SetTTL(t, rep.NewSocket)
 }
 
 func TestReqRepTTLDrop(t *testing.T) {
-	TTLDropTest(t, req.NewSocket, rep.NewSocket, req.NewRawSocket, rep.NewRawSocket)
+	TTLDropTest(t, req.NewSocket, rep.NewSocket)
 }

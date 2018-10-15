@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2016 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -17,12 +17,14 @@ package mangos
 // The following are Options used by SetOption, GetOption.
 
 const (
-	// OptionRaw is used to test if the socket in RAW mod.  The details of
-	// how this varies from normal mode vary from protocol to protocol,
-	// but RAW mode is generally minimal protocol processing, and
-	// stateless.  RAW mode sockets are constructed with different
-	// protocol constructor.  Raw mode is generally used with Device()
-	// or similar proxy configurations.
+	// OptionRaw is used to enable RAW mode processing.  The details of
+	// how this varies from normal mode vary from protocol to protocol.
+	// RAW mode corresponds to AF_SP_RAW in the C variant, and must be
+	// used with Devices.  In particular, RAW mode sockets are completely
+	// stateless -- any state between recv/send messages is included in
+	// the message headers.  Protocol names starting with "X" default
+	// to the RAW mode of the same protocol without the leading "X".
+	// The value passed is a bool.
 	OptionRaw = "RAW"
 
 	// OptionRecvDeadline is the time until the next Recv times out.  The

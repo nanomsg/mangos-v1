@@ -254,7 +254,18 @@ func (r *rep) SendHook(m *mangos.Message) bool {
 }
 
 func (r *rep) SetOption(name string, v interface{}) error {
+	var ok bool
 	switch name {
+	case mangos.OptionRaw:
+		if r.raw, ok = v.(bool); !ok {
+			return mangos.ErrBadValue
+		}
+		if r.raw {
+			r.sock.SetSendError(nil)
+		} else {
+			r.sock.SetSendError(mangos.ErrProtoState)
+		}
+		return nil
 	case mangos.OptionTTL:
 		if ttl, ok := v.(int); !ok {
 			return mangos.ErrBadValue
