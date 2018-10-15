@@ -254,12 +254,10 @@ func (x *star) SendHook(m *mangos.Message) bool {
 	return true
 }
 
+// NewProtocol returns a new STAR protocol instance.
+func NewProtocol() mangos.Protocol { return &star{} }
+
 // NewSocket allocates a new Socket using the STAR protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&star{raw: false}), nil
-}
-
-// NewRawSocket allocates a raw Socket using the STAR protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&star{raw: true}), nil
+	return mangos.MakeSocket(NewProtocol()), nil
 }

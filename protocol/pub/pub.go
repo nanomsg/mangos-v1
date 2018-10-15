@@ -179,12 +179,10 @@ func (p *pub) GetOption(name string) (interface{}, error) {
 	}
 }
 
+// NewProtocol returns a new PUB protocol instance.
+func NewProtocol() mangos.Protocol { return &pub{} }
+
 // NewSocket allocates a new Socket using the PUB protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&pub{raw: false}), nil
-}
-
-// NewRawSocket allocates a raw Socket using the PUB protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&pub{raw: true}), nil
+	return mangos.MakeSocket(NewProtocol()), nil
 }
