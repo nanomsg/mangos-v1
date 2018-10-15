@@ -326,6 +326,7 @@ func (c *reqCtx) RecvMsg() (*mangos.Message, error) {
 	}
 
 	m := c.repMsg
+	c.recvID = 0
 	c.repMsg = nil
 	c.recvWait = false
 	c.cond.Broadcast()
