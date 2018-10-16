@@ -23,6 +23,7 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/pair"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/xreq"
 	"nanomsg.org/go/mangos/v2/transport/inproc"
 	"nanomsg.org/go/mangos/v2/transport/ipc"
 	"nanomsg.org/go/mangos/v2/transport/tcp"
@@ -32,7 +33,7 @@ import (
 )
 
 func TestDeviceBadPair(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := xreq.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -59,7 +60,7 @@ func TestDeviceBadPair(t *testing.T) {
 }
 
 func TestDeviceBadSingle(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := xreq.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -156,7 +157,7 @@ func TestDeviceCooked(t *testing.T) {
 	}
 }
 func TestDeviceReqRep(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := xreq.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return

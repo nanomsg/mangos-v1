@@ -88,26 +88,26 @@ func ReqRepLatencyClient(addr string, msgSize int, roundTrips int) {
 	}
 
 	// 100 milliseconds to give TCP a chance to establish
-	//time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 100)
 	msg := mangos.NewMessage(msgSize)
 
-	start := time.Now()
+	total := time.Duration(0)
 	for i := 0; i < roundTrips; i++ {
 		msg.Body = msg.Body[0:msgSize]
 		msg.Header = msg.Header[:0]
+		start := time.Now()
 		if err = s.SendMsg(msg); err != nil {
 			log.Fatalf("Failed SendMsg: %v", err)
 		}
 		if msg, err = s.RecvMsg(); err != nil {
 			log.Fatalf("Failed RecvMsg: %v", err)
 		}
+		total += time.Since(start)
 	}
-	finish := time.Now()
 	msg.Free()
 
-	total := (finish.Sub(start)) / time.Microsecond
-	lat := float64(total) / float64(roundTrips*2)
+	lat := float64(total/time.Microsecond) / float64(roundTrips)
 	fmt.Printf("message size: %d [B]\n", msgSize)
 	fmt.Printf("round trip count: %d\n", roundTrips)
-	fmt.Printf("average latency: %.3f [us]\n", lat)
+	fmt.Printf("average RTT: %.3f [us]\n", lat)
 }

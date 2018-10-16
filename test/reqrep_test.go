@@ -20,6 +20,7 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/xreq"
 )
 
 type reqTest struct {
@@ -170,5 +171,5 @@ func TestReqRepTTLSet(t *testing.T) {
 }
 
 func TestReqRepTTLDrop(t *testing.T) {
-	TTLDropTest(t, req.NewSocket, rep.NewSocket, req.NewRawSocket, rep.NewRawSocket)
+	TTLDropTest(t, req.NewSocket, rep.NewSocket, xreq.NewSocket, rep.NewRawSocket)
 }

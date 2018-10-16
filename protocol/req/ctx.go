@@ -396,8 +396,6 @@ func (c *reqCtx) SetOption(name string, value interface{}) error {
 
 func (c *reqCtx) GetOption(option string) (interface{}, error) {
 	switch option {
-	case mangos.OptionRaw:
-		return false, nil
 	case mangos.OptionRetryTime:
 		c.r.Lock()
 		v := c.resendTime
