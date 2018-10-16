@@ -20,23 +20,12 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/errors"
 	"nanomsg.org/go/mangos/v2/impl"
-)
-
-// Borrow common error codes for convenience.
-const (
-	ErrClosed      = errors.ErrClosed
-	ErrSendTimeout = errors.ErrSendTimeout
-	ErrRecvTimeout = errors.ErrRecvTimeout
-	ErrBadValue    = errors.ErrBadValue
-	ErrBadOption   = errors.ErrBadOption
-	ErrProtoOp     = errors.ErrProtoOp
+	"nanomsg.org/go/mangos/v2/protocol"
 )
 
 type pipe struct {
-	ep     mangos.Endpoint
+	ep     protocol.Pipe
 	s      *socket
 	closed bool
 	closeq chan struct{}
@@ -45,8 +34,8 @@ type pipe struct {
 type socket struct {
 	closed     bool
 	closeq     chan struct{}
-	recvq      chan *mangos.Message
-	sendq      chan *mangos.Message
+	recvq      chan *protocol.Message
+	sendq      chan *protocol.Message
 	pipes      map[uint32]*pipe
 	recvExpire time.Duration
 	sendExpire time.Duration
@@ -72,7 +61,7 @@ func init() {
 // its headers already prepared.  This will be at a minimum the request
 // ID at the end of the header, plus any leading backtrace information
 // coming from a paired REP socket.
-func (s *socket) SendMsg(m *mangos.Message) error {
+func (s *socket) SendMsg(m *protocol.Message) error {
 	s.Lock()
 	bestEffort := s.bestEffort
 	tq := nilQ
@@ -87,17 +76,17 @@ func (s *socket) SendMsg(m *mangos.Message) error {
 	case s.sendq <- m:
 		return nil
 	case <-s.closeq:
-		return ErrClosed
+		return protocol.ErrClosed
 	case <-tq:
 		if bestEffort {
 			m.Free()
 			return nil
 		}
-		return ErrSendTimeout
+		return protocol.ErrSendTimeout
 	}
 }
 
-func (s *socket) RecvMsg() (*mangos.Message, error) {
+func (s *socket) RecvMsg() (*protocol.Message, error) {
 	tq := nilQ
 	s.Lock()
 	if s.recvExpire > 0 {
@@ -106,29 +95,12 @@ func (s *socket) RecvMsg() (*mangos.Message, error) {
 	s.Unlock()
 	select {
 	case <-s.closeq:
-		return nil, ErrClosed
+		return nil, protocol.ErrClosed
 	case <-tq:
-		return nil, ErrRecvTimeout
+		return nil, protocol.ErrRecvTimeout
 	case m := <-s.recvq:
 		return m, nil
 	}
-}
-
-type reqCtxBad struct {
-	cond       *sync.Cond
-	resendTime time.Duration   // tunable resend time
-	sendExpire time.Duration   // how long to wait in send
-	recvExpire time.Duration   // how long to wait in recv
-	sendTimer  *time.Timer     // send timer
-	recvTimer  *time.Timer     // recv timer
-	resender   *time.Timer     // resend timeout
-	reqMsg     *mangos.Message // message for transmit
-	repMsg     *mangos.Message // received reply
-	sendMsg    *mangos.Message // messaging waiting for send
-	lastPipe   *pipe           // last pipe used for transmit
-	recvWait   bool            // true if a thread is blocked in RecvMsg
-	wantw      bool            // true if we need to send a message
-	closed     bool            // true if we are closed
 }
 
 func (p *pipe) receiver() {
@@ -168,7 +140,7 @@ func (p *pipe) sender() {
 	s := p.s
 outer:
 	for {
-		var m *mangos.Message
+		var m *protocol.Message
 		select {
 		case m = <-s.sendq:
 		case <-p.closeq:
@@ -189,7 +161,7 @@ func (p *pipe) Close() error {
 	s.Lock()
 	if p.closed {
 		s.Unlock()
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	p.closed = true
 	delete(s.pipes, p.ep.GetID())
@@ -202,36 +174,36 @@ func (p *pipe) Close() error {
 func (s *socket) SetOption(name string, value interface{}) error {
 	switch name {
 
-	case mangos.OptionRecvDeadline:
+	case protocol.OptionRecvDeadline:
 		if v, ok := value.(time.Duration); ok {
 			s.Lock()
 			s.recvExpire = v
 			s.Unlock()
 			return nil
 		}
-		return ErrBadValue
-	case mangos.OptionSendDeadline:
+		return protocol.ErrBadValue
+	case protocol.OptionSendDeadline:
 		if v, ok := value.(time.Duration); ok {
 			s.Lock()
 			s.sendExpire = v
 			s.Unlock()
 			return nil
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 
-	case mangos.OptionBestEffort:
+	case protocol.OptionBestEffort:
 		if v, ok := value.(bool); ok {
 			s.Lock()
 			s.bestEffort = v
 			s.Unlock()
 			return nil
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 
-	case mangos.OptionWriteQLen:
+	case protocol.OptionWriteQLen:
 		if v, ok := value.(int); ok && v >= 0 {
 
-			newchan := make(chan *mangos.Message, v)
+			newchan := make(chan *protocol.Message, v)
 			s.Lock()
 			s.sendQLen = v
 			oldchan := s.sendq
@@ -239,7 +211,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Unlock()
 
 			for {
-				var m *mangos.Message
+				var m *protocol.Message
 				select {
 				case m = <-oldchan:
 				default:
@@ -254,11 +226,11 @@ func (s *socket) SetOption(name string, value interface{}) error {
 				}
 			}
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 
-	case mangos.OptionReadQLen:
+	case protocol.OptionReadQLen:
 		if v, ok := value.(int); ok && v >= 0 {
-			newchan := make(chan *mangos.Message, v)
+			newchan := make(chan *protocol.Message, v)
 			s.Lock()
 			s.recvQLen = v
 			oldchan := s.recvq
@@ -266,7 +238,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Unlock()
 
 			for {
-				var m *mangos.Message
+				var m *protocol.Message
 				select {
 				case m = <-oldchan:
 				default:
@@ -285,41 +257,41 @@ func (s *socket) SetOption(name string, value interface{}) error {
 		// case OptionLinger:
 	}
 
-	return ErrBadOption
+	return protocol.ErrBadOption
 }
 
 func (s *socket) GetOption(option string) (interface{}, error) {
 	switch option {
-	case mangos.OptionRaw:
+	case protocol.OptionRaw:
 		return true, nil
-	case mangos.OptionRecvDeadline:
+	case protocol.OptionRecvDeadline:
 		s.Lock()
 		v := s.recvExpire
 		s.Unlock()
 		return v, nil
-	case mangos.OptionSendDeadline:
+	case protocol.OptionSendDeadline:
 		s.Lock()
 		v := s.sendExpire
 		s.Unlock()
 		return v, nil
-	case mangos.OptionBestEffort:
+	case protocol.OptionBestEffort:
 		s.Lock()
 		v := s.bestEffort
 		s.Unlock()
 		return v, nil
-	case mangos.OptionWriteQLen:
+	case protocol.OptionWriteQLen:
 		s.Lock()
 		v := s.sendQLen
 		s.Unlock()
 		return v, nil
-	case mangos.OptionReadQLen:
+	case protocol.OptionReadQLen:
 		s.Lock()
 		v := s.recvQLen
 		s.Unlock()
 		return v, nil
 	}
 
-	return nil, ErrBadOption
+	return nil, protocol.ErrBadOption
 }
 
 func (s *socket) Close() error {
@@ -327,7 +299,7 @@ func (s *socket) Close() error {
 
 	if s.closed {
 		s.Unlock()
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	s.closed = true
 	s.Unlock()
@@ -339,11 +311,11 @@ func (s *socket) Close() error {
 	return nil
 }
 
-func (s *socket) AddPipe(ep mangos.Endpoint) error {
+func (s *socket) AddPipe(ep protocol.Pipe) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	p := &pipe{
 		ep:     ep,
@@ -357,7 +329,7 @@ func (s *socket) AddPipe(ep mangos.Endpoint) error {
 	return nil
 }
 
-func (s *socket) RemovePipe(ep mangos.Endpoint) {
+func (s *socket) RemovePipe(ep protocol.Pipe) {
 	s.Lock()
 	p, ok := s.pipes[ep.GetID()]
 	s.Unlock()
@@ -366,31 +338,31 @@ func (s *socket) RemovePipe(ep mangos.Endpoint) {
 	}
 }
 
-func (s *socket) OpenContext() (mangos.ProtocolContext, error) {
-	return nil, ErrProtoOp
+func (s *socket) OpenContext() (protocol.Context, error) {
+	return nil, protocol.ErrProtoOp
 }
 
-func (*socket) Info() mangos.ProtocolInfo {
+func (*socket) Info() protocol.Info {
 	return Info()
 }
 
 // Info returns protocol information.
-func Info() mangos.ProtocolInfo {
-	return mangos.ProtocolInfo{
-		Self:     mangos.ProtoReq,
-		Peer:     mangos.ProtoRep,
+func Info() protocol.Info {
+	return protocol.Info{
+		Self:     protocol.ProtoReq,
+		Peer:     protocol.ProtoRep,
 		SelfName: "req",
 		PeerName: "rep",
 	}
 }
 
 // NewProtocol returns a new protocol implementation.
-func NewProtocol() mangos.ProtocolBase {
+func NewProtocol() protocol.Protocol {
 	s := &socket{
 		pipes:    make(map[uint32]*pipe),
 		closeq:   make(chan struct{}),
-		recvq:    make(chan *mangos.Message, defaultQLen),
-		sendq:    make(chan *mangos.Message, defaultQLen),
+		recvq:    make(chan *protocol.Message, defaultQLen),
+		sendq:    make(chan *protocol.Message, defaultQLen),
 		sendQLen: defaultQLen,
 		recvQLen: defaultQLen,
 	}
@@ -398,6 +370,6 @@ func NewProtocol() mangos.ProtocolBase {
 }
 
 // NewSocket allocates a new Socket using the REQ protocol.
-func NewSocket() (mangos.Socket, error) {
+func NewSocket() (protocol.Socket, error) {
 	return impl.MakeSocket(NewProtocol()), nil
 }
