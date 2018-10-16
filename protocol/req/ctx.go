@@ -23,17 +23,29 @@ import (
 	"time"
 
 	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/errors"
 	"nanomsg.org/go/mangos/v2/impl"
 )
 
-type reqPipe struct {
+// Borrow common error codes for convenience.
+const (
+	ErrClosed      = errors.ErrClosed
+	ErrSendTimeout = errors.ErrSendTimeout
+	ErrRecvTimeout = errors.ErrRecvTimeout
+	ErrBadValue    = errors.ErrBadValue
+	ErrBadOption   = errors.ErrBadOption
+	ErrCanceled    = errors.ErrCanceled
+	ErrProtoState  = errors.ErrProtoState
+)
+
+type pipe struct {
 	ep     mangos.Endpoint
-	r      *req2
+	s      *socket
 	closed bool
 }
 
-type reqCtx struct {
-	r          *req2
+type context struct {
+	s          *socket
 	cond       *sync.Cond
 	resendTime time.Duration   // tunable resend time
 	sendExpire time.Duration   // how long to wait in send
@@ -44,7 +56,7 @@ type reqCtx struct {
 	reqMsg     *mangos.Message // message for transmit
 	repMsg     *mangos.Message // received reply
 	sendMsg    *mangos.Message // messaging waiting for send
-	lastPipe   *reqPipe        // last pipe used for transmit
+	lastPipe   *pipe           // last pipe used for transmit
 	reqID      uint32          // request ID
 	sendID     uint32          // sent id (cleared after first send)
 	recvID     uint32          // recv id (set after first send)
@@ -54,41 +66,32 @@ type reqCtx struct {
 	closed     bool            // true if we are closed
 }
 
-type req2 struct {
+type socket struct {
 	sync.Mutex
-	defCtx  *reqCtx              // default context
-	ctxs    map[*reqCtx]struct{} // all contexts (set)
-	ctxByID map[uint32]*reqCtx   // contexts by request ID
-	nextID  uint32               // next request ID
-	closed  bool                 // true if we are closed
-	sendq   []*reqCtx            // contexts waiting to send
-	readyq  []*reqPipe           // pipes available for sending
-	pipes   map[uint32]*reqPipe  // all pipes for the socket (by pipe ID)
+	defCtx  *context              // default context
+	ctxs    map[*context]struct{} // all contexts (set)
+	ctxByID map[uint32]*context   // contexts by request ID
+	nextID  uint32                // next request ID
+	closed  bool                  // true if we are closed
+	sendq   []*context            // contexts waiting to send
+	readyq  []*pipe               // pipes available for sending
+	pipes   map[uint32]*pipe      // all pipes for the socket (by pipe ID)
 }
 
-func (r *req2) Init() {
-	r.pipes = make(map[uint32]*reqPipe)      // maybe sync.Map is better?
-	r.nextID = uint32(time.Now().UnixNano()) // quasi-random
-	r.defCtx = &reqCtx{resendTime: time.Minute}
-	r.defCtx.cond = sync.NewCond(r)
-	r.ctxs = make(map[*reqCtx]struct{})
-	r.ctxByID = make(map[uint32]*reqCtx)
-}
-
-func (r *req2) send() {
-	for len(r.sendq) != 0 && len(r.readyq) != 0 {
-		c := r.sendq[0]
-		r.sendq = r.sendq[1:]
+func (s *socket) send() {
+	for len(s.sendq) != 0 && len(s.readyq) != 0 {
+		c := s.sendq[0]
+		s.sendq = s.sendq[1:]
 		c.wantw = false
 
-		p := r.readyq[0]
-		r.readyq = r.readyq[1:]
+		p := s.readyq[0]
+		s.readyq = s.readyq[1:]
 
 		if c.sendID != 0 {
 			c.reqMsg = c.sendMsg
 			c.sendMsg = nil
 			c.recvID = c.sendID
-			r.ctxByID[c.recvID] = c
+			s.ctxByID[c.recvID] = c
 			c.sendID = 0
 			c.cond.Broadcast()
 		}
@@ -105,27 +108,27 @@ func (r *req2) send() {
 	}
 }
 
-func (p *reqPipe) sendCtx(c *reqCtx, m *mangos.Message) {
-	r := p.r
+func (p *pipe) sendCtx(c *context, m *mangos.Message) {
+	s := p.s
 
 	// Send this message.  If an error occurs, we examine the
 	// error.  If it is ErrClosed, we don't schedule ourself.
 	if err := p.ep.SendMsg(m); err != nil {
 		m.Free()
-		if err == mangos.ErrClosed {
+		if err == ErrClosed {
 			return
 		}
 	}
-	r.Lock()
+	s.Lock()
 	if !c.closed && !p.closed {
-		r.readyq = append(r.readyq, p)
-		r.send()
+		s.readyq = append(s.readyq, p)
+		s.send()
 	}
-	r.Unlock()
+	s.Unlock()
 }
 
-func (p *reqPipe) receiver() {
-	r := p.r
+func (p *pipe) receiver() {
+	s := p.s
 	for {
 		m := p.ep.RecvMsg()
 		if m == nil {
@@ -141,13 +144,13 @@ func (p *reqPipe) receiver() {
 
 		id := binary.BigEndian.Uint32(m.Header)
 
-		r.Lock()
-		if c, ok := r.ctxByID[id]; ok {
+		s.Lock()
+		if c, ok := s.ctxByID[id]; ok {
 			c.unscheduleSend()
 			c.reqMsg.Free()
 			c.reqMsg = nil
 			c.repMsg = m
-			delete(r.ctxByID, id)
+			delete(s.ctxByID, id)
 			if c.resender != nil {
 				c.resender.Stop()
 				c.resender = nil
@@ -157,18 +160,18 @@ func (p *reqPipe) receiver() {
 			// No matching receiver so just drop it.
 			m.Free()
 		}
-		r.Unlock()
+		s.Unlock()
 	}
 
-	// XXX: This would be an excllent time to close the pipe and remove
+	// XXX: This would be an excellent time to close the pipe and remove
 	// it form the socket alogether.
 	p.ep.Close()
 }
 
-func (c *reqCtx) resendMessage(m *mangos.Message) {
-	r := c.r
-	r.Lock()
-	defer r.Unlock()
+func (c *context) resendMessage(m *mangos.Message) {
+	s := c.s
+	s.Lock()
+	defer s.Unlock()
 	if c.reqMsg != m {
 		return
 	}
@@ -176,29 +179,29 @@ func (c *reqCtx) resendMessage(m *mangos.Message) {
 		return // already scheduled for some reason?
 	}
 	c.wantw = true
-	r.sendq = append(r.sendq, c)
-	r.send()
+	s.sendq = append(s.sendq, c)
+	s.send()
 }
 
-func (c *reqCtx) unscheduleSend() {
-	r := c.r
+func (c *context) unscheduleSend() {
+	s := c.s
 	if c.wantw {
 		c.wantw = false
-		for i, c2 := range r.sendq {
+		for i, c2 := range s.sendq {
 			if c2 == c {
-				r.sendq = append(r.sendq[0:i-1],
-					r.sendq[i+1:]...)
+				s.sendq = append(s.sendq[0:i-1],
+					s.sendq[i+1:]...)
 				return
 			}
 		}
 	}
 
 }
-func (c *reqCtx) cancel() {
-	r := c.r
+func (c *context) cancel() {
+	s := c.s
 	c.unscheduleSend()
 	if c.reqID != 0 {
-		delete(r.ctxByID, c.reqID)
+		delete(s.ctxByID, c.reqID)
 		c.reqID = 0
 	}
 	if c.repMsg != nil {
@@ -226,30 +229,29 @@ func (c *reqCtx) cancel() {
 	c.cond.Broadcast()
 }
 
-// SendMsg implements the ProtocolContext SendMsg method.
-func (c *reqCtx) SendMsg(m *mangos.Message) error {
+func (c *context) SendMsg(m *mangos.Message) error {
 
-	r := c.r
+	s := c.s
 
-	id := atomic.AddUint32(&r.nextID, 1)
+	id := atomic.AddUint32(&s.nextID, 1)
 	id |= 0x80000000
 
 	// cooked mode, we stash the header
 	m.Header = append([]byte{},
 		byte(id>>24), byte(id>>16), byte(id>>8), byte(id))
 
-	r.Lock()
-	defer r.Unlock()
-	if r.closed || c.closed {
-		return mangos.ErrClosed
+	s.Lock()
+	defer s.Unlock()
+	if s.closed || c.closed {
+		return ErrClosed
 	}
 
 	c.cancel() // this cancels any pending send or recv calls
 
 	c.reqID = id
-	r.ctxByID[id] = c
+	s.ctxByID[id] = c
 	c.wantw = true
-	r.sendq = append(r.sendq, c)
+	s.sendq = append(s.sendq, c)
 
 	if c.bestEffort {
 		// for best effort case, we just immediately go the
@@ -258,7 +260,7 @@ func (c *reqCtx) SendMsg(m *mangos.Message) error {
 		// immediately, it will still get a chance later.
 		c.reqMsg = m
 		c.recvID = id
-		r.send()
+		s.send()
 		return nil
 	}
 
@@ -267,16 +269,16 @@ func (c *reqCtx) SendMsg(m *mangos.Message) error {
 	c.sendMsg = m
 	if c.sendExpire > 0 {
 		c.sendTimer = time.AfterFunc(c.sendExpire, func() {
-			r.Lock()
+			s.Lock()
 			if c.sendID == id {
 				expired = true
 				c.cancel() // also does a wake up
 			}
-			r.Unlock()
+			s.Unlock()
 		})
 	}
 
-	r.send()
+	s.send()
 
 	// This sleeps until someone picks us up for scheduling.
 	// It is responsible for providing the blocking semantic and
@@ -288,23 +290,22 @@ func (c *reqCtx) SendMsg(m *mangos.Message) error {
 	if c.sendMsg == m {
 		c.sendMsg = nil
 		if expired {
-			return mangos.ErrSendTimeout
+			return ErrSendTimeout
 		}
 		if c.closed {
-			return mangos.ErrClosed
+			return ErrClosed
 		}
-		return mangos.ErrCanceled
+		return ErrCanceled
 	}
 	return nil
 }
 
-// RecvMsg implements the ProtocolContext RecvMsg method.
-func (c *reqCtx) RecvMsg() (*mangos.Message, error) {
-	r := c.r
-	r.Lock()
-	defer r.Unlock()
+func (c *context) RecvMsg() (*mangos.Message, error) {
+	s := c.s
+	s.Lock()
+	defer s.Unlock()
 	if c.recvWait || c.recvID == 0 {
-		return nil, mangos.ErrProtoState
+		return nil, ErrProtoState
 	}
 	c.recvWait = true
 	id := c.recvID
@@ -312,12 +313,12 @@ func (c *reqCtx) RecvMsg() (*mangos.Message, error) {
 
 	if c.recvExpire > 0 {
 		c.recvTimer = time.AfterFunc(c.recvExpire, func() {
-			r.Lock()
+			s.Lock()
 			if c.recvID == id {
 				expired = true
 				c.cancel()
 			}
-			r.Unlock()
+			s.Unlock()
 		})
 	}
 
@@ -333,190 +334,183 @@ func (c *reqCtx) RecvMsg() (*mangos.Message, error) {
 
 	if m == nil {
 		if expired {
-			return nil, mangos.ErrRecvTimeout
+			return nil, ErrRecvTimeout
 		}
 		if c.closed {
-			return nil, mangos.ErrClosed
+			return nil, ErrClosed
 		}
-		return nil, mangos.ErrCanceled
+		return nil, ErrCanceled
 	}
 	return m, nil
 }
 
-func (c *reqCtx) SetOption(name string, value interface{}) error {
+func (c *context) SetOption(name string, value interface{}) error {
 	switch name {
 	case mangos.OptionRetryTime:
 		if v, ok := value.(time.Duration); ok {
-			c.r.Lock()
+			c.s.Lock()
 			c.resendTime = v
-			c.r.Unlock()
+			c.s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
 
 	case mangos.OptionRecvDeadline:
 		if v, ok := value.(time.Duration); ok {
-			c.r.Lock()
+			c.s.Lock()
 			c.recvExpire = v
-			c.r.Unlock()
+			c.s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
+
 	case mangos.OptionSendDeadline:
 		if v, ok := value.(time.Duration); ok {
-			c.r.Lock()
+			c.s.Lock()
 			c.sendExpire = v
-			c.r.Unlock()
+			c.s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
+
 	case mangos.OptionBestEffort:
 		if v, ok := value.(bool); ok {
-			c.r.Lock()
+			c.s.Lock()
 			c.bestEffort = v
-			c.r.Unlock()
+			c.s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
-
-		// We don't support these
-		// case OptionLinger:
-		// case OptionWriteQLen:
-		// case OptionReadQLen:
-
-		// Arguably these need to be suppored *somewhere*,  maybe in
-		// the parent socket?
-		// case mangos.OptionMaxRecvSize:
-		// case OptionReconnectTime:
-		// case OptionMaxReconnectTime:
+		return ErrBadValue
 	}
 
-	return mangos.ErrBadOption
+	return ErrBadOption
 }
 
-func (c *reqCtx) GetOption(option string) (interface{}, error) {
+func (c *context) GetOption(option string) (interface{}, error) {
 	switch option {
 	case mangos.OptionRetryTime:
-		c.r.Lock()
+		c.s.Lock()
 		v := c.resendTime
-		c.r.Unlock()
+		c.s.Unlock()
 		return v, nil
 	case mangos.OptionRecvDeadline:
-		c.r.Lock()
+		c.s.Lock()
 		v := c.recvExpire
-		c.r.Unlock()
+		c.s.Unlock()
 		return v, nil
 	case mangos.OptionSendDeadline:
-		c.r.Lock()
+		c.s.Lock()
 		v := c.sendExpire
-		c.r.Unlock()
+		c.s.Unlock()
 		return v, nil
 	case mangos.OptionBestEffort:
-		c.r.Lock()
+		c.s.Lock()
 		v := c.bestEffort
-		c.r.Unlock()
+		c.s.Unlock()
 		return v, nil
 	}
 
-	return nil, mangos.ErrBadOption
+	return nil, ErrBadOption
 }
 
-func (c *reqCtx) Close() error {
-	r := c.r
-	c.r.Lock()
-	defer c.r.Unlock()
+func (c *context) Close() error {
+	s := c.s
+	c.s.Lock()
+	defer c.s.Unlock()
 	if c.closed {
-		return mangos.ErrClosed
+		return ErrClosed
 	}
 	c.closed = true
 	c.cancel()
-	delete(r.ctxs, c)
+	delete(s.ctxs, c)
 	return nil
 }
 
-func (r *req2) GetOption(option string) (interface{}, error) {
+func (s *socket) GetOption(option string) (interface{}, error) {
 	switch option {
 	case mangos.OptionRaw:
 		return false, nil
 	default:
-		return r.defCtx.GetOption(option)
+		return s.defCtx.GetOption(option)
 	}
 }
-func (r *req2) SetOption(option string, value interface{}) error {
-	// XXX: options for pipes?
-	return r.defCtx.SetOption(option, value)
+func (s *socket) SetOption(option string, value interface{}) error {
+	return s.defCtx.SetOption(option, value)
 }
 
-func (r *req2) SendMsg(m *mangos.Message) error {
-	return r.defCtx.SendMsg(m)
+func (s *socket) SendMsg(m *mangos.Message) error {
+	return s.defCtx.SendMsg(m)
 }
 
-func (r *req2) RecvMsg() (*mangos.Message, error) {
-	return r.defCtx.RecvMsg()
+func (s *socket) RecvMsg() (*mangos.Message, error) {
+	return s.defCtx.RecvMsg()
 }
 
-func (r *req2) Close() error {
-	r.Lock()
-	defer r.Unlock()
+func (s *socket) Close() error {
+	s.Lock()
+	defer s.Unlock()
 
-	if r.closed {
-		return mangos.ErrClosed
+	if s.closed {
+		return ErrClosed
 	}
-	r.closed = true
-	for c := range r.ctxs {
+	s.closed = true
+	for c := range s.ctxs {
 		c.closed = true
 		c.cancel()
-		delete(r.ctxs, c)
+		delete(s.ctxs, c)
 	}
 	// close and remove each and every pipe
-	for id, p := range r.pipes {
+	for id, p := range s.pipes {
 		p.ep.Close()
-		delete(r.pipes, id)
+		delete(s.pipes, id)
 	}
 	return nil
 }
 
-func (r *req2) OpenContext() (mangos.ProtocolContext, error) {
-	r.Lock()
-	defer r.Unlock()
-	if r.closed {
-		return nil, mangos.ErrClosed
+func (s *socket) OpenContext() (mangos.ProtocolContext, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return nil, ErrClosed
 	}
-	c := &reqCtx{
-		r:          r,
-		cond:       sync.NewCond(r),
-		bestEffort: r.defCtx.bestEffort,
-		resendTime: r.defCtx.resendTime,
-		sendExpire: r.defCtx.sendExpire,
-		recvExpire: r.defCtx.recvExpire,
+	c := &context{
+		s:          s,
+		cond:       sync.NewCond(s),
+		bestEffort: s.defCtx.bestEffort,
+		resendTime: s.defCtx.resendTime,
+		sendExpire: s.defCtx.sendExpire,
+		recvExpire: s.defCtx.recvExpire,
 	}
-	r.ctxs[c] = struct{}{}
+	s.ctxs[c] = struct{}{}
 	return c, nil
 }
 
-func (r *req2) AddPipe(ep mangos.Endpoint) error {
-	p := &reqPipe{ep: ep, r: r}
-	r.Lock()
-	defer r.Unlock()
-	if r.closed {
-		return mangos.ErrClosed
+func (s *socket) AddPipe(ep mangos.Endpoint) error {
+	p := &pipe{
+		ep: ep,
+		s:  s,
 	}
-	r.pipes[ep.GetID()] = p
-	r.readyq = append(r.readyq, p)
-	r.send()
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return ErrClosed
+	}
+	s.pipes[ep.GetID()] = p
+	s.readyq = append(s.readyq, p)
+	s.send()
 	go p.receiver()
 	return nil
 }
 
-func (r *req2) RemovePipe(ep mangos.Endpoint) {
-	r.Lock()
-	defer r.Unlock()
-	p := r.pipes[ep.GetID()]
+func (s *socket) RemovePipe(ep mangos.Endpoint) {
+	s.Lock()
+	defer s.Unlock()
+	p := s.pipes[ep.GetID()]
 	if p != nil && p.ep == ep {
 		p.closed = true
 		ep.Close()
-		delete(r.pipes, ep.GetID())
-		for c := range r.ctxs {
+		delete(s.pipes, ep.GetID())
+		for c := range s.ctxs {
 			if c.lastPipe == p {
 				// We are closing this pipe, so we need to
 				// immediately reschedule it.
@@ -529,7 +523,12 @@ func (r *req2) RemovePipe(ep mangos.Endpoint) {
 	}
 }
 
-func (*req2) Info() mangos.ProtocolInfo {
+func (*socket) Info() mangos.ProtocolInfo {
+	return Info()
+}
+
+// Info returns information about this protocol.
+func Info() mangos.ProtocolInfo {
 	return mangos.ProtocolInfo{
 		Self:     mangos.ProtoReq,
 		Peer:     mangos.ProtoRep,
@@ -538,22 +537,23 @@ func (*req2) Info() mangos.ProtocolInfo {
 	}
 }
 
-func newProto() mangos.ProtocolBase {
-	r := &req2{
-		pipes:   make(map[uint32]*reqPipe),     // maybe sync.Map is better?
+// NewProtocol allocates a new protocol implementation.
+func NewProtocol() mangos.ProtocolBase {
+	s := &socket{
+		pipes:   make(map[uint32]*pipe),
 		nextID:  uint32(time.Now().UnixNano()), // quasi-random
-		ctxs:    make(map[*reqCtx]struct{}),
-		ctxByID: make(map[uint32]*reqCtx),
+		ctxs:    make(map[*context]struct{}),
+		ctxByID: make(map[uint32]*context),
 	}
-	r.defCtx = &reqCtx{
-		r:          r,
-		cond:       sync.NewCond(r),
+	s.defCtx = &context{
+		s:          s,
+		cond:       sync.NewCond(s),
 		resendTime: time.Minute,
 	}
-	return r
+	return s
 }
 
 // NewSocket allocates a new Socket using the REQ protocol.
 func NewSocket() (mangos.Socket, error) {
-	return impl.MakeSocket(newProto()), nil
+	return impl.MakeSocket(NewProtocol()), nil
 }

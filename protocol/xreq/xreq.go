@@ -21,7 +21,18 @@ import (
 	"time"
 
 	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/errors"
 	"nanomsg.org/go/mangos/v2/impl"
+)
+
+// Borrow common error codes for convenience.
+const (
+	ErrClosed      = errors.ErrClosed
+	ErrSendTimeout = errors.ErrSendTimeout
+	ErrRecvTimeout = errors.ErrRecvTimeout
+	ErrBadValue    = errors.ErrBadValue
+	ErrBadOption   = errors.ErrBadOption
+	ErrProtoOp     = errors.ErrProtoOp
 )
 
 type pipe struct {
@@ -76,13 +87,13 @@ func (s *socket) SendMsg(m *mangos.Message) error {
 	case s.sendq <- m:
 		return nil
 	case <-s.closeq:
-		return mangos.ErrClosed
+		return ErrClosed
 	case <-tq:
 		if bestEffort {
 			m.Free()
 			return nil
 		}
-		return mangos.ErrSendTimeout
+		return ErrSendTimeout
 	}
 }
 
@@ -95,9 +106,9 @@ func (s *socket) RecvMsg() (*mangos.Message, error) {
 	s.Unlock()
 	select {
 	case <-s.closeq:
-		return nil, mangos.ErrClosed
+		return nil, ErrClosed
 	case <-tq:
-		return nil, mangos.ErrRecvTimeout
+		return nil, ErrRecvTimeout
 	case m := <-s.recvq:
 		return m, nil
 	}
@@ -178,7 +189,7 @@ func (p *pipe) Close() error {
 	s.Lock()
 	if p.closed {
 		s.Unlock()
-		return mangos.ErrClosed
+		return ErrClosed
 	}
 	p.closed = true
 	delete(s.pipes, p.ep.GetID())
@@ -198,7 +209,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
 	case mangos.OptionSendDeadline:
 		if v, ok := value.(time.Duration); ok {
 			s.Lock()
@@ -206,7 +217,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
 
 	case mangos.OptionBestEffort:
 		if v, ok := value.(bool); ok {
@@ -215,7 +226,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Unlock()
 			return nil
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
 
 	case mangos.OptionWriteQLen:
 		if v, ok := value.(int); ok && v >= 0 {
@@ -243,7 +254,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 				}
 			}
 		}
-		return mangos.ErrBadValue
+		return ErrBadValue
 
 	case mangos.OptionReadQLen:
 		if v, ok := value.(int); ok && v >= 0 {
@@ -274,7 +285,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 		// case OptionLinger:
 	}
 
-	return mangos.ErrBadOption
+	return ErrBadOption
 }
 
 func (s *socket) GetOption(option string) (interface{}, error) {
@@ -308,7 +319,7 @@ func (s *socket) GetOption(option string) (interface{}, error) {
 		return v, nil
 	}
 
-	return nil, mangos.ErrBadOption
+	return nil, ErrBadOption
 }
 
 func (s *socket) Close() error {
@@ -316,7 +327,7 @@ func (s *socket) Close() error {
 
 	if s.closed {
 		s.Unlock()
-		return mangos.ErrClosed
+		return ErrClosed
 	}
 	s.closed = true
 	s.Unlock()
@@ -332,7 +343,7 @@ func (s *socket) AddPipe(ep mangos.Endpoint) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
-		return mangos.ErrClosed
+		return ErrClosed
 	}
 	p := &pipe{
 		ep:     ep,
@@ -356,10 +367,15 @@ func (s *socket) RemovePipe(ep mangos.Endpoint) {
 }
 
 func (s *socket) OpenContext() (mangos.ProtocolContext, error) {
-	return nil, mangos.ErrNoContext
+	return nil, ErrProtoOp
 }
 
 func (*socket) Info() mangos.ProtocolInfo {
+	return Info()
+}
+
+// Info returns protocol information.
+func Info() mangos.ProtocolInfo {
 	return mangos.ProtocolInfo{
 		Self:     mangos.ProtoReq,
 		Peer:     mangos.ProtoRep,
@@ -368,7 +384,8 @@ func (*socket) Info() mangos.ProtocolInfo {
 	}
 }
 
-func newProto() mangos.ProtocolBase {
+// NewProtocol returns a new protocol implementation.
+func NewProtocol() mangos.ProtocolBase {
 	s := &socket{
 		pipes:    make(map[uint32]*pipe),
 		closeq:   make(chan struct{}),
@@ -382,5 +399,5 @@ func newProto() mangos.ProtocolBase {
 
 // NewSocket allocates a new Socket using the REQ protocol.
 func NewSocket() (mangos.Socket, error) {
-	return impl.MakeSocket(newProto()), nil
+	return impl.MakeSocket(NewProtocol()), nil
 }
