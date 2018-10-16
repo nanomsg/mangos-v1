@@ -65,6 +65,8 @@ const (
 	ErrBadValue    = errors.ErrBadValue
 	ErrBadOption   = errors.ErrBadOption
 	ErrProtoOp     = errors.ErrProtoOp
+	ErrProtoState  = errors.ErrProtoState
+	ErrCanceled    = errors.ErrCanceled
 )
 
 // Common option definitions

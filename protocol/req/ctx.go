@@ -22,24 +22,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/errors"
-	"nanomsg.org/go/mangos/v2/impl"
-)
-
-// Borrow common error codes for convenience.
-const (
-	ErrClosed      = errors.ErrClosed
-	ErrSendTimeout = errors.ErrSendTimeout
-	ErrRecvTimeout = errors.ErrRecvTimeout
-	ErrBadValue    = errors.ErrBadValue
-	ErrBadOption   = errors.ErrBadOption
-	ErrCanceled    = errors.ErrCanceled
-	ErrProtoState  = errors.ErrProtoState
+	"nanomsg.org/go/mangos/v2/protocol"
 )
 
 type pipe struct {
-	ep     mangos.Endpoint
+	ep     protocol.Pipe
 	s      *socket
 	closed bool
 }
@@ -47,23 +34,23 @@ type pipe struct {
 type context struct {
 	s          *socket
 	cond       *sync.Cond
-	resendTime time.Duration   // tunable resend time
-	sendExpire time.Duration   // how long to wait in send
-	recvExpire time.Duration   // how long to wait in recv
-	sendTimer  *time.Timer     // send timer
-	recvTimer  *time.Timer     // recv timer
-	resender   *time.Timer     // resend timeout
-	reqMsg     *mangos.Message // message for transmit
-	repMsg     *mangos.Message // received reply
-	sendMsg    *mangos.Message // messaging waiting for send
-	lastPipe   *pipe           // last pipe used for transmit
-	reqID      uint32          // request ID
-	sendID     uint32          // sent id (cleared after first send)
-	recvID     uint32          // recv id (set after first send)
-	recvWait   bool            // true if a thread is blocked in RecvMsg
-	bestEffort bool            // if true, don't block waiting in send
-	wantw      bool            // true if we need to send a message
-	closed     bool            // true if we are closed
+	resendTime time.Duration     // tunable resend time
+	sendExpire time.Duration     // how long to wait in send
+	recvExpire time.Duration     // how long to wait in recv
+	sendTimer  *time.Timer       // send timer
+	recvTimer  *time.Timer       // recv timer
+	resender   *time.Timer       // resend timeout
+	reqMsg     *protocol.Message // message for transmit
+	repMsg     *protocol.Message // received reply
+	sendMsg    *protocol.Message // messaging waiting for send
+	lastPipe   *pipe             // last pipe used for transmit
+	reqID      uint32            // request ID
+	sendID     uint32            // sent id (cleared after first send)
+	recvID     uint32            // recv id (set after first send)
+	recvWait   bool              // true if a thread is blocked in RecvMsg
+	bestEffort bool              // if true, don't block waiting in send
+	wantw      bool              // true if we need to send a message
+	closed     bool              // true if we are closed
 }
 
 type socket struct {
@@ -108,14 +95,14 @@ func (s *socket) send() {
 	}
 }
 
-func (p *pipe) sendCtx(c *context, m *mangos.Message) {
+func (p *pipe) sendCtx(c *context, m *protocol.Message) {
 	s := p.s
 
 	// Send this message.  If an error occurs, we examine the
 	// error.  If it is ErrClosed, we don't schedule ourself.
 	if err := p.ep.SendMsg(m); err != nil {
 		m.Free()
-		if err == ErrClosed {
+		if err == protocol.ErrClosed {
 			return
 		}
 	}
@@ -171,7 +158,7 @@ func (p *pipe) Close() error {
 	s.Lock()
 	if p.closed {
 		s.Unlock()
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	p.closed = true
 	delete(s.pipes, p.ep.GetID())
@@ -192,7 +179,7 @@ func (p *pipe) Close() error {
 	return nil
 }
 
-func (c *context) resendMessage(m *mangos.Message) {
+func (c *context) resendMessage(m *protocol.Message) {
 	s := c.s
 	s.Lock()
 	defer s.Unlock()
@@ -253,7 +240,7 @@ func (c *context) cancel() {
 	c.cond.Broadcast()
 }
 
-func (c *context) SendMsg(m *mangos.Message) error {
+func (c *context) SendMsg(m *protocol.Message) error {
 
 	s := c.s
 
@@ -267,7 +254,7 @@ func (c *context) SendMsg(m *mangos.Message) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed || c.closed {
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 
 	c.cancel() // this cancels any pending send or recv calls
@@ -314,22 +301,22 @@ func (c *context) SendMsg(m *mangos.Message) error {
 	if c.sendMsg == m {
 		c.sendMsg = nil
 		if expired {
-			return ErrSendTimeout
+			return protocol.ErrSendTimeout
 		}
 		if c.closed {
-			return ErrClosed
+			return protocol.ErrClosed
 		}
-		return ErrCanceled
+		return protocol.ErrCanceled
 	}
 	return nil
 }
 
-func (c *context) RecvMsg() (*mangos.Message, error) {
+func (c *context) RecvMsg() (*protocol.Message, error) {
 	s := c.s
 	s.Lock()
 	defer s.Unlock()
 	if c.recvWait || c.recvID == 0 {
-		return nil, ErrProtoState
+		return nil, protocol.ErrProtoState
 	}
 	c.recvWait = true
 	id := c.recvID
@@ -358,83 +345,83 @@ func (c *context) RecvMsg() (*mangos.Message, error) {
 
 	if m == nil {
 		if expired {
-			return nil, ErrRecvTimeout
+			return nil, protocol.ErrRecvTimeout
 		}
 		if c.closed {
-			return nil, ErrClosed
+			return nil, protocol.ErrClosed
 		}
-		return nil, ErrCanceled
+		return nil, protocol.ErrCanceled
 	}
 	return m, nil
 }
 
 func (c *context) SetOption(name string, value interface{}) error {
 	switch name {
-	case mangos.OptionRetryTime:
+	case protocol.OptionRetryTime:
 		if v, ok := value.(time.Duration); ok {
 			c.s.Lock()
 			c.resendTime = v
 			c.s.Unlock()
 			return nil
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 
-	case mangos.OptionRecvDeadline:
+	case protocol.OptionRecvDeadline:
 		if v, ok := value.(time.Duration); ok {
 			c.s.Lock()
 			c.recvExpire = v
 			c.s.Unlock()
 			return nil
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 
-	case mangos.OptionSendDeadline:
+	case protocol.OptionSendDeadline:
 		if v, ok := value.(time.Duration); ok {
 			c.s.Lock()
 			c.sendExpire = v
 			c.s.Unlock()
 			return nil
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 
-	case mangos.OptionBestEffort:
+	case protocol.OptionBestEffort:
 		if v, ok := value.(bool); ok {
 			c.s.Lock()
 			c.bestEffort = v
 			c.s.Unlock()
 			return nil
 		}
-		return ErrBadValue
+		return protocol.ErrBadValue
 	}
 
-	return ErrBadOption
+	return protocol.ErrBadOption
 }
 
 func (c *context) GetOption(option string) (interface{}, error) {
 	switch option {
-	case mangos.OptionRetryTime:
+	case protocol.OptionRetryTime:
 		c.s.Lock()
 		v := c.resendTime
 		c.s.Unlock()
 		return v, nil
-	case mangos.OptionRecvDeadline:
+	case protocol.OptionRecvDeadline:
 		c.s.Lock()
 		v := c.recvExpire
 		c.s.Unlock()
 		return v, nil
-	case mangos.OptionSendDeadline:
+	case protocol.OptionSendDeadline:
 		c.s.Lock()
 		v := c.sendExpire
 		c.s.Unlock()
 		return v, nil
-	case mangos.OptionBestEffort:
+	case protocol.OptionBestEffort:
 		c.s.Lock()
 		v := c.bestEffort
 		c.s.Unlock()
 		return v, nil
 	}
 
-	return nil, ErrBadOption
+	return nil, protocol.ErrBadOption
 }
 
 func (c *context) Close() error {
@@ -442,7 +429,7 @@ func (c *context) Close() error {
 	c.s.Lock()
 	defer c.s.Unlock()
 	if c.closed {
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	c.closed = true
 	c.cancel()
@@ -452,7 +439,7 @@ func (c *context) Close() error {
 
 func (s *socket) GetOption(option string) (interface{}, error) {
 	switch option {
-	case mangos.OptionRaw:
+	case protocol.OptionRaw:
 		return false, nil
 	default:
 		return s.defCtx.GetOption(option)
@@ -462,11 +449,11 @@ func (s *socket) SetOption(option string, value interface{}) error {
 	return s.defCtx.SetOption(option, value)
 }
 
-func (s *socket) SendMsg(m *mangos.Message) error {
+func (s *socket) SendMsg(m *protocol.Message) error {
 	return s.defCtx.SendMsg(m)
 }
 
-func (s *socket) RecvMsg() (*mangos.Message, error) {
+func (s *socket) RecvMsg() (*protocol.Message, error) {
 	return s.defCtx.RecvMsg()
 }
 
@@ -475,7 +462,7 @@ func (s *socket) Close() error {
 	defer s.Unlock()
 
 	if s.closed {
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	s.closed = true
 	for c := range s.ctxs {
@@ -490,11 +477,11 @@ func (s *socket) Close() error {
 	return nil
 }
 
-func (s *socket) OpenContext() (mangos.ProtocolContext, error) {
+func (s *socket) OpenContext() (protocol.Context, error) {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
-		return nil, ErrClosed
+		return nil, protocol.ErrClosed
 	}
 	c := &context{
 		s:          s,
@@ -508,7 +495,7 @@ func (s *socket) OpenContext() (mangos.ProtocolContext, error) {
 	return c, nil
 }
 
-func (s *socket) AddPipe(ep mangos.Endpoint) error {
+func (s *socket) AddPipe(ep protocol.Pipe) error {
 	p := &pipe{
 		ep: ep,
 		s:  s,
@@ -516,7 +503,7 @@ func (s *socket) AddPipe(ep mangos.Endpoint) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
-		return ErrClosed
+		return protocol.ErrClosed
 	}
 	s.pipes[ep.GetID()] = p
 	s.readyq = append(s.readyq, p)
@@ -525,7 +512,7 @@ func (s *socket) AddPipe(ep mangos.Endpoint) error {
 	return nil
 }
 
-func (s *socket) RemovePipe(ep mangos.Endpoint) {
+func (s *socket) RemovePipe(ep protocol.Pipe) {
 	s.Lock()
 	defer s.Unlock()
 	p := s.pipes[ep.GetID()]
@@ -546,22 +533,22 @@ func (s *socket) RemovePipe(ep mangos.Endpoint) {
 	}
 }
 
-func (*socket) Info() mangos.ProtocolInfo {
+func (*socket) Info() protocol.Info {
 	return Info()
 }
 
 // Info returns information about this protocol.
-func Info() mangos.ProtocolInfo {
-	return mangos.ProtocolInfo{
-		Self:     mangos.ProtoReq,
-		Peer:     mangos.ProtoRep,
+func Info() protocol.Info {
+	return protocol.Info{
+		Self:     protocol.ProtoReq,
+		Peer:     protocol.ProtoRep,
 		SelfName: "req",
 		PeerName: "rep",
 	}
 }
 
 // NewProtocol allocates a new protocol implementation.
-func NewProtocol() mangos.ProtocolBase {
+func NewProtocol() protocol.Protocol {
 	s := &socket{
 		pipes:   make(map[uint32]*pipe),
 		nextID:  uint32(time.Now().UnixNano()), // quasi-random
@@ -577,6 +564,6 @@ func NewProtocol() mangos.ProtocolBase {
 }
 
 // NewSocket allocates a new Socket using the REQ protocol.
-func NewSocket() (mangos.Socket, error) {
-	return impl.MakeSocket(NewProtocol()), nil
+func NewSocket() (protocol.Socket, error) {
+	return protocol.MakeSocket(NewProtocol()), nil
 }
