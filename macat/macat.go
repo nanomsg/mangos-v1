@@ -204,7 +204,7 @@ func setCaCert(path string) error {
 }
 
 func fatalf(format string, v ...interface{}) {
-	fmt.Fprintln(os.Stderr, fmt.Sprintf(format, v...))
+	fmt.Fprintf(os.Stderr, format, v...)
 	os.Exit(1)
 }
 
