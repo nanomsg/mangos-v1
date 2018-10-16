@@ -14,12 +14,13 @@
 //
 
 // Package protocol implements some common things protocol implementors
-// need.
+// need.  Only protocol implementations should import this package.
 package protocol
 
 import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/errors"
+	"nanomsg.org/go/mangos/v2/impl"
 )
 
 // Protocol numbers
@@ -82,3 +83,8 @@ const (
 	OptionTTL          = mangos.OptionTTL
 	OptionBestEffort   = mangos.OptionBestEffort
 )
+
+// MakeSocket creates a Socket on top of a Protocol.
+func MakeSocket(proto Protocol) Socket {
+	return impl.MakeSocket(proto)
+}

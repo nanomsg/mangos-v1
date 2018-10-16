@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go/mangos/v2/impl"
 	"nanomsg.org/go/mangos/v2/protocol"
 )
 
@@ -371,5 +370,5 @@ func NewProtocol() protocol.Protocol {
 
 // NewSocket allocates a new Socket using the REQ protocol.
 func NewSocket() (protocol.Socket, error) {
-	return impl.MakeSocket(NewProtocol()), nil
+	return protocol.MakeSocket(NewProtocol()), nil
 }
