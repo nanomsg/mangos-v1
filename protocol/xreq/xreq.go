@@ -52,7 +52,7 @@ var (
 const defaultQLen = 128
 
 func init() {
-	closedQ := make(chan time.Time)
+	closedQ = make(chan time.Time)
 	close(closedQ)
 }
 
