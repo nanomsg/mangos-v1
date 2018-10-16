@@ -163,9 +163,33 @@ func (p *pipe) receiver() {
 		s.Unlock()
 	}
 
-	// XXX: This would be an excellent time to close the pipe and remove
-	// it form the socket alogether.
+	go p.Close()
+}
+
+func (p *pipe) Close() error {
+	s := p.s
+	s.Lock()
+	if p.closed {
+		s.Unlock()
+		return ErrClosed
+	}
+	p.closed = true
+	delete(s.pipes, p.ep.GetID())
+
+	for c := range s.ctxs {
+		if c.lastPipe == p {
+			// We are closing this pipe, so we need to
+			// immediately reschedule it.
+			c.lastPipe = nil
+			if m := c.reqMsg; m != nil {
+				go c.resendMessage(m)
+			}
+		}
+	}
+
+	s.Unlock()
 	p.ep.Close()
+	return nil
 }
 
 func (c *context) resendMessage(m *mangos.Message) {
@@ -460,9 +484,8 @@ func (s *socket) Close() error {
 		delete(s.ctxs, c)
 	}
 	// close and remove each and every pipe
-	for id, p := range s.pipes {
-		p.ep.Close()
-		delete(s.pipes, id)
+	for _, p := range s.pipes {
+		go p.Close()
 	}
 	return nil
 }
