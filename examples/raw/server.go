@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/xrep"
 	"nanomsg.org/go/mangos/v2/transport/ipc"
 	"nanomsg.org/go/mangos/v2/transport/tcp"
 )
@@ -61,7 +61,7 @@ func server(url string, nworkers int) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if sock, err = rep.NewRawSocket(); err != nil {
+	if sock, err = xrep.NewSocket(); err != nil {
 		die("can't get new rep socket: %s", err)
 	}
 	sock.AddTransport(ipc.NewTransport())

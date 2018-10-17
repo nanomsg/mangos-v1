@@ -121,7 +121,6 @@ func (p *pipe) receiver() {
 		if m == nil {
 			break
 		}
-
 		if len(m.Body) < 4 {
 			m.Free()
 			continue

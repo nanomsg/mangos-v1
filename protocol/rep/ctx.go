@@ -118,10 +118,13 @@ func (c *context) RecvMsg() (*protocol.Message, error) {
 	s.Lock()
 	delete(s.recvCtxs, c)
 
-	select {
-	case m = <-c.recvQ:
-		err = nil
-	default:
+	// We got an error -- maybe.  Try to drain it just in case.
+	if err != nil {
+		select {
+		case m = <-c.recvQ:
+			err = nil
+		default:
+		}
 	}
 	if m != nil {
 		c.backtrace = m.Header

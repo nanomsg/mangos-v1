@@ -23,6 +23,7 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/pair"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/xrep"
 	"nanomsg.org/go/mangos/v2/protocol/xreq"
 	"nanomsg.org/go/mangos/v2/transport/inproc"
 	"nanomsg.org/go/mangos/v2/transport/ipc"
@@ -163,7 +164,7 @@ func TestDeviceReqRep(t *testing.T) {
 		return
 	}
 	defer s1.Close()
-	s2, err := rep.NewRawSocket()
+	s2, err := xrep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
