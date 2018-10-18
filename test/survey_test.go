@@ -23,6 +23,7 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/respondent"
 	"nanomsg.org/go/mangos/v2/protocol/surveyor"
 	"nanomsg.org/go/mangos/v2/protocol/xrespondent"
+	"nanomsg.org/go/mangos/v2/protocol/xsurveyor"
 )
 
 type surveyTest struct {
@@ -186,5 +187,5 @@ func TestSurveyTTLSet(t *testing.T) {
 
 func TestSurveyTTLDrop(t *testing.T) {
 	TTLDropTest(t, surveyor.NewSocket, respondent.NewSocket,
-		surveyor.NewRawSocket, xrespondent.NewSocket)
+		xsurveyor.NewSocket, xrespondent.NewSocket)
 }

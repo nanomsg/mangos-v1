@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xreq implements the raw REQ protocol, which is the request side of
-// the request/response pattern.  (REP is the response.)
-package xreq
+// Package xsurveyor implements the SURVEYOR protocol. This sends messages
+// out to RESPONDENT partners, and receives their responses.
+package xsurveyor
 
 import (
 	"sync"
@@ -24,23 +24,21 @@ import (
 )
 
 type pipe struct {
-	ep     protocol.Pipe
+	p      protocol.Pipe
 	s      *socket
 	closed bool
 	closeq chan struct{}
+	sendq  chan *protocol.Message
 }
 
 type socket struct {
 	closed     bool
 	closeq     chan struct{}
-	recvq      chan *protocol.Message
-	sendq      chan *protocol.Message
 	pipes      map[uint32]*pipe
-	recvExpire time.Duration
-	sendExpire time.Duration
-	sendQLen   int
 	recvQLen   int
-	bestEffort bool
+	sendQLen   int
+	recvExpire time.Duration
+	recvq      chan *protocol.Message
 	sync.Mutex
 }
 
@@ -56,36 +54,33 @@ func init() {
 	close(closedQ)
 }
 
-// SendMsg implements sending a message.  The message must come with
-// its headers already prepared.  This will be at a minimum the request
-// ID at the end of the header, plus any leading backtrace information
-// coming from a paired REP socket.
 func (s *socket) SendMsg(m *protocol.Message) error {
 	s.Lock()
-	bestEffort := s.bestEffort
-	tq := nilQ
-	if bestEffort {
-		tq = closedQ
-	} else if s.sendExpire > 0 {
-		tq = time.After(s.sendExpire)
+	if s.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	// This could benefit from optimization to avoid useless duplicates.
+	for _, p := range s.pipes {
+		pm := m.Dup()
+		select {
+		case p.sendq <- m:
+		case <-p.closeq:
+			pm.Free()
+		default:
+			// backpressure, but we do not exert
+			pm.Free()
+		}
 	}
 	s.Unlock()
-
-	select {
-	case s.sendq <- m:
-		return nil
-	case <-s.closeq:
-		return protocol.ErrClosed
-	case <-tq:
-		if bestEffort {
-			m.Free()
-			return nil
-		}
-		return protocol.ErrSendTimeout
-	}
+	m.Free()
+	return nil
 }
 
 func (s *socket) RecvMsg() (*protocol.Message, error) {
+	// For now this uses a simple unified queue for the entire
+	// socket.  Later we can look at moving this to priority queues
+	// based on socket pipes.
 	tq := nilQ
 	s.Lock()
 	if s.recvExpire > 0 {
@@ -102,74 +97,6 @@ func (s *socket) RecvMsg() (*protocol.Message, error) {
 	}
 }
 
-func (p *pipe) receiver() {
-	s := p.s
-outer:
-	for {
-		m := p.ep.RecvMsg()
-		if m == nil {
-			break
-		}
-
-		if len(m.Body) < 4 {
-			m.Free()
-			continue
-		}
-
-		m.Header = m.Body[:4]
-		m.Body = m.Body[4:]
-
-		select {
-		case s.recvq <- m:
-			continue
-		case <-s.closeq:
-			m.Free()
-			break outer
-		case <-p.closeq:
-			m.Free()
-			break outer
-		}
-	}
-	p.Close()
-}
-
-// This is a puller, and doesn't permit for priorities.  We might want
-// to refactor this to use a push based scheme later.
-func (p *pipe) sender() {
-	s := p.s
-outer:
-	for {
-		var m *protocol.Message
-		select {
-		case m = <-s.sendq:
-		case <-p.closeq:
-			break outer
-		case <-s.closeq:
-			break outer
-		}
-
-		if e := p.ep.SendMsg(m); e != nil {
-			break
-		}
-	}
-	p.ep.Close()
-}
-
-func (p *pipe) Close() error {
-	s := p.s
-	s.Lock()
-	if p.closed {
-		s.Unlock()
-		return protocol.ErrClosed
-	}
-	p.closed = true
-	delete(s.pipes, p.ep.GetID())
-	s.Unlock()
-	close(p.closeq)
-	p.ep.Close()
-	return nil
-}
-
 func (s *socket) SetOption(name string, value interface{}) error {
 	switch name {
 
@@ -181,49 +108,12 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			return nil
 		}
 		return protocol.ErrBadValue
-	case protocol.OptionSendDeadline:
-		if v, ok := value.(time.Duration); ok {
-			s.Lock()
-			s.sendExpire = v
-			s.Unlock()
-			return nil
-		}
-		return protocol.ErrBadValue
-
-	case protocol.OptionBestEffort:
-		if v, ok := value.(bool); ok {
-			s.Lock()
-			s.bestEffort = v
-			s.Unlock()
-			return nil
-		}
-		return protocol.ErrBadValue
 
 	case protocol.OptionWriteQLen:
 		if v, ok := value.(int); ok && v >= 0 {
-
-			newchan := make(chan *protocol.Message, v)
 			s.Lock()
 			s.sendQLen = v
-			oldchan := s.sendq
-			s.sendq = newchan
 			s.Unlock()
-
-			for {
-				var m *protocol.Message
-				select {
-				case m = <-oldchan:
-				default:
-				}
-				if m == nil {
-					break
-				}
-				select {
-				case newchan <- m:
-				default:
-					m.Free()
-				}
-			}
 		}
 		return protocol.ErrBadValue
 
@@ -268,16 +158,6 @@ func (s *socket) GetOption(option string) (interface{}, error) {
 		v := s.recvExpire
 		s.Unlock()
 		return v, nil
-	case protocol.OptionSendDeadline:
-		s.Lock()
-		v := s.sendExpire
-		s.Unlock()
-		return v, nil
-	case protocol.OptionBestEffort:
-		s.Lock()
-		v := s.bestEffort
-		s.Unlock()
-		return v, nil
 	case protocol.OptionWriteQLen:
 		s.Lock()
 		v := s.sendQLen
@@ -293,46 +173,30 @@ func (s *socket) GetOption(option string) (interface{}, error) {
 	return nil, protocol.ErrBadOption
 }
 
-func (s *socket) Close() error {
-	s.Lock()
-
-	if s.closed {
-		s.Unlock()
-		return protocol.ErrClosed
-	}
-	s.closed = true
-	s.Unlock()
-
-	// close and remove each and every pipe
-	for _, p := range s.pipes {
-		go p.Close()
-	}
-	return nil
-}
-
-func (s *socket) AddPipe(ep protocol.Pipe) error {
+func (s *socket) AddPipe(pp protocol.Pipe) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
 		return protocol.ErrClosed
 	}
 	p := &pipe{
-		ep:     ep,
+		p:      pp,
 		s:      s,
 		closeq: make(chan struct{}),
+		sendq:  make(chan *protocol.Message, s.sendQLen),
 	}
-	s.pipes[ep.GetID()] = p
+	s.pipes[pp.GetID()] = p
 
 	go p.sender()
 	go p.receiver()
 	return nil
 }
 
-func (s *socket) RemovePipe(ep protocol.Pipe) {
+func (s *socket) RemovePipe(pp protocol.Pipe) {
 	s.Lock()
-	p, ok := s.pipes[ep.GetID()]
+	p, ok := s.pipes[pp.GetID()]
 	s.Unlock()
-	if ok && p.ep == ep {
+	if ok && p.p == pp {
 		p.Close()
 	}
 }
@@ -345,13 +209,95 @@ func (*socket) Info() protocol.Info {
 	return Info()
 }
 
+func (s *socket) Close() error {
+	s.Lock()
+
+	if s.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	s.closed = true
+	s.Unlock()
+
+	close(s.closeq)
+
+	// close and remove each and every pipe
+	for _, p := range s.pipes {
+		go p.Close()
+	}
+	return nil
+
+}
+
+func (p *pipe) sender() {
+outer:
+	for {
+		var m *protocol.Message
+		select {
+		case <-p.closeq:
+			break outer
+		case m = <-p.sendq:
+		}
+
+		if err := p.p.SendMsg(m); err != nil {
+			m.Free()
+			break
+		}
+	}
+	p.Close()
+}
+
+func (p *pipe) receiver() {
+outer:
+	for {
+		m := p.p.RecvMsg()
+		if m == nil {
+			break
+		}
+
+		if len(m.Body) < 4 {
+			m.Free()
+			continue
+		}
+
+		m.Header = m.Body[:4]
+		m.Body = m.Body[4:]
+
+		select {
+		case p.s.recvq <- m:
+		case <-p.closeq:
+			m.Free()
+			break outer
+		case <-p.s.closeq:
+			m.Free()
+			break outer
+		}
+	}
+	p.Close()
+}
+
+func (p *pipe) Close() error {
+	p.s.Lock()
+	if p.closed {
+		p.s.Unlock()
+		return protocol.ErrClosed
+	}
+	p.closed = true
+	delete(p.s.pipes, p.p.GetID())
+	p.s.Unlock()
+
+	close(p.closeq)
+	p.p.Close()
+	return nil
+}
+
 // Info returns protocol information.
 func Info() protocol.Info {
 	return protocol.Info{
-		Self:     protocol.ProtoReq,
-		Peer:     protocol.ProtoRep,
-		SelfName: "req",
-		PeerName: "rep",
+		Self:     protocol.ProtoSurveyor,
+		Peer:     protocol.ProtoRespondent,
+		SelfName: "surveyor",
+		PeerName: "respondent",
 	}
 }
 
@@ -361,14 +307,13 @@ func NewProtocol() protocol.Protocol {
 		pipes:    make(map[uint32]*pipe),
 		closeq:   make(chan struct{}),
 		recvq:    make(chan *protocol.Message, defaultQLen),
-		sendq:    make(chan *protocol.Message, defaultQLen),
 		sendQLen: defaultQLen,
 		recvQLen: defaultQLen,
 	}
 	return s
 }
 
-// NewSocket allocates a new Socket using the REQ protocol.
+// NewSocket allocates a new Socket using the RESPONDENT protocol.
 func NewSocket() (protocol.Socket, error) {
 	return protocol.MakeSocket(NewProtocol()), nil
 }

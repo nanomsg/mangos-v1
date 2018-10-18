@@ -29,7 +29,6 @@ const defaultSurveyTime = time.Second
 type surveyor struct {
 	sock     mangos.ProtocolSocket
 	peers    map[uint32]*surveyorP
-	raw      bool
 	nextID   uint32
 	surveyID uint32
 	duration time.Duration
@@ -186,10 +185,6 @@ func (*surveyor) PeerName() string {
 
 func (x *surveyor) SendHook(m *mangos.Message) bool {
 
-	if x.raw {
-		return true
-	}
-
 	x.Lock()
 	x.surveyID = x.nextID | 0x80000000
 	x.nextID++
@@ -207,10 +202,6 @@ func (x *surveyor) SendHook(m *mangos.Message) bool {
 }
 
 func (x *surveyor) RecvHook(m *mangos.Message) bool {
-	if x.raw {
-		return true
-	}
-
 	x.Lock()
 	defer x.Unlock()
 
@@ -254,7 +245,7 @@ func (x *surveyor) SetOption(name string, val interface{}) error {
 func (x *surveyor) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
-		return x.raw, nil
+		return false, nil
 	case mangos.OptionSurveyTime:
 		x.Lock()
 		d := x.duration
@@ -269,10 +260,5 @@ func (x *surveyor) GetOption(name string) (interface{}, error) {
 
 // NewSocket allocates a new Socket using the SURVEYOR protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime, raw: false}), nil
-}
-
-// NewRawSocket allocates a raw Socket using the SURVEYOR protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime, raw: true}), nil
+	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime}), nil
 }

@@ -176,7 +176,7 @@ outer:
 			break outer
 		}
 	}
-	go p.Close()
+	p.Close()
 }
 
 // This is a puller, and doesn't permit for priorities.  We might want
@@ -198,7 +198,7 @@ outer:
 			break
 		}
 	}
-	go p.Close()
+	p.Close()
 }
 
 func (p *pipe) Close() error {
