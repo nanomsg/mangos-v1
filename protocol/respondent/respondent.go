@@ -27,7 +27,6 @@ import (
 type resp struct {
 	sock      mangos.ProtocolSocket
 	peers     map[uint32]*respPeer
-	raw       bool
 	ttl       int
 	backbuf   []byte
 	backtrace []byte
@@ -174,11 +173,6 @@ outer:
 }
 
 func (x *resp) RecvHook(m *mangos.Message) bool {
-	if x.raw {
-		// Raw mode receivers get the message unadulterated.
-		return true
-	}
-
 	if len(m.Header) < 4 {
 		return false
 	}
@@ -192,10 +186,6 @@ func (x *resp) RecvHook(m *mangos.Message) bool {
 }
 
 func (x *resp) SendHook(m *mangos.Message) bool {
-	if x.raw {
-		// Raw mode senders expected to have prepared header already.
-		return true
-	}
 	x.sock.SetSendError(mangos.ErrProtoState)
 	x.Lock()
 	m.Header = append(m.Header[0:0], x.backtrace...)
@@ -266,7 +256,7 @@ func (x *resp) SetOption(name string, v interface{}) error {
 func (x *resp) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
-		return x.raw, nil
+		return false, nil
 	case mangos.OptionTTL:
 		return x.ttl, nil
 	default:
@@ -276,10 +266,5 @@ func (x *resp) GetOption(name string) (interface{}, error) {
 
 // NewSocket allocates a new Socket using the RESPONDENT protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&resp{raw: false}), nil
-}
-
-// NewRawSocket allocates a raw Socket using the RESPONDENT protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&resp{raw: true}), nil
+	return mangos.MakeSocket(&resp{}), nil
 }

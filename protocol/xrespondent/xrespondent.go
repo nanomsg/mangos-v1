@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xrep implements the raw REP protocol, which is the response side of
-// the request/response pattern.  (REQ is the request.)
-package xrep
+// Package xrespondent implements the raw RESPONDENT protocol, which is the
+// response side of survey pattern.  (SURVEYOR is the survey generator.)
+package xrespondent
 
 import (
 	"encoding/binary"
@@ -390,10 +390,10 @@ func (*socket) Info() protocol.Info {
 // Info returns protocol information.
 func Info() protocol.Info {
 	return protocol.Info{
-		Self:     protocol.ProtoRep,
-		Peer:     protocol.ProtoReq,
-		SelfName: "rep",
-		PeerName: "req",
+		Self:     protocol.ProtoRespondent,
+		Peer:     protocol.ProtoSurveyor,
+		SelfName: "respondent",
+		PeerName: "surveyor",
 	}
 }
 
@@ -410,7 +410,7 @@ func NewProtocol() protocol.Protocol {
 	return s
 }
 
-// NewSocket allocates a new Socket using the REP protocol.
+// NewSocket allocates a new Socket using the RESPONDENT protocol.
 func NewSocket() (protocol.Socket, error) {
 	return protocol.MakeSocket(NewProtocol()), nil
 }
