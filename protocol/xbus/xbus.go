@@ -128,6 +128,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Lock()
 			s.sendQLen = v
 			s.Unlock()
+			return nil
 		}
 		return protocol.ErrBadValue
 
@@ -155,9 +156,9 @@ func (s *socket) SetOption(name string, value interface{}) error {
 					m.Free()
 				}
 			}
+			return nil
 		}
-		// We don't support these
-		// case OptionLinger:
+		return protocol.ErrBadValue
 	}
 
 	return protocol.ErrBadOption
@@ -327,7 +328,7 @@ func NewProtocol() protocol.Protocol {
 	return s
 }
 
-// NewSocket allocates a new Socket using the RESPONDENT protocol.
+// NewSocket allocates a raw Socket using the BUS protocol.
 func NewSocket() (protocol.Socket, error) {
 	return protocol.MakeSocket(NewProtocol()), nil
 }
