@@ -33,7 +33,6 @@ type busEp struct {
 type bus struct {
 	sock  mangos.ProtocolSocket
 	peers map[uint32]*busEp
-	raw   bool
 	w     mangos.Waiter
 	init  sync.Once
 
@@ -197,7 +196,7 @@ func (*bus) PeerName() string {
 }
 
 func (x *bus) RecvHook(m *mangos.Message) bool {
-	if !x.raw && len(m.Header) >= 4 {
+	if len(m.Header) >= 4 {
 		m.Header = m.Header[4:]
 	}
 	return true
@@ -210,7 +209,7 @@ func (x *bus) SetOption(name string, v interface{}) error {
 func (x *bus) GetOption(name string) (interface{}, error) {
 	switch name {
 	case mangos.OptionRaw:
-		return x.raw, nil
+		return false, nil
 	default:
 		return nil, mangos.ErrBadOption
 	}
@@ -218,10 +217,5 @@ func (x *bus) GetOption(name string) (interface{}, error) {
 
 // NewSocket allocates a new Socket using the BUS protocol.
 func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&bus{raw: false}), nil
-}
-
-// NewRawSocket allocates a raw Socket using the BUS protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&bus{raw: true}), nil
+	return mangos.MakeSocket(&bus{}), nil
 }
