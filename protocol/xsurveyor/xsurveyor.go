@@ -43,16 +43,10 @@ type socket struct {
 }
 
 var (
-	nilQ    <-chan time.Time
-	closedQ chan time.Time
+	nilQ <-chan time.Time
 )
 
 const defaultQLen = 128
-
-func init() {
-	closedQ = make(chan time.Time)
-	close(closedQ)
-}
 
 func (s *socket) SendMsg(m *protocol.Message) error {
 	s.Lock()
