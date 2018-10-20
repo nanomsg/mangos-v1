@@ -232,16 +232,21 @@ func (s *socket) Close() error {
 		return protocol.ErrClosed
 	}
 	s.closed = true
-	s.Unlock()
 
+	pipes := make([]*pipe, 0, len(s.pipes))
+	for _, p := range s.pipes {
+		pipes = append(pipes, p)
+	}
+
+	s.Unlock()
 	close(s.closeq)
 
-	// close and remove each and every pipe
-	for _, p := range s.pipes {
-		go p.Close()
+	// This allows synchronous close without the lock.
+	for _, p := range pipes {
+		p.Close()
 	}
-	return nil
 
+	return nil
 }
 
 func (p *pipe) sender() {

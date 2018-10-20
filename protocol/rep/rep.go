@@ -336,18 +336,24 @@ func (p *pipe) close() {
 func (s *socket) Close() error {
 
 	s.Lock()
-	defer s.Unlock()
 
 	if s.closed {
+		s.Unlock()
 		return protocol.ErrClosed
 	}
 	s.closed = true
 	for c := range s.ctxs {
 		go c.Close()
 	}
-	// close and remove each and every pipe
+	pipes := make([]*pipe, 0, len(s.pipes))
 	for _, p := range s.pipes {
-		go p.close()
+		pipes = append(pipes, p)
+	}
+	s.Unlock()
+
+	// close and remove each and every pipe
+	for _, p := range pipes {
+		p.close()
 	}
 	return nil
 }

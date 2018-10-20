@@ -136,6 +136,21 @@ func (m *Message) Dup() *Message {
 	return m
 }
 
+// Modify takes an original message perhaps, from Dup, and makes a
+// a modifiable version.  If the message has no other references, then
+// it is unchanged.  The caller should not use the message passed in, but
+// replace it with the return value.
+func (m *Message) Modify() *Message {
+	if atomic.LoadInt32(&m.refcnt) == 1 {
+		return m
+	}
+	newm := NewMessage(len(m.Body))
+	newm.Body = append(newm.Body, m.Body...)
+	newm.Header = append(newm.Header, m.Header...)
+	m.Free()
+	return newm
+}
+
 // Expired returns true if the message has "expired".  This is used by
 // transport implementations to discard messages that have been
 // stuck in the write queue for too long, and should be discarded rather

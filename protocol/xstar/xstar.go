@@ -249,13 +249,18 @@ func (s *socket) Close() error {
 		return protocol.ErrClosed
 	}
 	s.closed = true
+
+	pipes := make([]*pipe, 0, len(s.pipes))
+	for _, p := range s.pipes {
+		pipes = append(pipes, p)
+	}
+
 	s.Unlock()
 
 	close(s.closeq)
 
-	// close and remove each and every pipe
-	for _, p := range s.pipes {
-		go p.Close()
+	for _, p := range pipes {
+		p.Close()
 	}
 	return nil
 
@@ -306,15 +311,22 @@ outer:
 		}
 		m.Header[3]++
 
+		userm := m.Dup()
+		userm = userm.Modify()
 		s.Lock()
-		for _, p2 := range p.s.pipes {
+		for _, p2 := range s.pipes {
 			if p2 == p {
 				continue
 			}
 			if p2.closed {
 				continue
 			}
+
 			m2 := m.Dup()
+			//m2 := mangos.NewMessage(len(m.Body))
+			//m2.Body = m2.Body[:0]
+			//m2.Body = append(m2.Body, m.Body...)
+			//m2.Header = append(m2.Header, m.Header...)
 			select {
 			case p2.sendq <- m2:
 			case <-s.closeq:
@@ -324,14 +336,15 @@ outer:
 			}
 		}
 		s.Unlock()
+		m.Free()
 
 		select {
-		case s.recvq <- m:
+		case s.recvq <- userm:
 		case <-p.closeq:
-			m.Free()
+			userm.Free()
 			break outer
 		case <-s.closeq:
-			m.Free()
+			userm.Free()
 			break outer
 		}
 	}

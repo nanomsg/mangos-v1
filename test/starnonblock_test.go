@@ -27,7 +27,6 @@ import (
 
 func testStarNonBlock(addr string, tran mangos.Transport) {
 	maxqlen := 2
-	timeout := time.Second / 10
 
 	Convey("Given a suitable Star socket", func() {
 		rp, err := star.NewSocket()
@@ -40,20 +39,20 @@ func testStarNonBlock(addr string, tran mangos.Transport) {
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
 		So(err, ShouldBeNil)
 
-		err = rp.SetOption(mangos.OptionSendDeadline, timeout)
-		So(err, ShouldBeNil)
-
 		err = rp.Listen(addr)
 		So(err, ShouldBeNil)
 
 		msg := []byte{'A', 'B', 'C'}
 
 		Convey("We don't block, even sending many messages", func() {
+			start := time.Now()
 			for i := 0; i < maxqlen*10; i++ {
 
 				err := rp.Send(msg)
 				So(err, ShouldBeNil)
 			}
+			end := time.Now()
+			So(end, ShouldHappenWithin, time.Second/10, start)
 		})
 	})
 }

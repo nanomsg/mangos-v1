@@ -23,237 +23,53 @@
 package star
 
 import (
-	"sync"
-	"time"
-
-	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol"
+	"nanomsg.org/go/mangos/v2/protocol/xstar"
 )
 
-type starEp struct {
-	ep mangos.Endpoint
-	q  chan *mangos.Message
-	x  *star
+type socket struct {
+	protocol.Protocol
 }
 
-type star struct {
-	sock mangos.ProtocolSocket
-	eps  map[uint32]*starEp
-	raw  bool
-	w    mangos.Waiter
-	ttl  int
-
-	sync.Mutex
-}
-
-func (x *star) Init(sock mangos.ProtocolSocket) {
-	x.sock = sock
-	x.eps = make(map[uint32]*starEp)
-	x.ttl = 8
-	x.w.Init()
-	x.w.Add()
-	go x.sender()
-}
-
-func (x *star) Shutdown(expire time.Time) {
-
-	x.w.WaitAbsTimeout(expire)
-
-	x.Lock()
-	peers := x.eps
-	x.eps = make(map[uint32]*starEp)
-	x.Unlock()
-
-	for id, peer := range peers {
-		delete(peers, id)
-		mangos.DrainChannel(peer.q, expire)
-		close(peer.q)
-	}
-}
-
-// Bottom sender.
-func (pe *starEp) sender() {
-	for {
-		m := <-pe.q
-		if m == nil {
-			break
-		}
-
-		if pe.ep.SendMsg(m) != nil {
-			m.Free()
-			break
-		}
-	}
-}
-
-func (x *star) broadcast(m *mangos.Message, sender *starEp) {
-
-	x.Lock()
-	if sender == nil || !x.raw {
-		for _, pe := range x.eps {
-			if sender == pe {
-				continue
-			}
-			m = m.Dup()
-			select {
-			case pe.q <- m:
-			default:
-				// No room on outbound queue, drop it.
-				if m != nil {
-					m.Free()
-				}
-			}
-		}
-	}
-	x.Unlock()
-
-	// Grab a local copy and send it up if we aren't originator
-	if sender != nil {
-		select {
-		case x.sock.RecvChannel() <- m:
-		case <-x.sock.CloseChannel():
-			m.Free()
-			return
-		default:
-			// No room, so we just drop it.
-			m.Free()
-		}
-	} else {
-		// Not sending it up, so we need to release it.
-		m.Free()
-	}
-}
-
-func (x *star) sender() {
-	defer x.w.Done()
-	cq := x.sock.CloseChannel()
-	sq := x.sock.SendChannel()
-
-	for {
-		select {
-		case <-cq:
-			return
-		case m := <-sq:
-			if m == nil {
-				sq = x.sock.SendChannel()
-				continue
-			}
-			x.broadcast(m, nil)
-		}
-	}
-}
-
-func (pe *starEp) receiver() {
-	for {
-		m := pe.ep.RecvMsg()
-		if m == nil {
-			return
-		}
-
-		if len(m.Body) < 4 {
-			m.Free()
-			continue
-		}
-		if m.Body[0] != 0 || m.Body[1] != 0 || m.Body[2] != 0 {
-			// non-zero reserved fields are illegal
-			m.Free()
-			continue
-		}
-		if int(m.Body[3]) >= pe.x.ttl { // TTL expired?
-			// XXX: bump a stat
-			m.Free()
-			continue
-		}
-		m.Header = append(m.Header, 0, 0, 0, m.Body[3]+1)
-		m.Body = m.Body[4:]
-
-		// if we're in raw mode, this does only a sendup, otherwise
-		// it does both a retransmit + sendup
-		pe.x.broadcast(m, pe)
-	}
-}
-
-func (x *star) AddEndpoint(ep mangos.Endpoint) {
-	depth := 16
-	if i, err := x.sock.GetOption(mangos.OptionWriteQLen); err == nil {
-		depth = i.(int)
-	}
-	pe := &starEp{ep: ep, x: x, q: make(chan *mangos.Message, depth)}
-	x.Lock()
-	x.eps[ep.GetID()] = pe
-	x.Unlock()
-	go pe.sender()
-	go pe.receiver()
-}
-
-func (x *star) RemoveEndpoint(ep mangos.Endpoint) {
-	x.Lock()
-	if peer := x.eps[ep.GetID()]; peer != nil {
-		delete(x.eps, ep.GetID())
-		close(peer.q)
-	}
-	x.Unlock()
-}
-
-func (*star) Number() uint16 {
-	return mangos.ProtoStar
-}
-
-func (*star) PeerNumber() uint16 {
-	return mangos.ProtoStar
-}
-
-func (*star) Name() string {
-	return "star"
-}
-
-func (*star) PeerName() string {
-	return "star"
-}
-
-func (x *star) SetOption(name string, v interface{}) error {
+func (s *socket) GetOption(name string) (interface{}, error) {
 	switch name {
-	case mangos.OptionTTL:
-		if ttl, ok := v.(int); !ok {
-			return mangos.ErrBadValue
-		} else if ttl < 1 || ttl > 255 {
-			return mangos.ErrBadValue
-		} else {
-			x.ttl = ttl
-		}
-		return nil
-	default:
-		return mangos.ErrBadOption
+	case protocol.OptionRaw:
+		return false, nil
 	}
+	return s.Protocol.GetOption(name)
 }
 
-func (x *star) GetOption(name string) (interface{}, error) {
-	switch name {
-	case mangos.OptionRaw:
-		return x.raw, nil
-	case mangos.OptionTTL:
-		return x.ttl, nil
-	default:
-		return nil, mangos.ErrBadOption
+func (s *socket) SendMsg(m *protocol.Message) error {
+	m.Header = make([]byte, 4)
+	err := s.Protocol.SendMsg(m)
+	if err != nil {
+		m.Header = m.Header[:0]
 	}
+	return err
 }
 
-func (x *star) SendHook(m *mangos.Message) bool {
-
-	if x.raw {
-		// TTL header must be present.
-		return true
+func (s *socket) RecvMsg() (*protocol.Message, error) {
+	m, err := s.Protocol.RecvMsg()
+	if err == nil && m != nil {
+		m.Header = m.Header[:0]
 	}
-	// new message has a zero hop count
-	m.Header = append(m.Header, 0, 0, 0, 0)
-	return true
+	return m, err
+}
+
+// Info returns protocol info for star.
+func Info() protocol.Info {
+	return xstar.Info()
+}
+
+// NewProtocol returns a new protocol implementation.
+func NewProtocol() protocol.Protocol {
+	s := &socket{
+		Protocol: xstar.NewProtocol(),
+	}
+	return s
 }
 
 // NewSocket allocates a new Socket using the STAR protocol.
-func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&star{raw: false}), nil
-}
-
-// NewRawSocket allocates a raw Socket using the STAR protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&star{raw: true}), nil
+func NewSocket() (protocol.Socket, error) {
+	return protocol.MakeSocket(NewProtocol()), nil
 }

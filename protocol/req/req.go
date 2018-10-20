@@ -458,9 +458,9 @@ func (s *socket) RecvMsg() (*protocol.Message, error) {
 
 func (s *socket) Close() error {
 	s.Lock()
-	defer s.Unlock()
 
 	if s.closed {
+		s.Unlock()
 		return protocol.ErrClosed
 	}
 	s.closed = true
@@ -469,9 +469,15 @@ func (s *socket) Close() error {
 		c.cancel()
 		delete(s.ctxs, c)
 	}
-	// close and remove each and every pipe
+	pipes := make([]*pipe, 0, len(s.pipes))
 	for _, p := range s.pipes {
-		go p.Close()
+		pipes = append(pipes, p)
+	}
+
+	s.Unlock()
+	// close and remove each and every pipe
+	for _, p := range pipes {
+		p.Close()
 	}
 	return nil
 }

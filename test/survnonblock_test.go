@@ -44,16 +44,14 @@ func testSurvNonBlock(addr string, tran mangos.Transport) {
 		msg := []byte{'A', 'B', 'C'}
 
 		Convey("We don't block, even sending many messages", func() {
-			timeout := false
-			time.AfterFunc(time.Second/10, func() {
-				timeout = true
-			})
+			start := time.Now()
 			for i := 0; i < maxqlen*10; i++ {
 
 				err := rp.Send(msg)
 				So(err, ShouldBeNil)
 			}
-			So(timeout, ShouldBeFalse)
+			end := time.Now()
+			So(end, ShouldHappenWithin, time.Second/10, start)
 		})
 	})
 }
