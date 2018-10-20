@@ -61,7 +61,6 @@ type socket struct {
 
 	// These are conditional "type aliases" for our self
 	sendhook ProtocolSendHook
-	recvhook ProtocolRecvHook
 
 	// Port hook -- called when a port is added or removed
 	porthook PortHook
@@ -129,9 +128,6 @@ func newSocket(proto Protocol) *socket {
 	sock.pipes = make(map[*pipe]struct{})
 
 	// Add some conditionals now -- saves checks later
-	if i, ok := interface{}(proto).(ProtocolRecvHook); ok {
-		sock.recvhook = i.(ProtocolRecvHook)
-	}
 	if i, ok := interface{}(proto).(ProtocolSendHook); ok {
 		sock.sendhook = i.(ProtocolSendHook)
 	}
@@ -301,14 +297,8 @@ func (sock *socket) RecvMsg() (*Message, error) {
 		case <-timeout:
 			return nil, ErrRecvTimeout
 		case msg := <-sock.urq:
-			if sock.recvhook != nil {
-				if ok := sock.recvhook.RecvHook(msg); ok {
-					return msg, nil
-				} // else loop
-				msg.Free()
-			} else {
-				return msg, nil
-			}
+			return msg, nil
+
 		case <-sock.closeq:
 			return nil, ErrClosed
 		case <-sock.recverrq:

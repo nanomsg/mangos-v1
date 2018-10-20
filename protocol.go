@@ -91,15 +91,6 @@ type Protocol interface {
 
 // The follow are optional interfaces that a Protocol can choose to implement.
 
-// ProtocolRecvHook is intended to be an additional extension
-// to the Protocol interface.
-type ProtocolRecvHook interface {
-	// RecvHook is called just before the message is handed to the
-	// application.  The message may be modified.  If false is returned,
-	// then the message is dropped.
-	RecvHook(*Message) bool
-}
-
 // ProtocolSendHook is intended to be an additional extension
 // to the Protocol interface.
 type ProtocolSendHook interface {
