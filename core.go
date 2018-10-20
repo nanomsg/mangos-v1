@@ -59,9 +59,6 @@ type socket struct {
 
 	transports map[string]Transport
 
-	// These are conditional "type aliases" for our self
-	sendhook ProtocolSendHook
-
 	// Port hook -- called when a port is added or removed
 	porthook PortHook
 }
@@ -126,12 +123,6 @@ func newSocket(proto Protocol) *socket {
 	sock.linger = time.Second
 	sock.maxRxSize = defaultMaxRxSize
 	sock.pipes = make(map[*pipe]struct{})
-
-	// Add some conditionals now -- saves checks later
-	if i, ok := interface{}(proto).(ProtocolSendHook); ok {
-		sock.sendhook = i.(ProtocolSendHook)
-	}
-
 	proto.Init(sock)
 
 	return sock
@@ -226,15 +217,6 @@ func (sock *socket) SendMsg(msg *Message) error {
 		sock.Unlock()
 		return e
 	}
-	sock.Unlock()
-	if sock.sendhook != nil {
-		if ok := sock.sendhook.SendHook(msg); !ok {
-			// just drop it silently
-			msg.Free()
-			return nil
-		}
-	}
-	sock.Lock()
 	useBestEffort := sock.bestEffort
 	wdeadline := sock.wdeadline
 

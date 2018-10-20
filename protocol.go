@@ -89,18 +89,6 @@ type Protocol interface {
 	SetOption(string, interface{}) error
 }
 
-// The follow are optional interfaces that a Protocol can choose to implement.
-
-// ProtocolSendHook is intended to be an additional extension
-// to the Protocol interface.
-type ProtocolSendHook interface {
-	// SendHook is called when the application calls Send.
-	// If false is returned, the message will be silently dropped.
-	// Note that the message may be dropped for other reasons,
-	// such as if backpressure is applied.
-	SendHook(*Message) bool
-}
-
 // ProtocolSocket is the "handle" given to protocols to interface with the
 // socket.  The Protocol implementation should not access any sockets or pipes
 // except by using functions made available on the ProtocolSocket.  Note

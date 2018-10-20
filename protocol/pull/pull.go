@@ -74,10 +74,6 @@ func (x *pull) AddEndpoint(ep mangos.Endpoint) {
 
 func (x *pull) RemoveEndpoint(ep mangos.Endpoint) {}
 
-func (*pull) SendHook(msg *mangos.Message) bool {
-	return false
-}
-
 func (x *pull) SetOption(name string, v interface{}) error {
 	return mangos.ErrBadOption
 }
