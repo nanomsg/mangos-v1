@@ -21,6 +21,7 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/star"
+	"nanomsg.org/go/mangos/v2/protocol/xstar"
 	"nanomsg.org/go/mangos/v2/transport/tcp"
 )
 
@@ -195,25 +196,25 @@ func TestStar(t *testing.T) {
 }
 
 func TestStarTTLZero(t *testing.T) {
-	SetTTLZero(t, star.NewRawSocket)
+	SetTTLZero(t, xstar.NewSocket)
 }
 
 func TestStarTTLNegative(t *testing.T) {
-	SetTTLNegative(t, star.NewRawSocket)
+	SetTTLNegative(t, xstar.NewSocket)
 }
 
 func TestStarTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, star.NewRawSocket)
+	SetTTLTooBig(t, xstar.NewSocket)
 }
 
 func TestStarTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, star.NewRawSocket)
+	SetTTLNotInt(t, xstar.NewSocket)
 }
 
 func TestStarTTLSet(t *testing.T) {
-	SetTTL(t, star.NewRawSocket)
+	SetTTL(t, xstar.NewSocket)
 }
 
 func TestStarTTLDrop(t *testing.T) {
-	TTLDropTest(t, star.NewSocket, star.NewSocket, star.NewRawSocket, star.NewRawSocket)
+	TTLDropTest(t, star.NewSocket, star.NewSocket, xstar.NewSocket, xstar.NewSocket)
 }

@@ -75,3 +75,9 @@ their APIs, via a new `Info()` API, which replaces the old `Number()`,
 
 The old `pipe.GetProp()` API is changed so that Properties are formalized
 as Options and a `pipe.GetOpt()` API is used to access them.
+
+== STAR Raw Mode Fixed
+
+The xstar protocol implicitly retransmits / forwards received messages
+just like the cooked protocol.  The fact that v1 did not do this was
+a bug.
