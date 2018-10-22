@@ -147,6 +147,7 @@ func (m *Message) Modify() *Message {
 	newm := NewMessage(len(m.Body))
 	newm.Body = append(newm.Body, m.Body...)
 	newm.Header = append(newm.Header, m.Header...)
+	newm.Port = m.Port
 	m.Free()
 	return newm
 }
