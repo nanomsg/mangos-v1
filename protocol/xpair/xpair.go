@@ -28,6 +28,7 @@ const defaultQlen = 128
 type pipe struct {
 	p      protocol.Pipe
 	s      *socket
+	closeq chan struct{}
 	closed bool
 }
 
@@ -208,8 +209,9 @@ func (s *socket) AddPipe(pp protocol.Pipe) error {
 		return protocol.ErrProtoState
 	}
 	p := &pipe{
-		p: pp,
-		s: s,
+		p:      pp,
+		s:      s,
+		closeq: make(chan struct{}),
 	}
 	s.peer = p
 	go p.receiver()
@@ -271,6 +273,9 @@ outer:
 		case <-s.closeq:
 			m.Free()
 			break outer
+		case <-p.closeq:
+			m.Free()
+			break outer
 		}
 	}
 	p.Close()
@@ -289,6 +294,8 @@ outer:
 
 		case <-s.closeq:
 			break outer
+		case <-p.closeq:
+			break outer
 		}
 	}
 	p.Close()
@@ -306,7 +313,7 @@ func (p *pipe) Close() error {
 		s.peer = nil
 	}
 	s.Unlock()
-
+	close(p.closeq)
 	p.p.Close()
 	return nil
 }
