@@ -18,164 +18,36 @@
 package pub
 
 import (
-	"sync"
-	"time"
-
-	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol"
+	"nanomsg.org/go/mangos/v2/protocol/xpub"
 )
 
-type pubEp struct {
-	ep mangos.Endpoint
-	q  chan *mangos.Message
-	p  *pub
-	w  mangos.Waiter
+type socket struct {
+	protocol.Protocol
 }
 
-type pub struct {
-	sock mangos.ProtocolSocket
-	eps  map[uint32]*pubEp
-	raw  bool
-	w    mangos.Waiter
-
-	sync.Mutex
-}
-
-func (p *pub) Init(sock mangos.ProtocolSocket) {
-	p.sock = sock
-	p.eps = make(map[uint32]*pubEp)
-	p.sock.SetRecvError(mangos.ErrProtoOp)
-	p.w.Init()
-	p.w.Add()
-	go p.sender()
-}
-
-func (p *pub) Shutdown(expire time.Time) {
-
-	p.w.WaitAbsTimeout(expire)
-
-	p.Lock()
-	peers := p.eps
-	p.eps = make(map[uint32]*pubEp)
-	p.Unlock()
-
-	for id, peer := range peers {
-		mangos.DrainChannel(peer.q, expire)
-		close(peer.q)
-		delete(peers, id)
-	}
-}
-
-// Bottom sender.
-func (pe *pubEp) peerSender() {
-
-	for {
-		m := <-pe.q
-		if m == nil {
-			break
-		}
-
-		if pe.ep.SendMsg(m) != nil {
-			m.Free()
-			break
-		}
-	}
-}
-
-// Top sender.
-func (p *pub) sender() {
-	defer p.w.Done()
-
-	cq := p.sock.CloseChannel()
-	sq := p.sock.SendChannel()
-
-	for {
-		select {
-		case <-cq:
-			return
-
-		case m := <-sq:
-			if m == nil {
-				sq = p.sock.SendChannel()
-				continue
-			}
-
-			p.Lock()
-			for _, peer := range p.eps {
-				m := m.Dup()
-				select {
-				case peer.q <- m:
-				default:
-					m.Free()
-				}
-			}
-			p.Unlock()
-			m.Free()
-		}
-	}
-}
-
-func (p *pub) AddEndpoint(ep mangos.Endpoint) {
-	depth := 16
-	if i, err := p.sock.GetOption(mangos.OptionWriteQLen); err == nil {
-		depth = i.(int)
-	}
-	pe := &pubEp{ep: ep, p: p, q: make(chan *mangos.Message, depth)}
-	pe.w.Init()
-	p.Lock()
-	p.eps[ep.GetID()] = pe
-	p.Unlock()
-
-	pe.w.Add()
-	go pe.peerSender()
-	go mangos.NullRecv(ep)
-}
-
-func (p *pub) RemoveEndpoint(ep mangos.Endpoint) {
-	id := ep.GetID()
-	p.Lock()
-	pe := p.eps[id]
-	delete(p.eps, id)
-	p.Unlock()
-	if pe != nil {
-		close(pe.q)
-	}
-}
-
-func (*pub) Number() uint16 {
-	return mangos.ProtoPub
-}
-
-func (*pub) PeerNumber() uint16 {
-	return mangos.ProtoSub
-}
-
-func (*pub) Name() string {
-	return "pub"
-}
-
-func (*pub) PeerName() string {
-	return "sub"
-}
-
-func (p *pub) SetOption(name string, v interface{}) error {
-	return mangos.ErrBadOption
-}
-
-func (p *pub) GetOption(name string) (interface{}, error) {
+func (s *socket) GetOption(name string) (interface{}, error) {
 	switch name {
-	case mangos.OptionRaw:
-		return p.raw, nil
-	default:
-		return nil, mangos.ErrBadOption
+	case protocol.OptionRaw:
+		return false, nil
 	}
+	return s.Protocol.GetOption(name)
 }
 
-// NewSocket allocates a new Socket using the PUB protocol.
-func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&pub{raw: false}), nil
+// Info returns protocol information.
+func Info() protocol.Info {
+	return xpub.Info()
 }
 
-// NewRawSocket allocates a raw Socket using the PUB protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&pub{raw: true}), nil
+// NewProtocol returns a new protocol implementation.
+func NewProtocol() protocol.Protocol {
+	s := &socket{
+		Protocol: xpub.NewProtocol(),
+	}
+	return s
+}
+
+// NewSocket allocates a raw Socket using the PAIR protocol.
+func NewSocket() (protocol.Socket, error) {
+	return protocol.MakeSocket(NewProtocol()), nil
 }
