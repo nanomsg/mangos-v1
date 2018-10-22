@@ -60,7 +60,9 @@ func Device(s1 Socket, s2 Socket) error {
 	}
 
 	go forwarder(s1, s2)
-	go forwarder(s2, s1)
+	if s2 != s1 {
+		go forwarder(s2, s1)
+	}
 	return nil
 }
 
