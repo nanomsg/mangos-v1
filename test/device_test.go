@@ -23,6 +23,7 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/pair"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/xpair"
 	"nanomsg.org/go/mangos/v2/protocol/xrep"
 	"nanomsg.org/go/mangos/v2/protocol/xreq"
 	"nanomsg.org/go/mangos/v2/transport/inproc"
@@ -40,7 +41,7 @@ func TestDeviceBadPair(t *testing.T) {
 		return
 	}
 	defer s1.Close()
-	s2, err := pair.NewRawSocket()
+	s2, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
@@ -82,7 +83,7 @@ func TestDeviceBadSingle(t *testing.T) {
 }
 
 func TestDeviceFirstNil(t *testing.T) {
-	s1, err := pair.NewRawSocket()
+	s1, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -100,7 +101,7 @@ func TestDeviceFirstNil(t *testing.T) {
 }
 
 func TestDeviceSecondNil(t *testing.T) {
-	s1, err := pair.NewRawSocket()
+	s1, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -222,7 +223,7 @@ func deviceCaseClient() []TestCase {
 }
 
 func testDevLoop(t *testing.T, addr string) {
-	s1, err := pair.NewRawSocket()
+	s1, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -259,7 +260,7 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 	var err error
 	s := make([]mangos.Socket, 5)
 	for i := 0; i < 5; i++ {
-		if s[i], err = pair.NewRawSocket(); err != nil {
+		if s[i], err = xpair.NewSocket(); err != nil {
 			t.Errorf("Failed to open S1_1: %v", err)
 			return
 		}
