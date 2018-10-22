@@ -27,99 +27,205 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol"
 )
 
-type sub struct {
-	sock mangos.ProtocolSocket
-	subs [][]byte
-	raw  bool
+type socket struct {
+	master *context
+	ctxs   map[*context]struct{}
+	pipes  map[uint32]*pipe
+	closed bool
 	sync.Mutex
 }
 
-func (s *sub) Init(sock mangos.ProtocolSocket) {
-	s.sock = sock
-	s.subs = [][]byte{}
-	s.sock.SetSendError(mangos.ErrProtoOp)
+type pipe struct {
+	s      *socket
+	p      protocol.Pipe
+	closed bool
 }
 
-func (*sub) Shutdown(time.Time) {} // No sender to drain.
+type context struct {
+	recvq      chan *protocol.Message
+	recvQLen   int
+	recvExpire time.Duration
+	closeq     chan struct{}
+	closed     bool
+	subs       [][]byte
+	s          *socket
+}
 
-func (s *sub) receiver(ep mangos.Endpoint) {
+const defaultQLen = 128
 
-	rq := s.sock.RecvChannel()
-	cq := s.sock.CloseChannel()
+func (*context) SendMsg(m *protocol.Message) error {
+	return protocol.ErrProtoOp
+}
 
+func (c *context) RecvMsg() (*protocol.Message, error) {
+
+	s := c.s
+	var timeq <-chan time.Time
+	s.Lock()
+	if c.recvExpire > 0 {
+		timeq = time.After(c.recvExpire)
+	}
+	s.Unlock()
+
+	select {
+	case <-timeq:
+		return nil, protocol.ErrRecvTimeout
+	case <-c.closeq:
+		return nil, protocol.ErrClosed
+	case m := <-c.recvq:
+		return m, nil
+	}
+}
+
+func (c *context) Close() error {
+	s := c.s
+	s.Lock()
+	if c.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	s.closed = true
+	delete(s.ctxs, c)
+	s.Unlock()
+	close(c.closeq)
+	return nil
+}
+
+func (*socket) SendMsg(m *protocol.Message) error {
+	return protocol.ErrProtoOp
+}
+
+func (p *pipe) receiver() {
+	s := p.s
 	for {
-		var matched = false
-
-		m := ep.RecvMsg()
+		m := p.p.RecvMsg()
 		if m == nil {
-			return
+			break
 		}
-
 		s.Lock()
-		for _, sub := range s.subs {
-			if bytes.HasPrefix(m.Body, sub) {
-				// Matched, send it up.  Best effort.
-				matched = true
-				break
+		for c := range s.ctxs {
+			for _, sub := range c.subs {
+				if bytes.HasPrefix(m.Body, sub) {
+					// Matched, send it up.  Best effort.
+					// As we are passing this to the user,
+					// we need to ensure that the message
+					// may be modified.
+					dm := m.Dup().Modify()
+					select {
+					case c.recvq <- dm:
+					default:
+						dm.Free()
+					}
+					break
+				}
 			}
 		}
 		s.Unlock()
-
-		if !matched {
-			m.Free()
-			continue
-		}
-
-		select {
-		case rq <- m:
-		case <-cq:
-			m.Free()
-			return
-		default: // no room, drop it
-			m.Free()
-		}
+		m.Free()
 	}
+
+	p.Close()
 }
 
-func (*sub) Number() uint16 {
-	return mangos.ProtoSub
-}
-
-func (*sub) PeerNumber() uint16 {
-	return mangos.ProtoPub
-}
-
-func (*sub) Name() string {
-	return "sub"
-}
-
-func (*sub) PeerName() string {
-	return "pub"
-}
-
-func (s *sub) AddEndpoint(ep mangos.Endpoint) {
-	go s.receiver(ep)
-}
-
-func (*sub) RemoveEndpoint(mangos.Endpoint) {}
-
-func (s *sub) SetOption(name string, value interface{}) error {
+func (s *socket) AddPipe(pp protocol.Pipe) error {
+	p := &pipe{
+		p: pp,
+		s: s,
+	}
 	s.Lock()
 	defer s.Unlock()
+	if s.closed {
+		return protocol.ErrClosed
+	}
+	s.pipes[p.p.GetID()] = p
+	go p.receiver()
+	return nil
+}
+
+func (s *socket) RemovePipe(pp protocol.Pipe) {
+	s.Lock()
+	defer s.Unlock()
+	p := s.pipes[pp.GetID()]
+	if p != nil && p.p == pp && !p.closed {
+		p.closed = true
+		pp.Close()
+		delete(s.pipes, pp.GetID())
+	}
+}
+
+func (s *socket) Close() error {
+	s.Lock()
+	if s.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	ctxs := make([]*context, 0, len(s.ctxs))
+	for c := range s.ctxs {
+		ctxs = append(ctxs, c)
+	}
+	pipes := make([]*pipe, 0, len(s.pipes))
+	for _, p := range s.pipes {
+		pipes = append(pipes, p)
+	}
+	s.Unlock()
+	for _, c := range ctxs {
+		c.Close()
+	}
+	for _, p := range pipes {
+		p.Close()
+	}
+	return nil
+}
+
+// Info returns protocol information.
+func Info() protocol.Info {
+	return protocol.Info{
+		Self:     protocol.ProtoSub,
+		Peer:     protocol.ProtoPub,
+		SelfName: "sub",
+		PeerName: "pub",
+	}
+}
+
+func (p *pipe) Close() error {
+	s := p.s
+	s.Lock()
+	if p.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	p.closed = true
+	s.Unlock()
+
+	p.p.Close()
+	return nil
+}
+
+func (c *context) SetOption(name string, value interface{}) error {
+	s := c.s
+
+	switch name {
+	case protocol.OptionReadQLen:
+		if v, ok := value.(int); ok {
+			newchan := make(chan *protocol.Message, v)
+			c.s.Lock()
+			c.recvq = newchan
+			c.recvQLen = v
+			c.s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
+
+	case protocol.OptionSubscribe:
+	case protocol.OptionUnsubscribe:
+	default:
+		return protocol.ErrBadOption
+	}
 
 	var vb []byte
-
-	// Check names first, because type check below is only valid for
-	// subscription options.
-	switch name {
-	case mangos.OptionSubscribe:
-	case mangos.OptionUnsubscribe:
-	default:
-		return mangos.ErrBadOption
-	}
 
 	switch v := value.(type) {
 	case []byte:
@@ -127,50 +233,105 @@ func (s *sub) SetOption(name string, value interface{}) error {
 	case string:
 		vb = []byte(v)
 	default:
-		return mangos.ErrBadValue
+		return protocol.ErrBadValue
 	}
+
+	s.Lock()
+	defer s.Unlock()
+
 	switch name {
-	case mangos.OptionSubscribe:
-		for _, sub := range s.subs {
+	case protocol.OptionSubscribe:
+		for _, sub := range c.subs {
 			if bytes.Equal(sub, vb) {
 				// Already present
 				return nil
 			}
 		}
-		s.subs = append(s.subs, vb)
+		c.subs = append(c.subs, vb)
 		return nil
 
-	case mangos.OptionUnsubscribe:
-		for i, sub := range s.subs {
+	case protocol.OptionUnsubscribe:
+		for i, sub := range c.subs {
 			if bytes.Equal(sub, vb) {
-				s.subs[i] = s.subs[len(s.subs)-1]
-				s.subs = s.subs[:len(s.subs)-1]
+				c.subs = append(c.subs[:i], c.subs[i+1:]...)
 				return nil
 			}
 		}
 		// Subscription not present
-		return mangos.ErrBadValue
+		return protocol.ErrBadValue
 
 	default:
-		return mangos.ErrBadOption
+		return protocol.ErrBadOption
 	}
 }
 
-func (s *sub) GetOption(name string) (interface{}, error) {
+func (c *context) GetOption(name string) (interface{}, error) {
 	switch name {
-	case mangos.OptionRaw:
-		return s.raw, nil
+	case protocol.OptionReadQLen:
+		c.s.Lock()
+		v := c.recvQLen
+		c.s.Unlock()
+		return v, nil
+	}
+	return nil, protocol.ErrBadOption
+}
+
+func (s *socket) RecvMsg() (*protocol.Message, error) {
+	return s.master.RecvMsg()
+}
+
+func (s *socket) OpenContext() (protocol.Context, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return nil, protocol.ErrClosed
+	}
+	c := &context{
+		s:          s,
+		closeq:     make(chan struct{}),
+		recvq:      make(chan *protocol.Message, s.master.recvQLen),
+		recvQLen:   s.master.recvQLen,
+		recvExpire: s.master.recvExpire,
+		subs:       [][]byte{},
+	}
+	s.ctxs[c] = struct{}{}
+	return c, nil
+}
+
+func (s *socket) GetOption(name string) (interface{}, error) {
+	switch name {
+	case protocol.OptionRaw:
+		return false, nil
 	default:
-		return nil, mangos.ErrBadOption
+		return s.master.GetOption(name)
 	}
 }
 
-// NewSocket allocates a new Socket using the SUB protocol.
-func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&sub{raw: false}), nil
+func (s *socket) SetOption(name string, val interface{}) error {
+	return s.master.SetOption(name, val)
 }
 
-// NewRawSocket allocates a raw Socket using the SUB protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&sub{raw: true}), nil
+func (s *socket) Info() protocol.Info {
+	return Info()
+}
+
+// NewProtocol returns a new protocol implementation.
+func NewProtocol() protocol.Protocol {
+	s := &socket{
+		pipes: make(map[uint32]*pipe),
+		ctxs:  make(map[*context]struct{}),
+	}
+	s.master = &context{
+		s:        s,
+		recvq:    make(chan *protocol.Message, defaultQLen),
+		closeq:   make(chan struct{}),
+		recvQLen: defaultQLen,
+	}
+	s.ctxs[s.master] = struct{}{}
+	return s
+}
+
+// NewSocket allocates a new Socket using the RESPONDENT protocol.
+func NewSocket() (protocol.Socket, error) {
+	return protocol.MakeSocket(NewProtocol()), nil
 }
