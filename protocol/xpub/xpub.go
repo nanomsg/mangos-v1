@@ -54,7 +54,7 @@ func (s *socket) SendMsg(m *protocol.Message) error {
 	for _, p := range s.pipes {
 		pm := m.Dup()
 		select {
-		case p.sendq <- m:
+		case p.sendq <- pm:
 		case <-p.closeq:
 			pm.Free()
 		default:

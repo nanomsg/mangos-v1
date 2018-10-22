@@ -78,7 +78,7 @@ func (s *socket) SendMsg(m *protocol.Message) error {
 		}
 		pm := m.Dup()
 		select {
-		case p.sendq <- m:
+		case p.sendq <- pm:
 		case <-p.closeq:
 			pm.Free()
 		default:

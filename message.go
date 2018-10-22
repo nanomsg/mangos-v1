@@ -16,7 +16,6 @@ package mangos
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -44,7 +43,6 @@ type Message struct {
 	bbuf   []byte
 	hbuf   []byte
 	bsize  int
-	refcnt int32
 	expire time.Time
 	pool   *sync.Pool
 }
@@ -107,15 +105,11 @@ var messageCache = []msgCacheInfo{
 	},
 }
 
-// Free decrements the reference count on a message, and releases its
-// resources if no further references remain.  While this is not
-// strictly necessary thanks to GC, doing so allows for the resources to
-// be recycled without engaging GC.  This can have rather substantial
-// benefits for performance.
+// Free releases the message to the pool from which it was allocated.
+// While this is not strictly necessary thanks to GC, doing so allows
+// for the resources to be recycled without engaging GC.  This can have
+// rather substantial benefits for performance.
 func (m *Message) Free() {
-	if v := atomic.AddInt32(&m.refcnt, -1); v > 0 {
-		return
-	}
 	for i := range messageCache {
 		if m.bsize == messageCache[i].maxbody {
 			messageCache[i].pool.Put(m)
@@ -124,32 +118,15 @@ func (m *Message) Free() {
 	}
 }
 
-// Dup creates a "duplicate" message.  What it really does is simply
-// increment the reference count on the message.  Note that since the
-// underlying message is actually shared, consumers must take care not
-// to modify the message.  (We might revise this API in the future to
-// add a copy-on-write facility, but for now modification is neither
-// needed nor supported.)  Applications should *NOT* make use of this
-// function -- it is intended for Protocol, Transport and internal use only.
+// Dup creates a "duplicate" message.
+// Reference counting was found to be error prone, so we have elected
+// to simply make a full copy of the message for now.
 func (m *Message) Dup() *Message {
-	atomic.AddInt32(&m.refcnt, 1)
-	return m
-}
-
-// Modify takes an original message perhaps, from Dup, and makes a
-// a modifiable version.  If the message has no other references, then
-// it is unchanged.  The caller should not use the message passed in, but
-// replace it with the return value.
-func (m *Message) Modify() *Message {
-	if atomic.LoadInt32(&m.refcnt) == 1 {
-		return m
-	}
-	newm := NewMessage(len(m.Body))
-	newm.Body = append(newm.Body, m.Body...)
-	newm.Header = append(newm.Header, m.Header...)
-	newm.Port = m.Port
-	m.Free()
-	return newm
+	dup := NewMessage(len(m.Body))
+	dup.Body = append(dup.Body, m.Body...)
+	dup.Header = append(dup.Header, m.Header...)
+	dup.Port = m.Port
+	return dup
 }
 
 // Expired returns true if the message has "expired".  This is used by
@@ -181,7 +158,6 @@ func NewMessage(sz int) *Message {
 		m = newMsg(sz)
 	}
 
-	m.refcnt = 1
 	m.Body = m.bbuf
 	m.Header = m.hbuf
 	return m

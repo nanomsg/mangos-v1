@@ -112,7 +112,7 @@ func (p *pipe) receiver() {
 				// As we are passing this to the user,
 				// we need to ensure that the message
 				// may be modified.
-				dm := m.Dup().Modify()
+				dm := m.Dup()
 				select {
 				case c.recvq <- dm:
 				default:

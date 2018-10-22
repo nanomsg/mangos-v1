@@ -81,7 +81,7 @@ func (s *socket) SendMsg(m *protocol.Message) error {
 		}
 		pm := m.Dup()
 		select {
-		case p.sendq <- m:
+		case p.sendq <- pm:
 		case <-p.closeq:
 			pm.Free()
 		default:
@@ -312,7 +312,6 @@ outer:
 		m.Header[3]++
 
 		userm := m.Dup()
-		userm = userm.Modify()
 		s.Lock()
 		for _, p2 := range s.pipes {
 			if p2 == p {
@@ -323,10 +322,6 @@ outer:
 			}
 
 			m2 := m.Dup()
-			//m2 := mangos.NewMessage(len(m.Body))
-			//m2.Body = m2.Body[:0]
-			//m2.Body = append(m2.Body, m.Body...)
-			//m2.Header = append(m2.Header, m.Header...)
 			select {
 			case p2.sendq <- m2:
 			case <-s.closeq:

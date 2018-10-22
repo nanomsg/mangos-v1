@@ -113,7 +113,7 @@ func (c *context) SendMsg(m *protocol.Message) error {
 	for _, p := range s.pipes {
 		dm := m.Dup()
 		select {
-		case p.sendq <- m:
+		case p.sendq <- dm:
 		default:
 			dm.Free()
 		}
