@@ -108,6 +108,7 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			s.Lock()
 			s.sendQLen = v
 			s.Unlock()
+			return nil
 		}
 		return protocol.ErrBadValue
 
