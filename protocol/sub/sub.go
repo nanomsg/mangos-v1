@@ -107,19 +107,16 @@ func (p *pipe) receiver() {
 		}
 		s.Lock()
 		for c := range s.ctxs {
-			for _, sub := range c.subs {
-				if bytes.HasPrefix(m.Body, sub) {
-					// Matched, send it up.  Best effort.
-					// As we are passing this to the user,
-					// we need to ensure that the message
-					// may be modified.
-					dm := m.Dup().Modify()
-					select {
-					case c.recvq <- dm:
-					default:
-						dm.Free()
-					}
-					break
+			if c.matches(m) {
+				// Matched, send it up.  Best effort.
+				// As we are passing this to the user,
+				// we need to ensure that the message
+				// may be modified.
+				dm := m.Dup().Modify()
+				select {
+				case c.recvq <- dm:
+				default:
+					dm.Free()
 				}
 			}
 		}
@@ -204,6 +201,16 @@ func (p *pipe) Close() error {
 	return nil
 }
 
+func (c *context) matches(m *protocol.Message) bool {
+	for _, sub := range c.subs {
+		if bytes.HasPrefix(m.Body, sub) {
+			return true
+		}
+	}
+	return false
+
+}
+
 func (c *context) SetOption(name string, value interface{}) error {
 	s := c.s
 
@@ -254,6 +261,24 @@ func (c *context) SetOption(name string, value interface{}) error {
 		for i, sub := range c.subs {
 			if bytes.Equal(sub, vb) {
 				c.subs = append(c.subs[:i], c.subs[i+1:]...)
+
+				// Because we have changed the subscription,
+				// we may have messages in the channel that
+				// we don't want any more.  Lets prune those.
+				newchan := make(chan *protocol.Message, c.recvQLen)
+				oldchan := c.recvq
+				c.recvq = newchan
+				for m := range oldchan {
+					if !c.matches(m) {
+						m.Free()
+						continue
+					}
+					select {
+					case newchan <- m:
+					default:
+						m.Free()
+					}
+				}
 				return nil
 			}
 		}
