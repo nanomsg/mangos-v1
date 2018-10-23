@@ -202,7 +202,7 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 	rq := clis[0]
 	rp := srvs[nhop-1]
 
-	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond*20)
+	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond*100)
 	if err != nil {
 		t.Errorf("Failed set recv deadline")
 		return
