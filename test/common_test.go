@@ -111,7 +111,7 @@ func (c *T) Init(t *testing.T, addr string) bool {
 	c.sdoneq = make(chan struct{})
 	c.rdoneq = make(chan struct{})
 	c.readyq = make(chan struct{})
-	c.timeout = time.Second * 3
+	c.timeout = time.Second * 30
 	c.txdelay = time.Millisecond * 7
 
 	all.AddTransports(c.Sock)
