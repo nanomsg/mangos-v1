@@ -276,20 +276,20 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 		t.Errorf("s[0] Listen: %v", err)
 		return
 	}
-	if err = s[1].Dial(addr2); err != nil {
-		t.Errorf("s[1] Dial: %v", err)
-		return
-	}
 	if err = s[2].Listen(addr2); err != nil {
 		t.Errorf("s[2] Listen: %v", err)
 		return
 	}
-	if err = s[3].Dial(addr3); err != nil {
-		t.Errorf("s[3] Dial: %v", err)
-		return
-	}
 	if err = s[4].Listen(addr3); err != nil {
 		t.Errorf("s[4] Listen: %v", err)
+		return
+	}
+	if err = s[1].Dial(addr2); err != nil {
+		t.Errorf("s[1] Dial: %v", err)
+		return
+	}
+	if err = s[3].Dial(addr3); err != nil {
+		t.Errorf("s[3] Dial: %v", err)
 		return
 	}
 	if err = mangos.Device(s[0], s[1]); err != nil {

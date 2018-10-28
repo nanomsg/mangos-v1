@@ -183,4 +183,13 @@ const (
 	// OptionHTTPRequest conveys an *http.Request.  This read-only option
 	// only exists for Pipes using websocket connections.
 	OptionHTTPRequest = "HTTP-REQUEST"
+
+	// OptionDialAsynch (used on a Dialer) causes the Dial() operation
+	// to run in the background.  Further, the Dialer will always redial,
+	// even if the first attempt fails.  (Normally dialing is performed
+	// synchronously, so that if the remote peer is unavailable at first
+	// the caller can learn of the error and handle or report it.
+	// Note that mangos v1 behavior is the same as if this option is
+	// set to true.
+	OptionDialAsynch = "DIAL-ASYNCH"
 )

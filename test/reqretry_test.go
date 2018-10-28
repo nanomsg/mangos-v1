@@ -54,6 +54,8 @@ func TestReqRetry(t *testing.T) {
 
 			err = sockreq.SetOption(mangos.OptionReconnectTime, time.Millisecond*100)
 			So(err, ShouldBeNil)
+			err = sockreq.SetOption(mangos.OptionDialAsynch, true)
+			So(err, ShouldBeNil)
 
 			l, err := sockrep.NewListener(addr, nil)
 			So(err, ShouldBeNil)
@@ -87,9 +89,7 @@ func TestReqRetry(t *testing.T) {
 				m.Free()
 			})
 
-			// Following is skipped for now because of the backout
-			// of e5e6478f44cda1eb8427b590755270e2704a990d
-			SkipConvey("A request is reissued on server re-connect", func() {
+			Convey("A request is reissued on server re-connect", func() {
 
 				rep2, err := rep.NewSocket()
 				So(err, ShouldBeNil)

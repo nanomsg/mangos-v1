@@ -81,3 +81,18 @@ as Options and a `pipe.GetOpt()` API is used to access them.
 The xstar protocol implicitly retransmits / forwards received messages
 just like the cooked protocol.  The fact that v1 did not do this was
 a bug.
+
+== Dial Now Synchronous
+
+When using vanilla Dialer.Dial(), the calling thread will normally
+be blocked until either a connection is established, or an error
+occurs on this first attempt.  If an error occurs, there will be no
+further retries.  However, the self-healing mode is used for subsequent
+connection attempts.
+
+This mode is intended to facilitate folks who are trying to fix the most
+common connection setup errors.
+
+An option, OptionDialAsynch, can be set on sockets or dialers to restore
+the old behavior, where a dialer will just run in the background
+from the beginning.

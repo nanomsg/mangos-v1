@@ -54,7 +54,6 @@ func TestBusDevice(t *testing.T) {
 			So(s1, ShouldNotBeNil)
 			defer s1.Close()
 			s1.AddTransport(inproc.NewTransport())
-			So(mangos.Device(s1, s1), ShouldBeNil)
 			So(s1.Listen("inproc://busdevicetest"), ShouldBeNil)
 			// Create the device
 			So(mangos.Device(s1, s1), ShouldBeNil)

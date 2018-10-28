@@ -44,6 +44,7 @@ type socket struct {
 	reconnMinTime time.Duration // reconnect time after error or disconnect
 	reconnMaxTime time.Duration // max reconnect interval
 	maxRxSize     int           // max recv size
+	dialAsynch    bool          // asynchronous dialing?
 
 	listeners []*listener
 	dialers   []*dialer
@@ -255,9 +256,27 @@ func (s *socket) NewDialer(addr string, options map[string]interface{}) (mangos.
 	if err != nil {
 		return nil, err
 	}
+	d := &dialer{
+		d:             td,
+		s:             s,
+		reconnMinTime: s.reconnMinTime,
+		reconnMaxTime: s.reconnMaxTime,
+		addr:          addr,
+	}
 	for n, v := range options {
-		if err = td.SetOption(n, v); err != nil {
-			return nil, err
+		switch n {
+		case mangos.OptionReconnectTime:
+			fallthrough
+		case mangos.OptionMaxReconnectTime:
+			fallthrough
+		case mangos.OptionDialAsynch:
+			if err := d.SetOption(n, v); err != nil {
+				return nil, err
+			}
+		default:
+			if err = td.SetOption(n, v); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if _, ok := options[mangos.OptionMaxRecvSize]; !ok {
@@ -265,14 +284,6 @@ func (s *socket) NewDialer(addr string, options map[string]interface{}) (mangos.
 		if err != nil && err != mangos.ErrBadOption {
 			return nil, err
 		}
-	}
-
-	d := &dialer{
-		d:             td,
-		s:             s,
-		reconnMinTime: s.reconnMinTime,
-		reconnMaxTime: s.reconnMaxTime,
-		addr:          addr,
 	}
 
 	s.Lock()
@@ -368,6 +379,12 @@ func (s *socket) SetOption(name string, value interface{}) error {
 	case mangos.OptionMaxReconnectTime:
 		if v, ok := value.(time.Duration); ok {
 			s.reconnMaxTime = v
+		} else {
+			return mangos.ErrBadValue
+		}
+	case mangos.OptionDialAsynch:
+		if v, ok := value.(bool); ok {
+			s.dialAsynch = v
 		} else {
 			return mangos.ErrBadValue
 		}

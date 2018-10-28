@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"nanomsg.org/go/mangos/v2/errors"
+
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/transport"
 )
@@ -31,6 +33,7 @@ type dialer struct {
 	closed        bool
 	active        bool
 	dialing       bool
+	asynch        bool
 	redialer      *time.Timer
 	reconnTime    time.Duration
 	reconnMinTime time.Duration
@@ -40,18 +43,24 @@ type dialer struct {
 
 func (d *dialer) Dial() error {
 	d.Lock()
-	defer d.Unlock()
 	if d.active {
+		d.Unlock()
 		return mangos.ErrAddrInUse
 	}
 	if d.closed {
+		d.Unlock()
 		return mangos.ErrClosed
 	}
 	d.closeq = make(chan struct{})
 	d.active = true
 	d.reconnTime = d.reconnMinTime
-	go d.redial()
-	return nil
+	if d.asynch {
+		go d.redial()
+		d.Unlock()
+		return nil
+	}
+	d.Unlock()
+	return d.dial(false)
 }
 
 func (d *dialer) Close() error {
@@ -74,6 +83,11 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 	case mangos.OptionMaxReconnectTime:
 		d.Lock()
 		v := d.reconnMaxTime
+		d.Unlock()
+		return v, nil
+	case mangos.OptionDialAsynch:
+		d.Lock()
+		v := d.asynch
 		d.Unlock()
 		return v, nil
 	}
@@ -102,6 +116,13 @@ func (d *dialer) SetOption(n string, v interface{}) error {
 			return nil
 		}
 		return mangos.ErrBadValue
+	case mangos.OptionDialAsynch:
+		if v, ok := v.(bool); ok {
+			d.Lock()
+			d.asynch = v
+			d.Unlock()
+			return nil
+		}
 	}
 	// Transport specific options passed down.
 	return d.d.SetOption(n, v)
@@ -132,7 +153,83 @@ func (d *dialer) pipeClosed() {
 	d.Unlock()
 }
 
+func (d *dialer) dial(redial bool) error {
+	d.Lock()
+	if d.asynch {
+		redial = true
+	}
+	if d.dialing || d.closed {
+		// If we already have a dial in progress, then stop.
+		// This really should never occur (see comments below),
+		// but having multiple dialers create multiple pipes is
+		// probably bad.  So be paranoid -- I mean "defensive" --
+		// for now.
+		d.Unlock()
+		return errors.ErrAddrInUse
+	}
+	if d.redialer != nil {
+		d.redialer.Stop()
+	}
+	d.dialing = true
+	d.Unlock()
+
+	p, err := d.d.Dial()
+	if err == nil {
+		d.s.addPipe(p, d, nil)
+
+		d.Lock()
+		d.dialing = false
+		d.Unlock()
+		return nil
+	}
+
+	d.Lock()
+	defer d.Unlock()
+
+	// We're no longer dialing, so let another reschedule happen, if
+	// appropriate.   This is quite possibly paranoia.  We should only
+	// be in this routine in the following circumstances:
+	//
+	// 1. Initial dialing (via Dial())
+	// 2. After a previously created pipe fails and is closed due to error.
+	// 3. After timing out from a failed connection attempt.
+	//
+	// The above cases should be mutually exclusive.  But paranoia.
+	// Consider removing the d.dialing logic later if we can prove
+	// that this never occurs.
+	d.dialing = false
+
+	if !redial {
+		return err
+	}
+	switch err {
+	case mangos.ErrClosed:
+		// Stop redialing, no further action.
+
+	default:
+		// Exponential backoff, and jitter.  Our backoff grows at
+		// about 1.3x on average, so we don't penalize a failed
+		// connection too badly.
+		minfact := float64(1.1)
+		maxfact := float64(1.5)
+		actfact := rand.Float64()*(maxfact-minfact) + minfact
+		rtime := d.reconnTime
+		if d.reconnMaxTime != 0 {
+			d.reconnTime = time.Duration(actfact * float64(d.reconnTime))
+			if d.reconnTime > d.reconnMaxTime {
+				d.reconnTime = d.reconnMaxTime
+			}
+		}
+		d.redialer = time.AfterFunc(rtime, d.redial)
+	}
+	return err
+}
+
 func (d *dialer) redial() {
+	d.dial(true)
+}
+
+func (d *dialer) xredial() {
 	d.Lock()
 	if d.dialing || d.closed {
 		// If we already have a dial in progress, then stop.

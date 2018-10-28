@@ -236,6 +236,7 @@ func (c *T) Dial() bool {
 		options[mangos.OptionTLSConfig] = cliCfg
 	}
 
+	options[mangos.OptionDialAsynch] = true
 	err := c.Sock.DialOptions(c.addr, options)
 	if err != nil {
 		c.Errorf("Dial (%s) failed: %v", c.addr, err)

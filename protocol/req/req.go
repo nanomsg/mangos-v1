@@ -199,7 +199,7 @@ func (c *context) unscheduleSend() {
 		c.wantw = false
 		for i, c2 := range s.sendq {
 			if c2 == c {
-				s.sendq = append(s.sendq[0:i-1],
+				s.sendq = append(s.sendq[:i],
 					s.sendq[i+1:]...)
 				return
 			}
@@ -525,6 +525,11 @@ func (s *socket) RemovePipe(ep protocol.Pipe) {
 		p.closed = true
 		ep.Close()
 		delete(s.pipes, ep.GetID())
+		for i, rp := range s.readyq {
+			if p == rp {
+				s.readyq = append(s.readyq[:i], s.readyq[i+1:]...)
+			}
+		}
 		for c := range s.ctxs {
 			if c.lastPipe == p {
 				// We are closing this pipe, so we need to
@@ -565,6 +570,7 @@ func NewProtocol() protocol.Protocol {
 		cond:       sync.NewCond(s),
 		resendTime: time.Minute,
 	}
+	s.ctxs[s.defCtx] = struct{}{}
 	return s
 }
 
