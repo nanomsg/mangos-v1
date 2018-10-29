@@ -143,7 +143,7 @@ func NewConnPipe(c net.Conn, proto ProtocolInfo, options map[string]interface{})
 		options: make(map[string]interface{}),
 	}
 
-	p.options[mangos.OptionMaxRecvSize] = int64(0)
+	p.options[mangos.OptionMaxRecvSize] = int(0)
 	p.options[mangos.OptionLocalAddr] = p.c.LocalAddr()
 	p.options[mangos.OptionRemoteAddr] = p.c.RemoteAddr()
 	for n, v := range options {
