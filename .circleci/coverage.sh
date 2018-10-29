@@ -8,7 +8,7 @@ scratch=$(mktemp -d)
 trap "rm -rf $scratch" 0
 
 template=${scratch}/covXXXXXX
-pkgs=nanomsg.org/go-mangos/...
+pkgs=nanomsg.org/go/mangos/v2/...
 export GOPATH=${HOME}/go
 
 find . -type d -print | while read dir; do
