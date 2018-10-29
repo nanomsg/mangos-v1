@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"time"
 
-	"nanomsg.org/go-mangos/protocol/req"
-	"nanomsg.org/go-mangos/transport/ws"
+	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/transport/ws"
 )
 
 // reqClient implements the client for REQ.

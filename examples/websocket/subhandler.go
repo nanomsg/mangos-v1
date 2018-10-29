@@ -19,9 +19,9 @@ import (
 	"net/http"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/pub"
-	"nanomsg.org/go-mangos/transport/ws"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/pub"
+	"nanomsg.org/go/mangos/v2/transport/ws"
 )
 
 // subHandler just spins on the socket and publishes messages.  It sends
