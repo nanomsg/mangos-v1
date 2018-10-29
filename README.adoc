@@ -7,10 +7,12 @@ endif::[]
 [.right]
 image::mangos.jpg[align=right]
 
-// [![Linux Status](https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux)](https://circleci.com/gh/nanomsg/mangos)
 // [![Windows Status](https://img.shields.io/appveyor/ci/nanomsg/mangos.svg?label=windows)](https://ci.appveyor.com/project/nanomsg/mangos)
 // [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/nanomsg.org/go-mangos)
 // [![Go Report Card](https://goreportcard.com/badge/nanomsg.org/go-mangos)](https://goreportcard.com/report/nanomsg.org/go-mangos)
+// [![Linux Status]
+
+image:https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux[Linux Status,link="https://circleci.com/gh/nanomsg/mangos-v2"]
 image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos-v2/blob/master/LICENSE"]
 image:https://img.shields.io/badge/gitter-join-brightgreen.svg[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
 
