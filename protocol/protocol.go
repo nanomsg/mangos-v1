@@ -39,7 +39,7 @@ const (
 )
 
 // Pipe is a single connection -- provided by the transport layer.
-type Pipe = mangos.Endpoint
+type Pipe = mangos.ProtocolPipe
 
 // Info describes a protocol and it's peer.
 type Info = mangos.ProtocolInfo

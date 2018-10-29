@@ -23,7 +23,7 @@ import (
 )
 
 type pipe struct {
-	ep     protocol.Pipe
+	p      protocol.Pipe
 	s      *socket
 	closed bool
 	closeq chan struct{}
@@ -111,7 +111,7 @@ func (s *socket) RecvMsg() (*protocol.Message, error) {
 
 func (p *pipe) receiver() {
 	for {
-		m := p.ep.RecvMsg()
+		m := p.p.RecvMsg()
 		if m == nil {
 			break
 		}
@@ -123,7 +123,7 @@ func (p *pipe) receiver() {
 
 func (p *pipe) send(m *protocol.Message) {
 	s := p.s
-	if err := p.ep.SendMsg(m); err != nil {
+	if err := p.p.SendMsg(m); err != nil {
 		m.Free()
 		if err == protocol.ErrClosed {
 			return
@@ -152,10 +152,10 @@ func (p *pipe) Close() error {
 			break
 		}
 	}
-	delete(s.pipes, p.ep.GetID())
+	delete(s.pipes, p.p.ID())
 	s.Unlock()
 	close(p.closeq)
-	p.ep.Close()
+	p.p.Close()
 	return nil
 }
 
@@ -258,18 +258,18 @@ func (s *socket) Close() error {
 	return nil
 }
 
-func (s *socket) AddPipe(ep protocol.Pipe) error {
+func (s *socket) AddPipe(pp protocol.Pipe) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
 		return protocol.ErrClosed
 	}
 	p := &pipe{
-		ep:     ep,
+		p:      pp,
 		s:      s,
 		closeq: make(chan struct{}),
 	}
-	s.pipes[ep.GetID()] = p
+	s.pipes[pp.ID()] = p
 	go p.receiver()
 
 	s.readyq = append(s.readyq, p)
@@ -277,11 +277,11 @@ func (s *socket) AddPipe(ep protocol.Pipe) error {
 	return nil
 }
 
-func (s *socket) RemovePipe(ep protocol.Pipe) {
+func (s *socket) RemovePipe(pp protocol.Pipe) {
 	s.Lock()
-	p, ok := s.pipes[ep.GetID()]
+	p, ok := s.pipes[pp.ID()]
 	s.Unlock()
-	if ok && p.ep == ep {
+	if ok && p.p == pp {
 		p.Close()
 	}
 }

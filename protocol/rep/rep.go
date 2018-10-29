@@ -362,11 +362,11 @@ func (*socket) Info() protocol.Info {
 	return Info()
 }
 
-func (s *socket) AddPipe(ep protocol.Pipe) error {
+func (s *socket) AddPipe(pp protocol.Pipe) error {
 
 	s.Lock()
 	p := &pipe{
-		p:      ep,
+		p:      pp,
 		s:      s,
 		sendQ:  make(chan *protocol.Message, s.sendQLen),
 		closeQ: make(chan struct{}),
@@ -375,18 +375,18 @@ func (s *socket) AddPipe(ep protocol.Pipe) error {
 		s.Unlock()
 		return protocol.ErrClosed
 	}
-	s.pipes[ep.GetID()] = p
+	s.pipes[pp.ID()] = p
 	go p.sender()
 	go p.receiver()
 	s.Unlock()
 	return nil
 }
 
-func (s *socket) RemovePipe(ep protocol.Pipe) {
+func (s *socket) RemovePipe(pp protocol.Pipe) {
 
 	s.Lock()
-	if p, ok := s.pipes[ep.GetID()]; ok {
-		delete(s.pipes, ep.GetID())
+	if p, ok := s.pipes[pp.ID()]; ok {
+		delete(s.pipes, pp.ID())
 		go p.close()
 	}
 	s.Unlock()

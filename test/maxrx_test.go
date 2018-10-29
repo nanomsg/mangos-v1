@@ -116,7 +116,9 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 		t.Errorf("Failed to make REP: %v", err)
 		return
 	}
-	defer rp.Close()
+	defer func() {
+		rp.Close()
+	}()
 	rp.AddTransport(tran)
 
 	// Now try setting the option
@@ -140,7 +142,9 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 		t.Errorf("Failed to make REQ: %v", err)
 		return
 	}
-	defer rq.Close()
+	defer func() {
+		rq.Close()
+	}()
 	rq.AddTransport(tran)
 
 	if err = rq.Dial(addr); err != nil {
@@ -177,7 +181,6 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 		t.Errorf("Failed send drop: %v", err)
 		return
 	}
-
 	v, err = rp.Recv()
 	switch err {
 	case mangos.ErrRecvTimeout: // expected

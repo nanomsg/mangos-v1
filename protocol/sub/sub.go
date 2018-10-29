@@ -137,7 +137,7 @@ func (s *socket) AddPipe(pp protocol.Pipe) error {
 	if s.closed {
 		return protocol.ErrClosed
 	}
-	s.pipes[p.p.GetID()] = p
+	s.pipes[p.p.ID()] = p
 	go p.receiver()
 	return nil
 }
@@ -145,11 +145,11 @@ func (s *socket) AddPipe(pp protocol.Pipe) error {
 func (s *socket) RemovePipe(pp protocol.Pipe) {
 	s.Lock()
 	defer s.Unlock()
-	p := s.pipes[pp.GetID()]
+	p := s.pipes[pp.ID()]
 	if p != nil && p.p == pp && !p.closed {
 		p.closed = true
 		pp.Close()
-		delete(s.pipes, pp.GetID())
+		delete(s.pipes, pp.ID())
 	}
 }
 

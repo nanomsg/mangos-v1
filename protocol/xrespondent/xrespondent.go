@@ -25,7 +25,7 @@ import (
 )
 
 type pipe struct {
-	ep     protocol.Pipe
+	p      protocol.Pipe
 	s      *socket
 	closed bool
 	closeq chan struct{}
@@ -127,7 +127,7 @@ func (p *pipe) receiver() {
 	s := p.s
 outer:
 	for {
-		m := p.ep.RecvMsg()
+		m := p.p.RecvMsg()
 		if m == nil {
 			break
 		}
@@ -138,7 +138,7 @@ outer:
 
 		// Outer most value of header is pipe ID
 		m.Header = append(make([]byte, 4), m.Header...)
-		binary.BigEndian.PutUint32(m.Header, p.ep.GetID())
+		binary.BigEndian.PutUint32(m.Header, p.p.ID())
 
 		s.Lock()
 		ttl := s.ttl
@@ -194,7 +194,7 @@ outer:
 			break
 		}
 
-		if e := p.ep.SendMsg(m); e != nil {
+		if e := p.p.SendMsg(m); e != nil {
 			break
 		}
 	}
@@ -209,10 +209,10 @@ func (p *pipe) Close() error {
 		return protocol.ErrClosed
 	}
 	p.closed = true
-	delete(s.pipes, p.ep.GetID())
+	delete(s.pipes, p.p.ID())
 	s.Unlock()
 	close(p.closeq)
-	p.ep.Close()
+	p.p.Close()
 	return nil
 }
 
@@ -356,30 +356,30 @@ func (s *socket) Close() error {
 	return nil
 }
 
-func (s *socket) AddPipe(ep protocol.Pipe) error {
+func (s *socket) AddPipe(pp protocol.Pipe) error {
 	s.Lock()
 	defer s.Unlock()
 	if s.closed {
 		return protocol.ErrClosed
 	}
 	p := &pipe{
-		ep:     ep,
+		p:      pp,
 		s:      s,
 		closeq: make(chan struct{}),
 		sendq:  make(chan *protocol.Message, s.sendQLen),
 	}
-	s.pipes[ep.GetID()] = p
+	s.pipes[pp.ID()] = p
 
 	go p.sender()
 	go p.receiver()
 	return nil
 }
 
-func (s *socket) RemovePipe(ep protocol.Pipe) {
+func (s *socket) RemovePipe(pp protocol.Pipe) {
 	s.Lock()
-	p, ok := s.pipes[ep.GetID()]
+	p, ok := s.pipes[pp.ID()]
 	s.Unlock()
-	if ok && p.ep == ep {
+	if ok && p.p == pp {
 		p.Close()
 	}
 }

@@ -33,7 +33,7 @@ var pipes struct {
 }
 
 // pipe wraps the Pipe data structure with the stuff we need to keep
-// for the core.  It implements the Endpoint interface.
+// for the core.  It implements the Pipe interface.
 type pipe struct {
 	sync.Mutex
 	id     uint32
@@ -70,6 +70,10 @@ func newPipe(tp transport.Pipe, s *socket, d *dialer, l *listener) *pipe {
 	}
 	pipes.Unlock()
 	return p
+}
+
+func (p *pipe) ID() uint32 {
+	return p.id
 }
 
 func (p *pipe) GetID() uint32 {

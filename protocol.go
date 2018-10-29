@@ -14,17 +14,13 @@
 
 package mangos
 
-//
-// LEGACY PROTOCOL STUFF
-//
-
-// Endpoint represents the handle that a Protocol implementation has
+// ProtocolPipe represents the handle that a Protocol implementation has
 // to the underlying stream transport.  It can be thought of as one side
 // of a TCP, IPC, or other type of connection.
-type Endpoint interface {
-	// GetID returns a unique 31-bit value associated with the Endpoint.
+type ProtocolPipe interface {
+	// ID returns a unique 31-bit value associated with this.
 	// The value is unique for a given socket, at a given time.
-	GetID() uint32
+	ID() uint32
 
 	// Close does what you think.
 	Close() error
@@ -37,10 +33,6 @@ type Endpoint interface {
 	// received.  On error, the pipe is closed and nil is returned.
 	RecvMsg() *Message
 }
-
-//
-// NEW PROTOCOL STUFF
-//
 
 // ProtocolInfo is a description of the protocol.
 type ProtocolInfo struct {
@@ -93,11 +85,11 @@ type ProtocolBase interface {
 
 	// AddPipe is called when a new Pipe is added to the socket.
 	// Typically this is as a result of connect or accept completing.
-	AddPipe(Endpoint) error
+	AddPipe(ProtocolPipe) error
 
 	// RemovePipe is called when a Pipe is removed from the socket.
 	// Typically this indicates a disconnected or closed connection.
-	RemovePipe(Endpoint)
+	RemovePipe(ProtocolPipe)
 
 	OpenContext() (ProtocolContext, error)
 }

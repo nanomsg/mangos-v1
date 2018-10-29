@@ -113,7 +113,7 @@ func (s *socket) AddPipe(pp protocol.Pipe) error {
 		closeq: make(chan struct{}),
 		sendq:  make(chan *protocol.Message, s.sendQLen),
 	}
-	s.pipes[pp.GetID()] = p
+	s.pipes[pp.ID()] = p
 
 	go p.sender()
 	go p.receiver()
@@ -122,7 +122,7 @@ func (s *socket) AddPipe(pp protocol.Pipe) error {
 
 func (s *socket) RemovePipe(pp protocol.Pipe) {
 	s.Lock()
-	p, ok := s.pipes[pp.GetID()]
+	p, ok := s.pipes[pp.ID()]
 	s.Unlock()
 	if ok && p.p == pp {
 		p.Close()
@@ -195,7 +195,7 @@ func (p *pipe) Close() error {
 		return protocol.ErrClosed
 	}
 	p.closed = true
-	delete(p.s.pipes, p.p.GetID())
+	delete(p.s.pipes, p.p.ID())
 	p.s.Unlock()
 
 	close(p.closeq)
