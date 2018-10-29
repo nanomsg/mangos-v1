@@ -20,13 +20,13 @@ jobs:
 
   build-coverage:
     docker:
-      - image: circleci/golang:1.10
+      - image: circleci/golang:1.11
     working_directory: ~/go/src/nanomsg.org/go/mangos/v2
     steps:
       - checkout
       - run: echo "$GOPATH"
       - run: go get -v -t -d ./...
-      - run: bash .circleci/coverage.sh
+      - run: go test -v -coverpkg=nanomsg.org/go/mangos/v2/... -covermode=count -coverprofile=coverage.txt ./...
       - run: bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
 
 workflows:

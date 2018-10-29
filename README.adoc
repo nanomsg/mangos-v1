@@ -15,7 +15,7 @@ image::mangos.jpg[align=right]
 image:https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux[Linux Status,link="https://circleci.com/gh/nanomsg/mangos-v2"]
 image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos-v2/blob/master/LICENSE"]
 image:https://img.shields.io/badge/gitter-join-brightgreen.svg[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
-
+image:https://codecov.io/gh/nanomsg/mangos-v2/branch/master/graph/badge.svg?label=coverage[Coverage,link="https://codecov.io/gh/nanomsg/mangos-v2"]
 
 WARNING:  THIS IS A WORK-IN-PROGRESS AND NOT READY FOR GENERAL USE YET.
 This represents version 2 of mangos, and contains breaking changes and
