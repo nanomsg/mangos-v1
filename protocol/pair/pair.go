@@ -41,11 +41,6 @@ func (s *socket) GetOption(name string) (interface{}, error) {
 	return s.Protocol.GetOption(name)
 }
 
-// Info returns protocol information.
-func Info() protocol.Info {
-	return xpair.Info()
-}
-
 // NewProtocol returns a new protocol implementation.
 func NewProtocol() protocol.Protocol {
 	s := &socket{
