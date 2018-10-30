@@ -103,16 +103,11 @@ func (p *conn) RemoteProtocol() uint16 {
 func (p *conn) Close() error {
 	p.Lock()
 	defer p.Unlock()
-	if p.IsOpen() {
+	if p.open {
 		p.open = false
 		return p.c.Close()
 	}
 	return nil
-}
-
-// IsOpen implements the Pipe IsOpen method.
-func (p *conn) IsOpen() bool {
-	return p.open
 }
 
 func (p *conn) GetOption(n string) (interface{}, error) {

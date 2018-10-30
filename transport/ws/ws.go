@@ -172,16 +172,12 @@ func (w *wsPipe) RemoteProtocol() uint16 {
 func (w *wsPipe) Close() error {
 	w.Lock()
 	defer w.Unlock()
-	if w.IsOpen() {
+	if w.open {
 		w.open = false
 		w.ws.Close()
 		w.wg.Done()
 	}
 	return nil
-}
-
-func (w *wsPipe) IsOpen() bool {
-	return w.open
 }
 
 func (w *wsPipe) GetOption(name string) (interface{}, error) {

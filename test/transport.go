@@ -106,11 +106,6 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 		}
 		t.Logf("Connected client: %d (server %d)",
 			client.LocalProtocol(), client.RemoteProtocol())
-		t.Logf("Client open: %t", client.IsOpen())
-		if !client.IsOpen() {
-			t.Error("Client is closed")
-			return
-		}
 	}()
 
 	server, err := l.Accept()
@@ -130,10 +125,6 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 
 	t.Logf("Connected server: %d (client %d)",
 		server.LocalProtocol(), server.RemoteProtocol())
-	t.Logf("Server open: %t", server.IsOpen())
-	if !server.IsOpen() {
-		t.Error("Server is closed")
-	}
 	wg.Wait()
 }
 
@@ -245,7 +236,7 @@ func (tt *TranTest) TestSendRecv(t *testing.T) {
 			t.Errorf("Dial failed: %v", err)
 			return
 		}
-		t.Logf("Connected client: %t", client.IsOpen())
+		t.Logf("Connected client")
 		defer client.Close()
 
 		req := mangos.NewMessage(len(ping))
@@ -290,7 +281,7 @@ func (tt *TranTest) TestSendRecv(t *testing.T) {
 		t.Errorf("Accept failed: %v", err)
 		return
 	}
-	t.Logf("Connected server: %t", server.IsOpen())
+	t.Logf("Connected server")
 	defer server.Close()
 
 	// Now we can try to send and receive

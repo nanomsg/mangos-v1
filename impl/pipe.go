@@ -148,10 +148,6 @@ func (p *pipe) GetOption(name string) (interface{}, error) {
 	return val, err
 }
 
-func (p *pipe) IsOpen() bool {
-	return p.p.IsOpen()
-}
-
 func (p *pipe) Dialer() mangos.Dialer {
 	if p.d == nil {
 		return nil

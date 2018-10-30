@@ -127,20 +127,13 @@ func (p *inproc) RemoteProtocol() uint16 {
 
 func (p *inproc) Close() error {
 	p.Lock()
-	defer p.Unlock()
-	if p.IsOpen() {
+	select {
+	case <-p.closeq: // If already closed, don't do it again.
+	default:
 		close(p.closeq)
 	}
+	p.Unlock()
 	return nil
-}
-
-func (p *inproc) IsOpen() bool {
-	select {
-	case <-p.closeq:
-		return false
-	default:
-		return true
-	}
 }
 
 func (p *inproc) GetOption(name string) (interface{}, error) {

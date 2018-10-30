@@ -57,9 +57,6 @@ type TranPipe interface {
 	// connection establishment.
 	RemoteProtocol() uint16
 
-	// IsOpen returns true if the underlying connection is open.
-	IsOpen() bool
-
 	// GetOption returns an arbitrary transport specific option on a
 	// pipe.  Options for pipes are read-only and specific to that
 	// particular connection. If the property doesn't exist, then
