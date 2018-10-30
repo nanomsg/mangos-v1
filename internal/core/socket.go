@@ -303,10 +303,7 @@ func (s *socket) ListenOptions(addr string, options map[string]interface{}) erro
 	if err != nil {
 		return err
 	}
-	if err = l.Listen(); err != nil {
-		return err
-	}
-	return nil
+	return l.Listen()
 }
 
 func (s *socket) Listen(addr string) error {

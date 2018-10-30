@@ -64,7 +64,6 @@ func doLocalReqRepLatency(args []string) {
 	os.Exit(0)
 }
 
-
 func doRemoteLatency(args []string) {
 	if len(args) < 3 {
 		log.Fatalf("Usage: remote_lat <connect-to> <msg-size> <roundtrips>")
@@ -81,7 +80,6 @@ func doRemoteLatency(args []string) {
 	LatencyClient(addr, msgSize, roundTrips)
 	os.Exit(0)
 }
-
 
 func doLocalLatency(args []string) {
 	if len(args) < 3 {

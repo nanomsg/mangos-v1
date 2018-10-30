@@ -224,6 +224,9 @@ func (tt *TranTest) TestSendRecv(t *testing.T) {
 		// Client side
 		t.Logf("Connecting REQ on %s", tt.addr)
 		d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
+		if err != nil {
+			t.Errorf("Failed creating Dialer: %v", err)
+		}
 		if tt.cliCfg != nil {
 			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)

@@ -276,25 +276,8 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			newchan := make(chan *protocol.Message, v)
 			s.Lock()
 			s.recvQLen = v
-			oldchan := s.recvq
 			s.recvq = newchan
 			s.Unlock()
-
-			for {
-				var m *protocol.Message
-				select {
-				case m = <-oldchan:
-				default:
-				}
-				if m == nil {
-					break
-				}
-				select {
-				case newchan <- m:
-				default:
-					m.Free()
-				}
-			}
 		}
 		// We don't support these
 		// case OptionLinger:

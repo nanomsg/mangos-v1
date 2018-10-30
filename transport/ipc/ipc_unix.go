@@ -79,10 +79,6 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 	return d.opts.get(n)
 }
 
-func (d *dialer) Address() string {
-	return "ipc://" + d.addr.String()
-}
-
 type listener struct {
 	addr     *net.UnixAddr
 	proto    transport.ProtocolInfo

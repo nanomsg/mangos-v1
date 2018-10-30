@@ -157,25 +157,9 @@ func (s *socket) SetOption(name string, value interface{}) error {
 			newchan := make(chan *protocol.Message, v)
 			s.Lock()
 			s.recvQLen = v
-			oldchan := s.recvq
 			s.recvq = newchan
 			s.Unlock()
 
-			for {
-				var m *protocol.Message
-				select {
-				case m = <-oldchan:
-				default:
-				}
-				if m == nil {
-					break
-				}
-				select {
-				case newchan <- m:
-				default:
-					m.Free()
-				}
-			}
 			return nil
 		}
 		return protocol.ErrBadValue
@@ -310,27 +294,20 @@ outer:
 			m.Free()
 			continue
 		}
+		if len(m.Body) < 4 ||
+			m.Body[0] != 0 || m.Body[1] != 0 || m.Body[2] != 0 ||
+			int(m.Body[3]) >= s.ttl {
+			m.Free()
+			continue
+		}
 		m.Header = m.Body[:4]
 		m.Body = m.Body[4:]
-		if m.Header[0] != 0 || m.Header[1] != 0 || m.Header[2] != 0 {
-			// non-zero reserved fields are illegal
-			m.Free()
-			continue
-		}
-		if int(m.Header[3]) >= s.ttl { // TTL expired?
-			// XXX: bump a stat
-			m.Free()
-			continue
-		}
 		m.Header[3]++
 
 		userm := m.Dup()
 		s.Lock()
 		for _, p2 := range s.pipes {
-			if p2 == p {
-				continue
-			}
-			if p2.closed {
+			if p2 == p || p2.closed {
 				continue
 			}
 

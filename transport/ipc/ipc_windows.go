@@ -47,16 +47,6 @@ const (
 	OptionOutputBufferSize = "WIN-IPC-OUTPUT-BUFFER-SIZE"
 )
 
-type pipeAddr string
-
-func (p pipeAddr) Network() string {
-	return "ipc"
-}
-
-func (p pipeAddr) String() string {
-	return string(p)
-}
-
 type dialer struct {
 	path  string
 	proto transport.ProtocolInfo
@@ -70,7 +60,6 @@ func (d *dialer) Dial() (transport.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	addr := pipeAddr(d.path)
 	return mangos.NewConnPipeIPC(conn, d.proto, d.opts)
 }
 
@@ -140,7 +129,6 @@ func (l *listener) Accept() (mangos.TranPipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	addr := pipeAddr(l.path)
 	return transport.NewConnPipeIPC(conn, l.proto, l.opts)
 }
 

@@ -18,7 +18,7 @@ package mangos
 // channel.  There is one of these associated with a given TCP connection,
 // for example.  This interface is intended for application use.
 //
-// Note that applicatons cannot send or receive data on a Pipe directly.
+// Note that applications cannot send or receive data on a Pipe directly.
 type Pipe interface {
 
 	// ID returns the numeric ID for this Pipe.  This will be a

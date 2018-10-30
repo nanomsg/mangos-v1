@@ -209,6 +209,47 @@ func (c *context) matches(m *protocol.Message) bool {
 
 }
 
+func (c *context) subscribe(topic []byte) error {
+	for _, sub := range c.subs {
+		if bytes.Equal(sub, topic) {
+			// Already present
+			return nil
+		}
+	}
+	c.subs = append(c.subs, topic)
+	return nil
+}
+
+func (c *context) unsubscribe(topic []byte) error {
+	for i, sub := range c.subs {
+		if !bytes.Equal(sub, topic) {
+			continue
+		}
+		c.subs = append(c.subs[:i], c.subs[i+1:]...)
+
+		// Because we have changed the subscription,
+		// we may have messages in the channel that
+		// we don't want any more.  Lets prune those.
+		newchan := make(chan *protocol.Message, c.recvQLen)
+		oldchan := c.recvq
+		c.recvq = newchan
+		for m := range oldchan {
+			if !c.matches(m) {
+				m.Free()
+				continue
+			}
+			select {
+			case newchan <- m:
+			default:
+				m.Free()
+			}
+		}
+		return nil
+	}
+	// Subscription not present
+	return protocol.ErrBadValue
+}
+
 func (c *context) SetOption(name string, value interface{}) error {
 	s := c.s
 
@@ -246,42 +287,10 @@ func (c *context) SetOption(name string, value interface{}) error {
 
 	switch name {
 	case protocol.OptionSubscribe:
-		for _, sub := range c.subs {
-			if bytes.Equal(sub, vb) {
-				// Already present
-				return nil
-			}
-		}
-		c.subs = append(c.subs, vb)
-		return nil
+		return c.subscribe(vb)
 
 	case protocol.OptionUnsubscribe:
-		for i, sub := range c.subs {
-			if bytes.Equal(sub, vb) {
-				c.subs = append(c.subs[:i], c.subs[i+1:]...)
-
-				// Because we have changed the subscription,
-				// we may have messages in the channel that
-				// we don't want any more.  Lets prune those.
-				newchan := make(chan *protocol.Message, c.recvQLen)
-				oldchan := c.recvq
-				c.recvq = newchan
-				for m := range oldchan {
-					if !c.matches(m) {
-						m.Free()
-						continue
-					}
-					select {
-					case newchan <- m:
-					default:
-						m.Free()
-					}
-				}
-				return nil
-			}
-		}
-		// Subscription not present
-		return protocol.ErrBadValue
+		return c.unsubscribe(vb)
 
 	default:
 		return protocol.ErrBadOption

@@ -102,6 +102,7 @@ func TestReqRetry(t *testing.T) {
 				So(l2, ShouldNotBeNil)
 
 				err = l.Listen()
+				So(err, ShouldBeNil)
 				time.Sleep(time.Millisecond * 50)
 
 				m := mangos.NewMessage(0)
@@ -121,6 +122,7 @@ func TestReqRetry(t *testing.T) {
 
 				// Open the new one on the other socket
 				err = l2.Listen()
+				So(err, ShouldBeNil)
 				m, err = rep2.RecvMsg()
 				So(m, ShouldNotBeNil)
 				So(err, ShouldBeNil)
