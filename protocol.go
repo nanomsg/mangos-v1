@@ -108,26 +108,5 @@ const (
 	ProtoSurveyor   = (6 * 16) + 2
 	ProtoRespondent = (6 * 16) + 3
 	ProtoBus        = (7 * 16)
-
-	// Experimental Protocols - Use at Risk
-
-	ProtoStar = (100 * 16)
+	ProtoStar       = (100 * 16) // Experimental!
 )
-
-// ProtocolName returns the name corresponding to a given protocol number.
-// This is useful for transports like WebSocket, which use a text name
-// rather than the number in the handshake.
-func ProtocolName(number uint16) string {
-	names := map[uint16]string{
-		ProtoPair:       "pair",
-		ProtoPub:        "pub",
-		ProtoSub:        "sub",
-		ProtoReq:        "req",
-		ProtoRep:        "rep",
-		ProtoPush:       "push",
-		ProtoPull:       "pull",
-		ProtoSurveyor:   "surveyor",
-		ProtoRespondent: "respondent",
-		ProtoBus:        "bus"}
-	return names[number]
-}
