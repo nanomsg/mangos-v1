@@ -27,22 +27,23 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-type hookinfo struct {
-	action mangos.PortAction
+type phookinfo struct {
+	action mangos.PipeEvent
 	server bool
-	isopen bool
 	addr   string
 }
 
-func (i hookinfo) String() string {
+func (i phookinfo) String() string {
 	var s string
 	switch i.action {
-	case mangos.PortActionAdd:
-		s = "Add "
-	case mangos.PortActionRemove:
-		s = "Rem "
+	case mangos.PipeEventAttaching:
+		s = "Attaching"
+	case mangos.PipeEventAttached:
+		s = "Attached "
+	case mangos.PipeEventDetached:
+		s = "Detached "
 	default:
-		s = "WTH "
+		s = "???????? "
 	}
 	if i.server {
 		s += "SRV "
@@ -50,67 +51,71 @@ func (i hookinfo) String() string {
 		s += "CLI "
 	}
 	s += i.addr + " "
-	if i.isopen {
-		s += "Open "
-	} else {
-		s += "Closed "
-	}
 	return s
 }
 
-type hooktest struct {
+type phooktest struct {
 	t      *testing.T
-	calls  []hookinfo
-	expect []hookinfo
+	calls  []phookinfo
+	expect []phookinfo
 	allow  bool
 	sync.Mutex
 }
 
-func (h *hooktest) Hook(action mangos.PortAction, p mangos.Port) bool {
+func (h *phooktest) Hook(action mangos.PipeEvent, p mangos.Pipe) {
 	h.t.Logf("Hook called - %v", action)
-	i := hookinfo{
+	i := phookinfo{
 		action: action,
 		addr:   p.Address(),
-		isopen: p.IsOpen(),
 		server: p.Listener() != nil,
 	}
 	h.Lock()
 	h.calls = append(h.calls, i)
 	h.Unlock()
-	return h.allow
+	if !h.allow {
+		p.Close()
+	}
 }
 
-func TestPortHook(t *testing.T) {
+func TestPipeHook(t *testing.T) {
 	Convey("Testing Add Hook", t, func() {
 
-		srvtest := &hooktest{allow: true, t: t}
-		clitest := &hooktest{allow: true, t: t}
+		srvtest := &phooktest{allow: true, t: t}
+		clitest := &phooktest{allow: true, t: t}
 
 		addr := AddrTestTCP()
 
-		srvtest.expect = []hookinfo{{
-			action: mangos.PortActionAdd,
-			addr:   addr,
-			server: true,
-			isopen: true,
-		}, {
-			action: mangos.PortActionRemove,
-			addr:   addr,
-			server: true,
-			isopen: false,
-		}}
+		srvtest.expect = []phookinfo{
+			{
+				action: mangos.PipeEventAttaching,
+				addr:   addr,
+				server: true,
+			}, {
+				action: mangos.PipeEventAttached,
+				addr:   addr,
+				server: true,
+			}, {
+				action: mangos.PipeEventDetached,
+				addr:   addr,
+				server: true,
+			},
+		}
 
-		clitest.expect = []hookinfo{{
-			action: mangos.PortActionAdd,
-			addr:   addr,
-			server: false,
-			isopen: true,
-		}, {
-			action: mangos.PortActionRemove,
-			addr:   addr,
-			server: false,
-			isopen: false,
-		}}
+		clitest.expect = []phookinfo{
+			{
+				action: mangos.PipeEventAttaching,
+				addr:   addr,
+				server: false,
+			}, {
+				action: mangos.PipeEventAttached,
+				addr:   addr,
+				server: false,
+			}, {
+				action: mangos.PipeEventDetached,
+				addr:   addr,
+				server: false,
+			},
+		}
 
 		Convey("Given a REQ & REP sockets", func() {
 			sockreq, err := req.NewSocket()
@@ -136,10 +141,10 @@ func TestPortHook(t *testing.T) {
 			So(l, ShouldNotBeNil)
 
 			Convey("We can set port hooks", func() {
-				hook := sockreq.SetPortHook(clitest.Hook)
+				hook := sockreq.SetPipeEventHook(clitest.Hook)
 				So(hook, ShouldBeNil)
 
-				hook = sockrep.SetPortHook(srvtest.Hook)
+				hook = sockrep.SetPipeEventHook(srvtest.Hook)
 				So(hook, ShouldBeNil)
 
 				Convey("And establish a connection", func() {

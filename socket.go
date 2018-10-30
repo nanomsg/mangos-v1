@@ -81,10 +81,11 @@ type Socket interface {
 	// options may have been configured on the Transport prior to this.
 	AddTransport(Transport)
 
-	// SetPortHook sets a PortHook function to be called when a Port is
-	// added or removed from this socket (connect/disconnect).  The previous
-	// hook is returned (nil if none.)
-	SetPortHook(PortHook) PortHook
+	// SetPipeEventHook sets a PipeEventHook function to be called when a
+	// Pipe is added or removed from this socket (connect/disconnect).
+	// The previous hook is returned (nil if none.)  (Only one hook can
+	// be used at a time.)
+	SetPipeEventHook(PipeEventHook) PipeEventHook
 }
 
 // Context is a protocol context, and represents the upper side operations

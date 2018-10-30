@@ -53,7 +53,7 @@ type socket struct {
 	translk sync.RWMutex
 	trans   map[string]transport.Transport
 
-	porthook mangos.PortHook // called when a port is added or removed
+	pipehook mangos.PipeEventHook
 }
 
 type context struct {
@@ -69,12 +69,11 @@ func (s *socket) addPipe(tp transport.Pipe, d *dialer, l *listener) {
 	}
 
 	s.Lock()
-	fn := s.porthook
+	ph := s.pipehook
 	s.Unlock()
 
-	if fn != nil && !fn(mangos.PortActionAdd, p) {
-		go p.Close()
-		return
+	if ph != nil {
+		ph(mangos.PipeEventAttaching, p)
 	}
 
 	s.Lock()
@@ -91,6 +90,9 @@ func (s *socket) addPipe(tp transport.Pipe, d *dialer, l *listener) {
 		go p.d.pipeConnected()
 	}
 	s.Unlock()
+	if ph != nil {
+		ph(mangos.PipeEventAttached, p)
+	}
 }
 
 func (s *socket) remPipe(p *pipe) {
@@ -99,8 +101,8 @@ func (s *socket) remPipe(p *pipe) {
 
 	s.Lock()
 	delete(s.pipes, p)
-	if fn := s.porthook; fn != nil {
-		go fn(mangos.PortActionRemove, p)
+	if ph := s.pipehook; ph != nil {
+		go ph(mangos.PipeEventDetached, p)
 	}
 	s.Unlock()
 }
@@ -423,10 +425,10 @@ func (s *socket) Info() mangos.ProtocolInfo {
 	return s.proto.Info()
 }
 
-func (s *socket) SetPortHook(newhook mangos.PortHook) mangos.PortHook {
+func (s *socket) SetPipeEventHook(newhook mangos.PipeEventHook) mangos.PipeEventHook {
 	s.Lock()
-	oldhook := s.porthook
-	s.porthook = newhook
+	oldhook := s.pipehook
+	s.pipehook = newhook
 	s.Unlock()
 	return oldhook
 }

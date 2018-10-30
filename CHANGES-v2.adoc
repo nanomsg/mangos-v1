@@ -30,7 +30,7 @@ on nanomsg.  That FFI has been abandonware for a long time.
 
 == New Raw Mode Packages
 
-Raw mode sockets are now in their own packages, e.g. `xreq` instead of `req`.  
+Raw mode sockets are now in their own packages, e.g. `xreq` instead of `req`.
 This is similar to the Martin's original libnanomsg library.
 
 The `OptionRawMode` option has transitioned to being read-only.
@@ -69,7 +69,7 @@ to share a single socket, each having it's own context.  See the
 
 Protocols now return their numeric and string IDs, as well as those of
 their APIs, via a new `Info()` API, which replaces the old `Number()`,
-`Name()`, and similar APIs. 
+`Name()`, and similar APIs.
 
 == Properties API Merged into Options
 
@@ -84,7 +84,7 @@ a bug.
 
 == Dial Now Synchronous
 
-When using vanilla Dialer.Dial(), the calling thread will normally
+When using vanilla `Dialer.Dial()`, the calling thread will normally
 be blocked until either a connection is established, or an error
 occurs on this first attempt.  If an error occurs, there will be no
 further retries.  However, the self-healing mode is used for subsequent
@@ -93,6 +93,33 @@ connection attempts.
 This mode is intended to facilitate folks who are trying to fix the most
 common connection setup errors.
 
-An option, OptionDialAsynch, can be set on sockets or dialers to restore
+An option, `OptionDialAsynch`, can be set on sockets or dialers to restore
 the old behavior, where a dialer will just run in the background
 from the beginning.
+
+== Port API changed to Pipe
+
+The `Message.Port` is changed to use a new `Pipe` interface, which has
+some differences but conversion should be straight-forward.  (Few
+applications used this API.)
+
+Also the `PortHook` API is now replaced with a `PipeEventHook` API,
+and a separate event is used for pre-attach and post-attach.  This
+turns out to be useful in circumstances where one wants to be certain
+that the pipe is connected before taking some action.
+
+Note that `Pipe.GetOption` will fallback to looking for the `Dialer` or
+`Listener` option if it doesn't have a local value.
+
+== `Message.Expired` removed
+
+This API turns out to be not very useful, and we have elected to just
+eliminate it entirely.  It was only intended for use by transports,
+and then only to cope with cases where a Message might have been stuck
+in a queue for a long time.
+
+== `Protocol.ProtocolName` removed
+
+The ability to lookup protocol names by their protocol number is removed.
+Each protocol instead has their identities (including name and string)
+as constants (`Self`, `Peer`, `SelfName`, and `PeerName`) in the package.

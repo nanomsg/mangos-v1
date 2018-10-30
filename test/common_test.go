@@ -317,16 +317,16 @@ func (c *T) RecvStart() bool {
 		return false
 	}
 	defer m.Free()
-	if addr := m.Port.Address(); addr != c.addr {
-		c.Errorf("Got unexpected message port address: %s", addr)
+	if addr := m.Pipe.Address(); addr != c.addr {
+		c.Errorf("Got unexpected message pipe address: %s", addr)
 		return false
 	}
-	if c.IsServer() && m.Port.Listener() == nil {
-		c.Errorf("Expected message port server")
+	if c.IsServer() && m.Pipe.Listener() == nil {
+		c.Errorf("Expected message pipe listener")
 		return false
 	}
-	if !c.IsServer() && m.Port.Dialer() == nil {
-		c.Errorf("Expected message port client")
+	if !c.IsServer() && m.Pipe.Dialer() == nil {
+		c.Errorf("Expected message pipe dialer")
 		return false
 	}
 

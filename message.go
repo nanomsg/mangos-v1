@@ -33,11 +33,11 @@ type Message struct {
 	// of as the message "payload".
 	Body []byte
 
-	// Port may be set on message receipt, to indicate the Port from
+	// Pipe may be set on message receipt, to indicate the Pipe from
 	// which the Message was received.  There are no guarantees that the
-	// Port is still active, and applications should only use this for
+	// Pipe is still active, and applications should only use this for
 	// informational purposes.
-	Port Port
+	Pipe Pipe
 
 	bbuf  []byte
 	hbuf  []byte
@@ -123,7 +123,7 @@ func (m *Message) Dup() *Message {
 	dup := NewMessage(len(m.Body))
 	dup.Body = append(dup.Body, m.Body...)
 	dup.Header = append(dup.Header, m.Header...)
-	dup.Port = m.Port
+	dup.Pipe = m.Pipe
 	return dup
 }
 

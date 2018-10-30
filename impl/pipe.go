@@ -122,7 +122,7 @@ func (p *pipe) RecvMsg() *mangos.Message {
 		p.Close()
 		return nil
 	}
-	msg.Port = p
+	msg.Pipe = p
 	return msg
 }
 
@@ -137,7 +137,15 @@ func (p *pipe) Address() string {
 }
 
 func (p *pipe) GetOption(name string) (interface{}, error) {
-	return p.p.GetOption(name)
+	val, err := p.p.GetOption(name)
+	if err == mangos.ErrBadOption {
+		if p.d != nil {
+			val, err = p.d.GetOption(name)
+		} else if p.l != nil {
+			val, err = p.l.GetOption(name)
+		}
+	}
+	return val, err
 }
 
 func (p *pipe) IsOpen() bool {
