@@ -22,6 +22,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoPush
+	Peer     = protocol.ProtoPull
+	SelfName = "push"
+	PeerName = "pull"
+)
+
 type pipe struct {
 	p      protocol.Pipe
 	s      *socket
@@ -291,16 +299,11 @@ func (s *socket) OpenContext() (protocol.Context, error) {
 }
 
 func (*socket) Info() protocol.Info {
-	return Info()
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
 	return protocol.Info{
-		Self:     protocol.ProtoPush,
-		Peer:     protocol.ProtoPull,
-		SelfName: "push",
-		PeerName: "pull",
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
 	}
 }
 

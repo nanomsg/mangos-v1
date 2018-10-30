@@ -25,10 +25,13 @@ type socket struct {
 	protocol.Protocol
 }
 
-// Info returns protocol information.
-func Info() protocol.Info {
-	return xbus.Info()
-}
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoBus
+	Peer     = protocol.ProtoBus
+	SelfName = "bus"
+	PeerName = "bus"
+)
 
 func (s *socket) GetOption(name string) (interface{}, error) {
 	switch name {

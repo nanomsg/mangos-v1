@@ -45,6 +45,14 @@ type socket struct {
 	sync.Mutex
 }
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoBus
+	Peer     = protocol.ProtoBus
+	SelfName = "bus"
+	PeerName = "bus"
+)
+
 var (
 	nilQ <-chan time.Time
 )
@@ -221,7 +229,12 @@ func (s *socket) OpenContext() (protocol.Context, error) {
 }
 
 func (*socket) Info() protocol.Info {
-	return Info()
+	return protocol.Info{
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
+	}
 }
 
 func (s *socket) Close() error {
@@ -309,16 +322,6 @@ func (p *pipe) Close() error {
 	close(p.closeq)
 	p.p.Close()
 	return nil
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
-	return protocol.Info{
-		Self:     protocol.ProtoBus,
-		Peer:     protocol.ProtoBus,
-		SelfName: "bus",
-		PeerName: "bus",
-	}
 }
 
 // NewProtocol returns a new protocol implementation.

@@ -21,6 +21,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/xpush"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoPush
+	Peer     = protocol.ProtoPull
+	SelfName = "push"
+	PeerName = "pull"
+)
+
 type socket struct {
 	protocol.Protocol
 }
@@ -31,11 +39,6 @@ func (s *socket) GetOption(name string) (interface{}, error) {
 		return false, nil
 	}
 	return s.Protocol.GetOption(name)
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
-	return xpush.Info()
 }
 
 // NewProtocol returns a new protocol implementation.

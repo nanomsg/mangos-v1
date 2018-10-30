@@ -26,17 +26,20 @@ type socket struct {
 	protocol.Protocol
 }
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoPub
+	Peer     = protocol.ProtoSub
+	SelfName = "pub"
+	PeerName = "sub"
+)
+
 func (s *socket) GetOption(name string) (interface{}, error) {
 	switch name {
 	case protocol.OptionRaw:
 		return false, nil
 	}
 	return s.Protocol.GetOption(name)
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
-	return xpub.Info()
 }
 
 // NewProtocol returns a new protocol implementation.

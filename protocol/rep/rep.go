@@ -23,6 +23,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoRep
+	Peer     = protocol.ProtoReq
+	SelfName = "rep"
+	PeerName = "req"
+)
+
 type pipe struct {
 	s      *socket
 	p      protocol.Pipe
@@ -359,7 +367,12 @@ func (s *socket) Close() error {
 }
 
 func (*socket) Info() protocol.Info {
-	return Info()
+	return protocol.Info{
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
+	}
 }
 
 func (s *socket) AddPipe(pp protocol.Pipe) error {
@@ -454,16 +467,6 @@ func (s *socket) RecvMsg() (*protocol.Message, error) {
 
 func (s *socket) SendMsg(m *protocol.Message) error {
 	return s.defCtx.SendMsg(m)
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
-	return protocol.Info{
-		Self:     protocol.ProtoRep,
-		Peer:     protocol.ProtoReq,
-		SelfName: "rep",
-		PeerName: "req",
-	}
 }
 
 // NewProtocol allocates a protocol state for the REP protocol.

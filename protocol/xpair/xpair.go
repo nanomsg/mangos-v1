@@ -23,6 +23,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoPair
+	Peer     = protocol.ProtoPair
+	SelfName = "pair"
+	PeerName = "pair"
+)
+
 const defaultQlen = 128
 
 type pipe struct {
@@ -235,7 +243,12 @@ func (s *socket) OpenContext() (protocol.Context, error) {
 }
 
 func (*socket) Info() protocol.Info {
-	return Info()
+	return protocol.Info{
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
+	}
 }
 
 func (s *socket) Close() error {
@@ -316,16 +329,6 @@ func (p *pipe) Close() error {
 	close(p.closeq)
 	p.p.Close()
 	return nil
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
-	return protocol.Info{
-		Self:     protocol.ProtoPair,
-		Peer:     protocol.ProtoPair,
-		SelfName: "pair",
-		PeerName: "pair",
-	}
 }
 
 // NewProtocol returns a new protocol implementation.

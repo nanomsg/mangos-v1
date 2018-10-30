@@ -25,6 +25,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoSurveyor
+	Peer     = protocol.ProtoRespondent
+	SelfName = "surveyor"
+	PeerName = "respondent"
+)
+
 const defaultSurveyTime = time.Second
 
 type pipe struct {
@@ -406,16 +414,11 @@ func (s *socket) SetOption(option string, value interface{}) error {
 }
 
 func (*socket) Info() protocol.Info {
-	return Info()
-}
-
-// Info returns protocol information.
-func Info() protocol.Info {
 	return protocol.Info{
-		Self:     protocol.ProtoSurveyor,
-		Peer:     protocol.ProtoRespondent,
-		SelfName: "surveyor",
-		PeerName: "respondent",
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
 	}
 }
 

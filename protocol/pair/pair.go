@@ -21,6 +21,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/xpair"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoPair
+	Peer     = protocol.ProtoPair
+	SelfName = "pair"
+	PeerName = "pair"
+)
+
 type socket struct {
 	protocol.Protocol
 }

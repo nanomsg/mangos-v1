@@ -27,6 +27,14 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/xstar"
 )
 
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoStar
+	Peer     = protocol.ProtoStar
+	SelfName = "star"
+	PeerName = "star"
+)
+
 type socket struct {
 	protocol.Protocol
 }
@@ -54,11 +62,6 @@ func (s *socket) RecvMsg() (*protocol.Message, error) {
 		m.Header = m.Header[:0]
 	}
 	return m, err
-}
-
-// Info returns protocol info for star.
-func Info() protocol.Info {
-	return xstar.Info()
 }
 
 // NewProtocol returns a new protocol implementation.
