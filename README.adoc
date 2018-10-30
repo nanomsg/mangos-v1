@@ -17,6 +17,9 @@ image:https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=li
 image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos-v2/blob/master/LICENSE"]
 image:https://img.shields.io/badge/gitter-join-brightgreen.svg[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
 image:https://codecov.io/gh/nanomsg/mangos-v2/branch/master/graph/badge.svg?label=coverage[Coverage,link="https://codecov.io/gh/nanomsg/mangos-v2"]
+image:https://img.shields.io/badge/godoc-reference-blue.svg[GoDoc,link="https://godoc.org/nanomsg.org/go/mangos/v2"]
+image:https://goreportcard.com/badge/nanomsg.org/go/mangos/v2[Go Report Card,link="https://goreportcard.com/report/nanomsg.org/go/mangos/v2"]
+
 
 [cols="2",grid="none",frame="none",options="autowidth"]
 |===
