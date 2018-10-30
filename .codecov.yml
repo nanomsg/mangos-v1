@@ -1,2 +1,5 @@
+ignore:
+ - perf/*
+ - examples/*/*
 coverage:
  range: 50..85
