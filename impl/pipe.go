@@ -76,10 +76,6 @@ func (p *pipe) ID() uint32 {
 	return p.id
 }
 
-func (p *pipe) GetID() uint32 {
-	return p.id
-}
-
 func (p *pipe) Close() error {
 	s := p.s
 
