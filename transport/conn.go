@@ -74,11 +74,6 @@ func (p *conn) Send(msg *Message) error {
 
 	l := uint64(len(msg.Header) + len(msg.Body))
 
-	if msg.Expired() {
-		msg.Free()
-		return nil
-	}
-
 	// send length header
 	if err := binary.Write(p.c, binary.BigEndian, l); err != nil {
 		return err

@@ -16,7 +16,6 @@ package mangos
 
 import (
 	"sync"
-	"time"
 )
 
 // Message encapsulates the messages that we exchange back and forth.  The
@@ -40,11 +39,10 @@ type Message struct {
 	// informational purposes.
 	Port Port
 
-	bbuf   []byte
-	hbuf   []byte
-	bsize  int
-	expire time.Time
-	pool   *sync.Pool
+	bbuf  []byte
+	hbuf  []byte
+	bsize int
+	pool  *sync.Pool
 }
 
 type msgCacheInfo struct {
@@ -127,21 +125,6 @@ func (m *Message) Dup() *Message {
 	dup.Header = append(dup.Header, m.Header...)
 	dup.Port = m.Port
 	return dup
-}
-
-// Expired returns true if the message has "expired".  This is used by
-// transport implementations to discard messages that have been
-// stuck in the write queue for too long, and should be discarded rather
-// than delivered across the transport.  This is only used on the TX
-// path, there is no sense of "expiration" on the RX path.
-func (m *Message) Expired() bool {
-	if m.expire.IsZero() {
-		return false
-	}
-	if m.expire.After(time.Now()) {
-		return false
-	}
-	return true
 }
 
 // NewMessage is the supported way to obtain a new Message.  This makes
