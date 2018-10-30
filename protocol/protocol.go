@@ -20,7 +20,7 @@ package protocol
 import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/errors"
-	"nanomsg.org/go/mangos/v2/impl"
+	"nanomsg.org/go/mangos/v2/internal/core"
 )
 
 // Protocol numbers
@@ -88,5 +88,5 @@ const (
 
 // MakeSocket creates a Socket on top of a Protocol.
 func MakeSocket(proto Protocol) Socket {
-	return impl.MakeSocket(proto)
+	return core.MakeSocket(proto)
 }
