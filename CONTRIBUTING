@@ -22,7 +22,7 @@ If you're thinking of contributing, here's what you should know.
 
  # The remaining items below are consequences of the items above.
 
- 4. All code must pass go vet, and be go fmt compliant.
+ 4. All code must pass `go vet`, and be `go fmt` compliant.
 
  5. New features should have tests, and the existing tests must continue
     to pass.  We use the go test framework.
@@ -46,8 +46,8 @@ If you're thinking of contributing, here's what you should know.
     end of the AUTHORS file.  (Please do this, particularly for non-trivial
     changes!)
 
-10. Submit a github pull request.  Ideally just one bug per PR if possible,
-    and based upon the latest commit in the github master branch.
+10. Submit a GitHub pull request.  Ideally just one bug per PR if possible,
+    and based upon the latest commit in the GitHub master branch.
 
 11. We may rebase your changes, including squashing multiple commits,
     or ask you to do so, if you have not followed the procedure above, or

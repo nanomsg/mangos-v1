@@ -22,10 +22,9 @@ These are colloquially  known as a "`nanomsg`".
 a|image::mangos.jpg[float="right"]
 |===
 
-WARNING:  THIS IS A WORK-IN-PROGRESS AND NOT READY FOR GENERAL USE YET.
-This represents version 2 of _mangos_, and contains breaking changes and
-rather different API.  To use the the original version of _mangos_ please
-see https://github.com/nanomsg/mangos
+NOTE: This is version 2 of _mangos_, and contains breaking changes and
+rather different API in some circumstances relative to version 1.  To use the
+original version of _mangos_ please see https://github.com/nanomsg/mangos
 
 The modern C implemenation of the SP protocols is available as
 https://github.com/nanomsg/nng[__NNG&trade;__].
