@@ -321,11 +321,11 @@ func (c *T) RecvStart() bool {
 		c.Errorf("Got unexpected message port address: %s", addr)
 		return false
 	}
-	if c.IsServer() && !m.Port.IsServer() {
+	if c.IsServer() && m.Port.Listener() == nil {
 		c.Errorf("Expected message port server")
 		return false
 	}
-	if !c.IsServer() && !m.Port.IsClient() {
+	if !c.IsServer() && m.Port.Dialer() == nil {
 		c.Errorf("Expected message port client")
 		return false
 	}

@@ -144,26 +144,16 @@ func (p *pipe) IsOpen() bool {
 	return p.p.IsOpen()
 }
 
-func (p *pipe) IsClient() bool {
-	return p.d != nil
-}
-
-func (p *pipe) IsServer() bool {
-	return p.l != nil
-}
-
-func (p *pipe) LocalProtocol() uint16 {
-	return p.p.LocalProtocol()
-}
-
-func (p *pipe) RemoteProtocol() uint16 {
-	return p.p.RemoteProtocol()
-}
-
 func (p *pipe) Dialer() mangos.Dialer {
+	if p.d == nil {
+		return nil
+	}
 	return p.d
 }
 
 func (p *pipe) Listener() mangos.Listener {
+	if p.l == nil {
+		return nil
+	}
 	return p.l
 }

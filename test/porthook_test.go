@@ -67,8 +67,13 @@ type hooktest struct {
 }
 
 func (h *hooktest) Hook(action mangos.PortAction, p mangos.Port) bool {
-	h.t.Logf("Hook called - %v!", action)
-	i := hookinfo{action: action, addr: p.Address(), isopen: p.IsOpen(), server: p.IsServer()}
+	h.t.Logf("Hook called - %v", action)
+	i := hookinfo{
+		action: action,
+		addr:   p.Address(),
+		isopen: p.IsOpen(),
+		server: p.Listener() != nil,
+	}
 	h.Lock()
 	h.calls = append(h.calls, i)
 	h.Unlock()

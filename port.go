@@ -36,18 +36,6 @@ type Port interface {
 	// Note that if a dialer is present and active, it will redial.
 	Close() error
 
-	// IsServer returns true if the connection is from a server (Listen).
-	IsServer() bool
-
-	// IsClient returns true if the connection is from a client (Dial).
-	IsClient() bool
-
-	// LocalProtocol returns the local protocol number.
-	LocalProtocol() uint16
-
-	// RemoteProtocol returns the remote protocol number.
-	RemoteProtocol() uint16
-
 	// Dialer returns the dialer for this Port, or nil if a server.
 	Dialer() Dialer
 
