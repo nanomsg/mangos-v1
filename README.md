@@ -13,8 +13,10 @@ messaging system.
 This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.
 
-> TIP: Mangos v2 is now available at github.com/nanomsg/mangos-v2
-> Version 2 has some API breaking changes, but introduces new and
+> TIP: This is mangos version 1, but
+> [mangos v2](http://github.com/nanomsg/mangos-v2) is available.
+> Version 2 has some API breaking changes relative to version 1,
+> but introduces new and
 > useful features, and is recommended for new development.
 
 > NOTE: The repository has moved from github.com/go-mangos/mangos.
@@ -40,7 +42,8 @@ immediate peers, but to all members of the topology.  Developers must be careful
 not to create cycles in their network when using this pattern, otherwise
 infinite loops can occur.
 
-Supported transports include TCP, inproc, IPC, Websocket, Websocket/TLS and TLS.
+Supported transports include TCP, inproc, IPC, WebSocket, WebSocket over TLS and
+TLS over TCP.
 Use addresses of the form "tls+tcp://<host>:<port>" to access TLS.
 Note that ipc:// is not supported on Windows (by either this or the reference
 implementation.)  Forcing the local TCP port in Dial is not supported yet (this
