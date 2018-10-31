@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package tlstcp implements the TLS over TCP transport for mangos.
+// To enable it simply import it.
 package tlstcp
 
 import (
@@ -25,6 +26,13 @@ import (
 )
 
 type options map[string]interface{}
+
+// Transport is a transport.Transport for TLS over TCP.
+const Transport = tlsTran(0)
+
+func init() {
+	transport.RegisterTransport(Transport)
+}
 
 func (o options) get(name string) (interface{}, error) {
 	if v, ok := o[name]; ok {
@@ -87,9 +95,9 @@ func (o options) configTCP(conn *net.TCPConn) error {
 	return nil
 }
 
-func newOptions(t *tlsTran) options {
+func newOptions(t tlsTran) options {
 	o := make(map[string]interface{})
-	o[mangos.OptionTLSConfig] = t.config
+	o[mangos.OptionTLSConfig] = nil
 	o[mangos.OptionKeepAlive] = true
 	o[mangos.OptionNoDelay] = true
 	o[mangos.OptionMaxRecvSize] = 0
@@ -222,16 +230,13 @@ func (l *listener) GetOption(n string) (interface{}, error) {
 	return l.opts.get(n)
 }
 
-type tlsTran struct {
-	config    *tls.Config
-	localAddr net.Addr
-}
+type tlsTran int
 
-func (t *tlsTran) Scheme() string {
+func (t tlsTran) Scheme() string {
 	return "tls+tcp"
 }
 
-func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+func (t tlsTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	var err error
 
 	if addr, err = transport.StripScheme(t, addr); err != nil {
@@ -253,7 +258,7 @@ func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, 
 }
 
 // NewAccepter implements the Transport NewAccepter method.
-func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+func (t tlsTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	l := &listener{
 		proto: sock.Info(),
 		opts:  newOptions(t),
@@ -268,9 +273,4 @@ func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (transport.Listen
 	}
 
 	return l, nil
-}
-
-// NewTransport allocates a new inproc transport.
-func NewTransport() transport.Transport {
-	return &tlsTran{}
 }

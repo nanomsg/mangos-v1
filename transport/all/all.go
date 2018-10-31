@@ -19,20 +19,17 @@ package all
 
 import (
 	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
-	"nanomsg.org/go/mangos/v2/transport/ipc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
-	"nanomsg.org/go/mangos/v2/transport/tlstcp"
-	"nanomsg.org/go/mangos/v2/transport/ws"
-	"nanomsg.org/go/mangos/v2/transport/wss"
+
+	// import transports
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
+	_ "nanomsg.org/go/mangos/v2/transport/ipc"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tlstcp"
+	_ "nanomsg.org/go/mangos/v2/transport/ws"
+	_ "nanomsg.org/go/mangos/v2/transport/wss"
 )
 
 // AddTransports adds all known transports to the given socket.
 func AddTransports(sock mangos.Socket) {
-	sock.AddTransport(tcp.NewTransport())
-	sock.AddTransport(inproc.NewTransport())
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tlstcp.NewTransport())
-	sock.AddTransport(ws.NewTransport())
-	sock.AddTransport(wss.NewTransport())
+	// This does nothing because we have a new registration mechanism.
 }

@@ -49,11 +49,7 @@ type socket struct {
 	listeners []*listener
 	dialers   []*dialer
 	pipes     map[*pipe]struct{}
-
-	translk sync.RWMutex
-	trans   map[string]transport.Transport
-
-	pipehook mangos.PipeEventHook
+	pipehook  mangos.PipeEventHook
 }
 
 type context struct {
@@ -113,7 +109,6 @@ func newSocket(proto mangos.ProtocolBase) *socket {
 		reconnMinTime: defaultReconnMinTime,
 		reconnMaxTime: defaultReconnMaxTime,
 		maxRxSize:     defaultMaxRxSize,
-		trans:         make(map[string]transport.Transport),
 		pipes:         make(map[*pipe]struct{}),
 	}
 	return s
@@ -220,20 +215,7 @@ func (s *socket) getTransport(addr string) transport.Transport {
 	}
 	scheme := addr[:i]
 
-	s.translk.RLock()
-	t, ok := s.trans[scheme]
-	s.translk.RUnlock()
-
-	if t != nil && ok {
-		return t
-	}
-	return nil
-}
-
-func (s *socket) AddTransport(t transport.Transport) {
-	s.translk.Lock()
-	s.trans[t.Scheme()] = t
-	s.translk.Unlock()
+	return transport.GetTransport(scheme)
 }
 
 func (s *socket) DialOptions(addr string, opts map[string]interface{}) error {

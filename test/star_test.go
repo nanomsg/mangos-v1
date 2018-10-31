@@ -22,8 +22,7 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/star"
 	"nanomsg.org/go/mangos/v2/protocol/xstar"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 type starTester struct {
@@ -97,9 +96,6 @@ func starTestNewServer(t *testing.T, addr string, id int) *starTester {
 		t.Errorf("Failed getting server %d socket: %v", id, err)
 		return nil
 	}
-	bt.sock.AddTransport(inproc.NewTransport())
-	bt.sock.AddTransport(tcp.NewTransport())
-
 	if err = bt.sock.Listen(addr); err != nil {
 		t.Errorf("Failed server %d listening: %v", id, err)
 		bt.sock.Close()
@@ -116,8 +112,6 @@ func starTestNewClient(t *testing.T, addr string, id int) *starTester {
 		t.Errorf("Failed getting client %d socket: %v", id, err)
 		return nil
 	}
-	bt.sock.AddTransport(tcp.NewTransport())
-	bt.sock.AddTransport(inproc.NewTransport())
 	if err = bt.sock.Dial(addr); err != nil {
 		t.Errorf("Failed client %d dialing: %v", id, err)
 		bt.sock.Close()
@@ -138,7 +132,6 @@ func starTestCleanup(t *testing.T, bts []*starTester) {
 
 func TestStar(t *testing.T) {
 	addr := "tcp://127.0.0.1:3538"
-	//	addr := "inproc://127.0.0.1:3538"
 
 	num := 5
 	pkts := 7

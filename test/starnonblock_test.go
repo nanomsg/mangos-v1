@@ -20,12 +20,12 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/star"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testStarNonBlock(addr string, tran mangos.Transport) {
+func testStarNonBlock(addr string) {
 	maxqlen := 2
 
 	Convey("Given a suitable Star socket", func() {
@@ -34,7 +34,6 @@ func testStarNonBlock(addr string, tran mangos.Transport) {
 		So(rp, ShouldNotBeNil)
 
 		defer rp.Close()
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
 		So(err, ShouldBeNil)
@@ -59,6 +58,6 @@ func testStarNonBlock(addr string, tran mangos.Transport) {
 
 func TestStarNonBlockTCP(t *testing.T) {
 	Convey("Testing STAR Send (TCP) is Non-Blocking", t, func() {
-		testStarNonBlock(AddrTestTCP(), tcp.NewTransport())
+		testStarNonBlock(AddrTestTCP())
 	})
 }

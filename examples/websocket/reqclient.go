@@ -19,7 +19,9 @@ import (
 	"time"
 
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/ws"
+
+	// register ws transport
+	_ "nanomsg.org/go/mangos/v2/transport/ws"
 )
 
 // reqClient implements the client for REQ.
@@ -28,7 +30,6 @@ func reqClient(port int) {
 	if e != nil {
 		die("cannot make req socket: %v", e)
 	}
-	sock.AddTransport(ws.NewTransport())
 	url := fmt.Sprintf("ws://127.0.0.1:%d/req", port)
 	if e = sock.Dial(url); e != nil {
 		die("cannot dial req url: %v", e)

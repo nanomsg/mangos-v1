@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package inproc implements an simple inproc transport for mangos.
+// To enable it simply import it.
 package inproc
 
 import (
@@ -22,6 +23,9 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/transport"
 )
+
+// Transport is a transport.Transport for intra-process communication.
+const Transport = inprocTran(0)
 
 // inproc implements the Pipe interface on top of channels.
 type inproc struct {
@@ -57,7 +61,7 @@ type listener struct {
 	accepters []*inproc
 }
 
-type inprocTran struct{}
+type inprocTran int
 
 var listeners struct {
 	// Who is listening, on which "address"?
@@ -69,6 +73,8 @@ var listeners struct {
 func init() {
 	listeners.byAddr = make(map[string]*listener)
 	listeners.cv.L = &listeners.mx
+
+	transport.RegisterTransport(Transport)
 }
 
 func (p *inproc) Recv() (*transport.Message, error) {
@@ -276,11 +282,11 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func (t *inprocTran) Scheme() string {
+func (inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+func (t inprocTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	if _, err := transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
@@ -292,7 +298,7 @@ func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (transport.Diale
 	return d, nil
 }
 
-func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+func (t inprocTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	if _, err := transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
@@ -302,9 +308,4 @@ func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (transport.Lis
 		peerProto: sock.Info().Peer,
 	}
 	return l, nil
-}
-
-// NewTransport allocates a new inproc:// transport.
-func NewTransport() transport.Transport {
-	return &inprocTran{}
 }

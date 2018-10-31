@@ -21,8 +21,9 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/ipc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 // synchronize our output messaging so we don't overlap
@@ -39,8 +40,6 @@ func clientWorker(url string, id int) {
 
 	// Leave this in Cooked mode!
 
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Dial(url); err != nil {
 		die("can't dial on req socket: %s", err.Error())
 	}

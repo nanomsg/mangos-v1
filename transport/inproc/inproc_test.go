@@ -20,7 +20,7 @@ import (
 	"nanomsg.org/go/mangos/v2/test"
 )
 
-var tt = test.NewTranTest(NewTransport(), "inproc://testname")
+var tt = test.NewTranTest(Transport, "inproc://testname")
 
 func TestInpListenAndAccept(t *testing.T) {
 	tt.TestListenAndAccept(t)

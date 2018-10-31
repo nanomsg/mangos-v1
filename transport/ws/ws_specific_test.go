@@ -28,7 +28,7 @@ import (
 func TestWebsockPath(t *testing.T) {
 	sockReq, _ := req.NewSocket()
 	sockRep, _ := rep.NewSocket()
-	tran := NewTransport()
+	tran := Transport
 	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
@@ -66,7 +66,7 @@ func bogusHandler(w http.ResponseWriter, r *http.Request) {
 func TestWebsockMux(t *testing.T) {
 	sockReq, _ := req.NewSocket()
 	sockRep, _ := rep.NewSocket()
-	tran := NewTransport()
+	tran := Transport
 	l, e := tran.NewListener("ws://127.0.0.1:3336/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
@@ -129,7 +129,7 @@ func TestWebsockMux(t *testing.T) {
 func TestWebsockHandler(t *testing.T) {
 	sockReq, _ := req.NewSocket()
 	sockRep, _ := rep.NewSocket()
-	tran := NewTransport()
+	tran := Transport
 	l, e := tran.NewListener("ws://127.0.0.1:3337/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)

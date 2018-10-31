@@ -22,7 +22,8 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/bus"
 	"nanomsg.org/go/mangos/v2/protocol/xbus"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
+
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -35,7 +36,6 @@ func TestBusDevice(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(s1, ShouldNotBeNil)
 			defer s1.Close()
-			s1.AddTransport(inproc.NewTransport())
 			So(mangos.Device(s1, s1), ShouldBeNil)
 		})
 		Convey("Device does not work with cooked", func() {
@@ -43,7 +43,6 @@ func TestBusDevice(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(s1, ShouldNotBeNil)
 			defer s1.Close()
-			s1.AddTransport(inproc.NewTransport())
 			So(mangos.Device(s1, s1), ShouldBeError)
 		})
 
@@ -53,7 +52,6 @@ func TestBusDevice(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(s1, ShouldNotBeNil)
 			defer s1.Close()
-			s1.AddTransport(inproc.NewTransport())
 			So(s1.Listen("inproc://busdevicetest"), ShouldBeNil)
 			// Create the device
 			So(mangos.Device(s1, s1), ShouldBeNil)
@@ -61,12 +59,10 @@ func TestBusDevice(t *testing.T) {
 			c1, err := bus.NewSocket()
 			So(err, ShouldBeNil)
 			defer c1.Close()
-			c1.AddTransport(inproc.NewTransport())
 
 			c2, err := bus.NewSocket()
 			So(err, ShouldBeNil)
 			defer c2.Close()
-			c2.AddTransport(inproc.NewTransport())
 
 			So(c1.SetOption(mangos.OptionRecvDeadline, time.Millisecond*100), ShouldBeNil)
 			So(c2.SetOption(mangos.OptionRecvDeadline, time.Millisecond*100), ShouldBeNil)

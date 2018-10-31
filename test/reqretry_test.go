@@ -22,7 +22,7 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -40,13 +40,11 @@ func TestReqRetry(t *testing.T) {
 			So(sockreq, ShouldNotBeNil)
 
 			defer sockreq.Close()
-			sockreq.AddTransport(inproc.NewTransport())
 
 			sockrep, err := rep.NewSocket()
 			So(err, ShouldBeNil)
 			So(sockrep, ShouldNotBeNil)
 			defer sockrep.Close()
-			sockrep.AddTransport(inproc.NewTransport())
 
 			d, err := sockreq.NewDialer(addr, nil)
 			So(err, ShouldBeNil)
@@ -95,7 +93,6 @@ func TestReqRetry(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(rep2, ShouldNotBeNil)
 				defer rep2.Close()
-				rep2.AddTransport(inproc.NewTransport())
 
 				l2, err := rep2.NewListener(addr, nil)
 				So(err, ShouldBeNil)

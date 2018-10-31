@@ -20,12 +20,12 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/surveyor"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testSurvNonBlock(addr string, tran mangos.Transport) {
+func testSurvNonBlock(addr string) {
 	maxqlen := 2
 
 	Convey("Given a suitable Surveyor socket", func() {
@@ -33,8 +33,6 @@ func testSurvNonBlock(addr string, tran mangos.Transport) {
 		So(err, ShouldBeNil)
 		So(rp, ShouldNotBeNil)
 		defer rp.Close()
-
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
 		So(err, ShouldBeNil)
@@ -58,6 +56,6 @@ func testSurvNonBlock(addr string, tran mangos.Transport) {
 
 func TestSurveyorNonBlockTCP(t *testing.T) {
 	Convey("Testing Survey Send (TCP) is Non-Blocking", t, func() {
-		testSurvNonBlock(AddrTestTCP(), tcp.NewTransport())
+		testSurvNonBlock(AddrTestTCP())
 	})
 }

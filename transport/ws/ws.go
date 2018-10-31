@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package ws implements a simple WebSocket transport for mangos.
-// This transport is considered EXPERIMENTAL.
+// To enable it simply import it.
 package ws
 
 import (
@@ -72,9 +72,16 @@ const (
 	// It's the application's responsibility to check the Origin header
 	// before calling Upgrade.
 	OptionWebSocketCheckOrigin = "WEBSOCKET-CHECKORIGIN"
+
+	// Transport is a transport.Transport for WebSocket
+	Transport = wsTran(0)
 )
 
 type options map[string]interface{}
+
+func init() {
+	transport.RegisterTransport(Transport)
+}
 
 // GetOption retrieves an option value.
 func (o options) get(name string) (interface{}, error) {
@@ -499,9 +506,4 @@ func (wsTran) listener(addr string, sock mangos.Socket) (*listener, error) {
 	l.htsvr = &http.Server{Addr: l.url.Host, Handler: l.mux}
 
 	return l, nil
-}
-
-// NewTransport allocates a new ws:// transport.
-func NewTransport() mangos.Transport {
-	return wsTran(0)
 }

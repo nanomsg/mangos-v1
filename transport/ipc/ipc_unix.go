@@ -15,6 +15,7 @@
 // limitations under the License.
 
 // Package ipc implements the IPC transport on top of UNIX domain sockets.
+// To enable it simply import it.
 package ipc
 
 import (
@@ -23,6 +24,15 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/transport"
 )
+
+const (
+	// Transport is a transport.Transport for IPC.
+	Transport = ipcTran(0)
+)
+
+func init() {
+	transport.RegisterTransport(Transport)
+}
 
 // options is used for shared GetOption/SetOption logic.
 type options map[string]interface{}
@@ -126,15 +136,15 @@ func (l *listener) GetOption(n string) (interface{}, error) {
 	return l.opts.get(n)
 }
 
-type ipcTran struct{}
+type ipcTran int
 
 // Scheme implements the Transport Scheme method.
-func (t *ipcTran) Scheme() string {
+func (ipcTran) Scheme() string {
 	return "ipc"
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+func (t ipcTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	var err error
 
 	if addr, err = transport.StripScheme(t, addr); err != nil {
@@ -153,7 +163,7 @@ func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, 
 }
 
 // NewListener implements the Transport NewListener method.
-func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+func (t ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	var err error
 	l := &listener{
 		proto: sock.Info(),
@@ -170,9 +180,4 @@ func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listen
 	}
 
 	return l, nil
-}
-
-// NewTransport allocates a new IPC transport.
-func NewTransport() mangos.Transport {
-	return &ipcTran{}
 }

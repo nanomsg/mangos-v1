@@ -19,7 +19,9 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/sub"
-	"nanomsg.org/go/mangos/v2/transport/ws"
+
+	// register ws transport
+	_ "nanomsg.org/go/mangos/v2/transport/ws"
 )
 
 // subClient implements the client for SUB.
@@ -28,7 +30,6 @@ func subClient(port int) {
 	if err != nil {
 		die("cannot make req socket: %v", err)
 	}
-	sock.AddTransport(ws.NewTransport())
 	if err = sock.SetOption(mangos.OptionSubscribe, []byte{}); err != nil {
 		die("cannot set subscription: %v", err)
 	}

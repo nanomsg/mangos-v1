@@ -37,8 +37,9 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/bus"
-	"nanomsg.org/go/mangos/v2/transport/ipc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func die(format string, v ...interface{}) {
@@ -55,8 +56,6 @@ func node(args []string) {
 	if sock, err = bus.NewSocket(); err != nil {
 		die("bus.NewSocket: %s", err)
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Listen(args[2]); err != nil {
 		die("sock.Listen: %s", err.Error())
 	}

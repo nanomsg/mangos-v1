@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
 )
 
 // SetTTLZero tests that a given socket fails to set a TTL of zero.
@@ -131,7 +131,6 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 	nhop := 3
 	clis := make([]mangos.Socket, 0, nhop)
 	srvs := make([]mangos.Socket, 0, nhop)
-	inp := inproc.NewTransport()
 	a := AddrTestInp()
 
 	for i := 0; i < nhop; i++ {
@@ -147,8 +146,6 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 			return
 		}
 		defer s.Close()
-
-		s.AddTransport(inp)
 
 		err = s.Listen(a + fmt.Sprintf("HOP%d", i))
 		if err != nil {
@@ -172,8 +169,6 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 			return
 		}
 		defer s.Close()
-
-		s.AddTransport(inp)
 
 		err = s.Dial(a + fmt.Sprintf("HOP%d", i))
 		if err != nil {

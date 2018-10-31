@@ -21,6 +21,8 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
+
+	// register ws transport
 	"nanomsg.org/go/mangos/v2/transport/ws"
 )
 
@@ -45,8 +47,6 @@ func reqHandler(sock mangos.Socket) {
 
 func addReqHandler(mux *http.ServeMux, port int) {
 	sock, _ := rep.NewSocket()
-
-	sock.AddTransport(ws.NewTransport())
 
 	url := fmt.Sprintf("ws://127.0.0.1:%d/req", port)
 

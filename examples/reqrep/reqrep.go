@@ -33,8 +33,9 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/ipc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func die(format string, v ...interface{}) {
@@ -53,8 +54,6 @@ func node0(url string) {
 	if sock, err = rep.NewSocket(); err != nil {
 		die("can't get new rep socket: %s", err)
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Listen(url); err != nil {
 		die("can't listen on rep socket: %s", err.Error())
 	}
@@ -81,8 +80,6 @@ func node1(url string) {
 	if sock, err = req.NewSocket(); err != nil {
 		die("can't get new req socket: %s", err.Error())
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Dial(url); err != nil {
 		die("can't dial on req socket: %s", err.Error())
 	}

@@ -20,12 +20,12 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/bus"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testBusNonBlock(addr string, tran mangos.Transport) {
+func testBusNonBlock(addr string) {
 	maxqlen := 2
 
 	Convey("Given a suitable Bus socket", func() {
@@ -34,7 +34,6 @@ func testBusNonBlock(addr string, tran mangos.Transport) {
 		So(rp, ShouldNotBeNil)
 
 		defer rp.Close()
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
 		So(err, ShouldBeNil)
@@ -58,6 +57,6 @@ func testBusNonBlock(addr string, tran mangos.Transport) {
 
 func TestBusNonBlockTCP(t *testing.T) {
 	Convey("Testing Bus Send (TCP) is Non-Blocking", t, func() {
-		testBusNonBlock(AddrTestTCP(), tcp.NewTransport())
+		testBusNonBlock(AddrTestTCP())
 	})
 }

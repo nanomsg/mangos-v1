@@ -17,6 +17,7 @@ package transport
 import (
 	"net"
 	"strings"
+	"sync"
 
 	"nanomsg.org/go/mangos/v2"
 )
@@ -61,4 +62,28 @@ func ResolveTCPAddr(addr string) (*net.TCPAddr, error) {
 		addr = addr[1:]
 	}
 	return net.ResolveTCPAddr("tcp", addr)
+}
+
+var lock sync.RWMutex
+var transports = map[string]Transport{}
+
+// RegisterTransport is used to register the transport globally,
+// after which it will be available for all sockets.  The
+// transport will override any others registered for the same
+// scheme.
+func RegisterTransport(t Transport) {
+	lock.Lock()
+	transports[t.Scheme()] = t
+	lock.Unlock()
+}
+
+// GetTransport is used by a socket to lookup the transport
+// for a given scheme.
+func GetTransport(scheme string) Transport {
+	lock.RLock()
+	defer lock.RUnlock()
+	if t, ok := transports[scheme]; ok {
+		return t
+	}
+	return nil
 }

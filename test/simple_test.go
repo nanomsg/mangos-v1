@@ -22,7 +22,7 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/pair"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -41,9 +41,6 @@ func TestSimpleCorrect(t *testing.T) {
 		rx, e := pair.NewSocket()
 		So(e, ShouldBeNil)
 		So(rx, ShouldNotBeNil)
-
-		tx.AddTransport(tcp.NewTransport())
-		rx.AddTransport(tcp.NewTransport())
 
 		Convey("When a simple TCP pair is created", func() {
 

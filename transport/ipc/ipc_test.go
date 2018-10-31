@@ -21,7 +21,7 @@ import (
 	"nanomsg.org/go/mangos/v2/test"
 )
 
-var tt = test.NewTranTest(NewTransport(), "ipc://test1234")
+var tt = test.NewTranTest(Transport, "ipc://test1234")
 
 func TestIpcListenAndAccept(t *testing.T) {
 	switch runtime.GOOS {

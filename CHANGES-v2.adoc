@@ -123,3 +123,11 @@ in a queue for a long time.
 The ability to lookup protocol names by their protocol number is removed.
 Each protocol instead has their identities (including name and string)
 as constants (`Self`, `Peer`, `SelfName`, and `PeerName`) in the package.
+
+== Simplified Transport registration
+
+To register a transport, just import the transport package.  (You can
+use an anonymous import (i.e. an underscore import) to bring transport
+packages in.  The `AddTransport()` method on sockets, and `NewTransport()`
+method for transport packages have been removed.  (Transport implementations
+can register themselves with transport.RegisterTransport().)

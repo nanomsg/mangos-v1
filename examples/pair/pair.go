@@ -33,8 +33,9 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/pair"
-	"nanomsg.org/go/mangos/v2/transport/ipc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func die(format string, v ...interface{}) {
@@ -72,8 +73,6 @@ func node0(url string) {
 	if sock, err = pair.NewSocket(); err != nil {
 		die("can't get new pair socket: %s", err)
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Listen(url); err != nil {
 		die("can't listen on pair socket: %s", err.Error())
 	}
@@ -87,8 +86,6 @@ func node1(url string) {
 	if sock, err = pair.NewSocket(); err != nil {
 		die("can't get new pair socket: %s", err.Error())
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Dial(url); err != nil {
 		die("can't dial on pair socket: %s", err.Error())
 	}

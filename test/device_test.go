@@ -26,12 +26,7 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/xpair"
 	"nanomsg.org/go/mangos/v2/protocol/xrep"
 	"nanomsg.org/go/mangos/v2/protocol/xreq"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
-	"nanomsg.org/go/mangos/v2/transport/ipc"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
-	"nanomsg.org/go/mangos/v2/transport/tlstcp"
-	"nanomsg.org/go/mangos/v2/transport/ws"
-	"nanomsg.org/go/mangos/v2/transport/wss"
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func TestDeviceBadPair(t *testing.T) {
@@ -229,12 +224,6 @@ func testDevLoop(t *testing.T, addr string) {
 		return
 	}
 	defer s1.Close()
-	s1.AddTransport(tcp.NewTransport())
-	s1.AddTransport(inproc.NewTransport())
-	s1.AddTransport(ipc.NewTransport())
-	s1.AddTransport(tlstcp.NewTransport())
-	s1.AddTransport(ws.NewTransport())
-	s1.AddTransport(wss.NewTransport())
 
 	options := make(map[string]interface{})
 	if strings.HasPrefix(addr, "wss://") || strings.HasPrefix(addr, "tls+tcp://") {
@@ -265,11 +254,6 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 			return
 		}
 		defer s[i].Close()
-		s[i].AddTransport(tcp.NewTransport())
-		s[i].AddTransport(inproc.NewTransport())
-		s[i].AddTransport(tlstcp.NewTransport())
-		s[i].AddTransport(ipc.NewTransport())
-		s[i].AddTransport(ws.NewTransport())
 	}
 
 	if err = s[0].Listen(addr1); err != nil {

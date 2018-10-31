@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tcp implements the TCP transport for mangos.
+// Package tcp implements the TCP transport for mangos. To enable it simply
+// import it.
 package tcp
 
 import (
@@ -22,6 +23,15 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/transport"
 )
+
+const (
+	// Transport is a transport.Transport for TCP.
+	Transport = tcpTran(0)
+)
+
+func init() {
+	transport.RegisterTransport(Transport)
+}
 
 // options is used for shared GetOption/SetOption logic.
 type options map[string]interface{}
@@ -178,15 +188,13 @@ func (l *listener) GetOption(n string) (interface{}, error) {
 	return l.opts.get(n)
 }
 
-type tcpTran struct {
-	localAddr net.Addr
-}
+type tcpTran int
 
-func (t *tcpTran) Scheme() string {
+func (t tcpTran) Scheme() string {
 	return "tcp"
 }
 
-func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+func (t tcpTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	var err error
 	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
@@ -202,7 +210,7 @@ func (t *tcpTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, 
 	return d, nil
 }
 
-func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+func (t tcpTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	var err error
 	l := &listener{proto: sock.Info(), opts: newOptions()}
 
@@ -215,9 +223,4 @@ func (t *tcpTran) NewListener(addr string, sock mangos.Socket) (transport.Listen
 	}
 
 	return l, nil
-}
-
-// NewTransport allocates a new TCP transport.
-func NewTransport() transport.Transport {
-	return &tcpTran{}
 }

@@ -22,7 +22,7 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -123,14 +123,12 @@ func TestPipeHook(t *testing.T) {
 			So(sockreq, ShouldNotBeNil)
 
 			defer sockreq.Close()
-			sockreq.AddTransport(tcp.NewTransport())
 
 			sockrep, err := rep.NewSocket()
 			So(err, ShouldBeNil)
 			So(sockrep, ShouldNotBeNil)
 
 			defer sockrep.Close()
-			sockrep.AddTransport(tcp.NewTransport())
 
 			d, err := sockreq.NewDialer(addr, nil)
 			So(err, ShouldBeNil)

@@ -20,7 +20,7 @@ import (
 	"nanomsg.org/go/mangos/v2/test"
 )
 
-var tt = test.NewTranTest(NewTransport(), "tls+tcp://127.0.0.1:3334")
+var tt = test.NewTranTest(Transport, "tls+tcp://127.0.0.1:3334")
 
 func TestTLSListenAndAccept(t *testing.T) {
 	tt.TestListenAndAccept(t)

@@ -24,7 +24,7 @@ import (
 	"nanomsg.org/go/mangos/v2/protocol/req"
 )
 
-var tran = NewTransport()
+var tran = Transport
 var sockRep, _ = rep.NewSocket()
 var sockReq, _ = req.NewSocket()
 

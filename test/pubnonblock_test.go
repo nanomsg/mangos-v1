@@ -20,12 +20,12 @@ import (
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/pub"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testPubNonBlock(addr string, tran mangos.Transport) {
+func testPubNonBlock(addr string) {
 	maxqlen := 2
 
 	Convey("Given a suitable Pub socket", func() {
@@ -34,7 +34,6 @@ func testPubNonBlock(addr string, tran mangos.Transport) {
 		So(rp, ShouldNotBeNil)
 
 		defer rp.Close()
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
 		So(err, ShouldBeNil)
@@ -59,6 +58,6 @@ func testPubNonBlock(addr string, tran mangos.Transport) {
 
 func TestPubNonBlockTCP(t *testing.T) {
 	Convey("Testing Pub Send (TCP) is Non-Blocking", t, func() {
-		testPubNonBlock(AddrTestTCP(), tcp.NewTransport())
+		testPubNonBlock(AddrTestTCP())
 	})
 }

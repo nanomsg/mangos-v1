@@ -33,7 +33,7 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/inproc"
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
 )
 
 func scalabilityClient(errp *error, loops int, wg *sync.WaitGroup) {
@@ -43,7 +43,6 @@ func scalabilityClient(errp *error, loops int, wg *sync.WaitGroup) {
 		*errp = err
 		return
 	}
-	sock.AddTransport(inproc.NewTransport())
 	defer sock.Close()
 	if err := sock.Dial("inproc://atscale"); err != nil {
 		*errp = err
@@ -104,7 +103,6 @@ func TestScalability(t *testing.T) {
 	if e != nil {
 		t.Fatalf("Cannot make server socket: %v", e)
 	}
-	ssock.AddTransport(inproc.NewTransport())
 	if e = ssock.Listen("inproc://atscale"); e != nil {
 		t.Fatalf("Cannot listen: %v", e)
 	}

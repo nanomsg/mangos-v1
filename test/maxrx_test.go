@@ -22,8 +22,6 @@ import (
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/rep"
 	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/transport/tcp"
-	"nanomsg.org/go/mangos/v2/transport/ws"
 )
 
 func TestMaxRxSizeInvalidNegative(t *testing.T) {
@@ -108,7 +106,7 @@ func TestMaxRxSizeDefault(t *testing.T) {
 	}
 }
 
-func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
+func testMaxRx(t *testing.T, addr string) {
 	maxrx := 100
 
 	rp, err := rep.NewSocket()
@@ -119,7 +117,6 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 	defer func() {
 		rp.Close()
 	}()
-	rp.AddTransport(tran)
 
 	// Now try setting the option
 	err = rp.SetOption(mangos.OptionMaxRecvSize, maxrx)
@@ -145,7 +142,6 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 	defer func() {
 		rq.Close()
 	}()
-	rq.AddTransport(tran)
 
 	if err = rq.Dial(addr); err != nil {
 		t.Errorf("Failed dial: %v", err)
@@ -193,9 +189,9 @@ func testMaxRx(t *testing.T, addr string, tran mangos.Transport) {
 }
 
 func TestMaxRxTCP(t *testing.T) {
-	testMaxRx(t, AddrTestTCP(), tcp.NewTransport())
+	testMaxRx(t, AddrTestTCP())
 }
 
 func TestMaxRxWS(t *testing.T) {
-	testMaxRx(t, AddrTestWS(), ws.NewTransport())
+	testMaxRx(t, AddrTestWS())
 }
