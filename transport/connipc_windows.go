@@ -25,15 +25,21 @@ import (
 )
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
-func NewConnPipeIPC(c net.Conn, proto ProtocolInfo, props ...interface{}) (Pipe, error) {
+func NewConnPipeIPC(c net.Conn, proto ProtocolInfo, options map[string]interface{}) (Pipe, error) {
 	p := &connipc{
 		conn: conn{
-			c:     c,
-			proto: proto,
+			c:       c,
+			proto:   proto,
+			options: make(map[string]interface{}),
 		},
 	}
+	p.options[mangos.OptionMaxRecvSize] = int64(0)
+	for n, v := range options {
+		p.options[n] = v
+	}
+	p.maxrx = p.options[mangos.OptionMaxRecvSize].(int)
 
-	if err := p.handshake(props); err != nil {
+	if err := p.handshake(); err != nil {
 		return nil, err
 	}
 
@@ -82,7 +88,7 @@ func (p *connipc) Recv() (*Message, error) {
 	// Limit messages to the maximum receive value, if not
 	// unlimited.  This avoids a potential denaial of service.
 	if sz < 0 || (p.maxrx > 0 && sz > int64(p.maxrx)) {
-		return nil, ErrTooLong
+		return nil, mangos.ErrTooLong
 	}
 	msg = mangos.NewMessage(int(sz))
 	msg.Body = msg.Body[0:sz]

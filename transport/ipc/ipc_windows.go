@@ -67,7 +67,7 @@ func (d *dialer) Dial() (transport.Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipeIPC(conn, d.proto, d.opts)
+	return transport.NewConnPipeIPC(conn, d.proto, d.opts)
 }
 
 // SetOption implements a stub PipeDialer SetOption method.
@@ -80,31 +80,11 @@ func (d *dialer) GetOption(n string) (interface{}, error) {
 	return nil, mangos.ErrBadOption
 }
 
-// listenerOptions is used for shared GetOption/SetOption logic for listeners.
-// We don't have dialer specific options at this point.
-type listenerOptions map[string]interface{}
-
-// GetOption retrieves an option value.
-func (o listenerOptions) get(name string) (interface{}, error) {
-	if o == nil {
-		return nil, mangos.ErrBadOption
-	}
-	v, ok := o[name]
-	if !ok {
-		return nil, mangos.ErrBadOption
-	}
-	return v, nil
-}
-
-// SetOption sets an option.  We have none, so just ErrBadOption.
-func (o listenerOptions) set(string, interface{}) error {
-	return mangos.ErrBadOption
-}
-
 type listener struct {
 	path     string
-	sock     mangos.Socket
+	proto    transport.ProtocolInfo
 	listener net.Listener
+	opts     map[string]interface{}
 }
 
 // Listen implements the PipeListener Listen method.
@@ -193,46 +173,42 @@ func (ipcTran) Scheme() string {
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.TranDialer, error) {
+func (t ipcTran) NewDialer(address string, sock mangos.Socket) (mangos.TranDialer, error) {
 	var err error
 
-	if addr, err = transport.StripScheme(t, addr); err != nil {
+	if address, err = transport.StripScheme(t, address); err != nil {
 		return nil, err
 	}
 
 	d := &dialer{
 		proto: sock.Info(),
-		path:  addr,
+		path:  address,
 		opts:  make(map[string]interface{}),
 	}
 
-	d.opts[mangos.OptionLocalAddr] = addr
-	d.opts[mangos.OptionRemoteAddr] = addr
 	d.opts[mangos.OptionMaxRecvSize] = 0
 
 	return d, nil
 }
 
 // NewListener implements the Transport NewListener method.
-func (t ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+func (t ipcTran) NewListener(address string, sock mangos.Socket) (transport.Listener, error) {
 	var err error
 
-	if addr, err = transport.StripScheme(t, addr); err != nil {
+	if address, err = transport.StripScheme(t, address); err != nil {
 		return nil, err
 	}
 
 	l := &listener{
 		proto: sock.Info(),
-		path:  addr,
+		path:  address,
 		opts:  make(map[string]interface{}),
 	}
 
 	l.opts[OptionInputBufferSize] = int32(4096)
 	l.opts[OptionOutputBufferSize] = int32(4096)
 	l.opts[OptionSecurityDescriptor] = ""
-	l.opts[mangos.OptionLocalAddr] = addr
-	l.opts[mangos.OptionRemoteAddr] = addr
-	l.opts[mangos.OptionMaxRecvSize] = int64(0)
+	l.opts[mangos.OptionMaxRecvSize] = 0
 
 	return l, nil
 }
