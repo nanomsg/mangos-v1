@@ -1,5 +1,7 @@
 ignore:
  - perf/*
  - examples/*/*
+ - test/*
+ - *_test.go
 coverage:
  range: 50..85
