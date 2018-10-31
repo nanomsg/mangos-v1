@@ -13,6 +13,10 @@ messaging system.
 This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.
 
+> TIP: Mangos v2 is now available at github.com/nanomsg/mangos-v2
+> Version 2 has some API breaking changes, but introduces new and
+> useful features, and is recommended for new development.
+
 > NOTE: The repository has moved from github.com/go-mangos/mangos.
 > Please import using nanomsg.org/go-mangos.  Also, be advised that
 > the master branch of this repository may contain breaking changes.
