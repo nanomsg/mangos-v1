@@ -135,7 +135,7 @@ func (c *context) RecvMsg() (*protocol.Message, error) {
 		}
 	}
 	if m != nil {
-		c.backtrace = m.Header
+		c.backtrace = append([]byte{}, m.Header...)
 		m.Header = nil
 	}
 	c.recvWait = false
