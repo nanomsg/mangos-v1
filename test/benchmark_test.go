@@ -77,11 +77,12 @@ func benchmarkReq(t *testing.B, url string, size int) {
 
 	}()
 
+	<-srvrdy
+
 	if err = clisock.DialOptions(url, cliopts); err != nil {
 		t.Errorf("Client dial failed: %v", err)
 		return
 	}
-	<-srvrdy
 
 	time.Sleep(time.Millisecond * 1000)
 	t.ResetTimer()
