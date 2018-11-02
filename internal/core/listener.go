@@ -16,6 +16,7 @@ package core
 
 import (
 	"sync"
+	"time"
 
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/transport"
@@ -55,6 +56,9 @@ func (l *listener) serve() {
 			return
 		} else if err == nil {
 			l.s.addPipe(tp, nil, l)
+		} else {
+			// Debounce a little bit, to avoid thrashing the CPU.
+			time.Sleep(time.Second / 100)
 		}
 	}
 }
@@ -79,5 +83,11 @@ func (l *listener) Address() string {
 }
 
 func (l *listener) Close() error {
+	l.Lock()
+	defer l.Unlock()
+	if l.closed {
+		return mangos.ErrClosed
+	}
+	l.closed = true
 	return l.l.Close()
 }
