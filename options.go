@@ -39,6 +39,12 @@ const (
 	// non-blocking operation.  By default there is no timeout.
 	OptionSendDeadline = "SEND-DEADLINE"
 
+	// OptionNetworkIoDeadline is the time until a (read or write) network
+	// operation times out.  The value is a time.Duration.  Setting this
+	// option is recommended, since it helps listening servers to recover
+	// from broken connections (may otherwise hang indefinitely).
+	OptionNetworkIoDeadline = "NETWORK-IO-DEADLINE"
+
 	// OptionRetryTime is used by REQ.  The argument is a time.Duration.
 	// When a request has not been replied to within the given duration,
 	// the request will automatically be resent to an available peer.

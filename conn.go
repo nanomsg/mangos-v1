@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 // conn implements the Pipe interface on top of net.Conn.  The
@@ -49,6 +50,10 @@ func (p *conn) Recv() (*Message, error) {
 	var err error
 	var msg *Message
 
+	if err = p.setNetworkTimeout(); err != nil {
+		return nil, err
+	}
+
 	if err = binary.Read(p.c, binary.BigEndian, &sz); err != nil {
 		return nil, err
 	}
@@ -76,6 +81,10 @@ func (p *conn) Send(msg *Message) error {
 	if msg.Expired() {
 		msg.Free()
 		return nil
+	}
+
+	if err := p.setNetworkTimeout(); err != nil {
+		return err
 	}
 
 	// send length header
@@ -181,6 +190,10 @@ func (p *conn) handshake(props []interface{}) error {
 		p.maxrx = int64(v.(int))
 	}
 
+	if err = p.setNetworkTimeout(); err != nil {
+		return err
+	}
+
 	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Number()}
 	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {
 		return err
@@ -205,5 +218,18 @@ func (p *conn) handshake(props []interface{}) error {
 		return ErrBadProto
 	}
 	p.open = true
+	return nil
+}
+
+// setNetworkTimeout sets the network I/O timeout on the connection.
+func (p *conn) setNetworkTimeout() error {
+	v, err := p.sock.GetOption(OptionNetworkIoDeadline)
+	if err != nil {
+		return err
+	}
+	// Socket implementation ensures that option type is time.Duration.
+	if iotimeout := v.(time.Duration); iotimeout > 0 {
+		return p.c.SetDeadline(time.Now().Add(iotimeout))
+	}
 	return nil
 }
