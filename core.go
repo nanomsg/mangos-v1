@@ -442,6 +442,7 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		sock.Lock()
 		sock.iodeadline = value.(time.Duration)
 		sock.Unlock()
+		return nil
 	case OptionLinger:
 		sock.Lock()
 		sock.linger = value.(time.Duration)
