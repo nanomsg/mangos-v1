@@ -39,6 +39,13 @@ const (
 	// non-blocking operation.  By default there is no timeout.
 	OptionSendDeadline = "SEND-DEADLINE"
 
+	// OptionNetworkIoDeadline enables recovery from bad connections for
+	// connection-based transports; by limiting the time until a (read or
+	// write) network operation times out.  The value is a time.Duration.
+	// Setting this option is recommended for connection-based protocols,
+	// it is disabled by default.
+	OptionNetworkIoDeadline = "NETWORK-IO-DEADLINE"
+
 	// OptionRetryTime is used by REQ.  The argument is a time.Duration.
 	// When a request has not been replied to within the given duration,
 	// the request will automatically be resent to an available peer.
