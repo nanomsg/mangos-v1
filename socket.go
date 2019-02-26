@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,6 +19,10 @@ package mangos
 // messaging topology.  Applications can have more than one Socket open
 // at a time.
 type Socket interface {
+	// Info returns information about the protocol (numbers and names)
+	// and peer protocol.
+	Info() ProtocolInfo
+
 	// Close closes the open Socket.  Further operations on the socket
 	// will return ErrClosed.
 	Close() error
@@ -69,15 +73,49 @@ type Socket interface {
 	// SetOption is used to set an option for a socket.
 	SetOption(name string, value interface{}) error
 
-	// Protocol is used to get the underlying Protocol.
-	GetProtocol() Protocol
+	// OpenContext creates a new Context.  If a protocol does not
+	// support separate contexts, this will return an error.
+	OpenContext() (Context, error)
 
-	// AddTransport adds a new Transport to the socket.  Transport specific
-	// options may have been configured on the Transport prior to this.
-	AddTransport(Transport)
+	// SetPipeEventHook sets a PipeEventHook function to be called when a
+	// Pipe is added or removed from this socket (connect/disconnect).
+	// The previous hook is returned (nil if none.)  (Only one hook can
+	// be used at a time.)
+	SetPipeEventHook(PipeEventHook) PipeEventHook
+}
 
-	// SetPortHook sets a PortHook function to be called when a Port is
-	// added or removed from this socket (connect/disconnect).  The previous
-	// hook is returned (nil if none.)
-	SetPortHook(PortHook) PortHook
+// Context is a protocol context, and represents the upper side operations
+// that applications will want to use.  Every socket has a default context,
+// but only a certain protocols will allow the creation of additional
+// Context instances (only if separate stateful contexts make sense for
+// a given protocol).
+type Context interface {
+
+	// Close closes the open Socket.  Further operations on the socket
+	// will return ErrClosed.
+	Close() error
+
+	// GetOption is used to retrieve an option for a socket.
+	GetOption(name string) (interface{}, error)
+
+	// SetOption is used to set an option for a socket.
+	SetOption(name string, value interface{}) error
+
+	// Send puts the message on the outbound send queue.  It blocks
+	// until the message can be queued, or the send deadline expires.
+	// If a queued message is later dropped for any reason,
+	// there will be no notification back to the application.
+	Send([]byte) error
+
+	// Recv receives a complete message.  The entire message is received.
+	Recv() ([]byte, error)
+
+	// SendMsg puts the message on the outbound send.  It works like Send,
+	// but allows the caller to supply message headers.  AGAIN, the Socket
+	// ASSUMES OWNERSHIP OF THE MESSAGE.
+	SendMsg(*Message) error
+
+	// RecvMsg receives a complete message, including the message header,
+	// which is useful for protocols in raw mode.
+	RecvMsg() (*Message, error)
 }

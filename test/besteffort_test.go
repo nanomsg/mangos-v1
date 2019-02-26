@@ -18,14 +18,14 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/pair"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/pair"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testBestEffort(addr string, tran mangos.Transport) {
+func testBestEffort(addr string) {
 	timeout := time.Millisecond * 10
 	msg := []byte{'A', 'B', 'C'}
 
@@ -35,7 +35,6 @@ func testBestEffort(addr string, tran mangos.Transport) {
 		So(rp, ShouldNotBeNil)
 
 		defer rp.Close()
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, 0)
 		So(err, ShouldBeNil)
@@ -70,6 +69,6 @@ func testBestEffort(addr string, tran mangos.Transport) {
 
 func TestBestEffortTCP(t *testing.T) {
 	Convey("Testing TCP Best Effort", t, func() {
-		testBestEffort(AddrTestTCP(), tcp.NewTransport())
+		testBestEffort(AddrTestTCP())
 	})
 }

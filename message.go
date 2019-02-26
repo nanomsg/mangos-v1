@@ -16,8 +16,6 @@ package mangos
 
 import (
 	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // Message encapsulates the messages that we exchange back and forth.  The
@@ -35,18 +33,16 @@ type Message struct {
 	// of as the message "payload".
 	Body []byte
 
-	// Port may be set on message receipt, to indicate the Port from
+	// Pipe may be set on message receipt, to indicate the Pipe from
 	// which the Message was received.  There are no guarantees that the
-	// Port is still active, and applications should only use this for
+	// Pipe is still active, and applications should only use this for
 	// informational purposes.
-	Port Port
+	Pipe Pipe
 
-	bbuf   []byte
-	hbuf   []byte
-	bsize  int
-	refcnt int32
-	expire time.Time
-	pool   *sync.Pool
+	bbuf  []byte
+	hbuf  []byte
+	bsize int
+	pool  *sync.Pool
 }
 
 type msgCacheInfo struct {
@@ -107,15 +103,11 @@ var messageCache = []msgCacheInfo{
 	},
 }
 
-// Free decrements the reference count on a message, and releases its
-// resources if no further references remain.  While this is not
-// strictly necessary thanks to GC, doing so allows for the resources to
-// be recycled without engaging GC.  This can have rather substantial
-// benefits for performance.
+// Free releases the message to the pool from which it was allocated.
+// While this is not strictly necessary thanks to GC, doing so allows
+// for the resources to be recycled without engaging GC.  This can have
+// rather substantial benefits for performance.
 func (m *Message) Free() {
-	if v := atomic.AddInt32(&m.refcnt, -1); v > 0 {
-		return
-	}
 	for i := range messageCache {
 		if m.bsize == messageCache[i].maxbody {
 			messageCache[i].pool.Put(m)
@@ -124,31 +116,15 @@ func (m *Message) Free() {
 	}
 }
 
-// Dup creates a "duplicate" message.  What it really does is simply
-// increment the reference count on the message.  Note that since the
-// underlying message is actually shared, consumers must take care not
-// to modify the message.  (We might revise this API in the future to
-// add a copy-on-write facility, but for now modification is neither
-// needed nor supported.)  Applications should *NOT* make use of this
-// function -- it is intended for Protocol, Transport and internal use only.
+// Dup creates a "duplicate" message.
+// Reference counting was found to be error prone, so we have elected
+// to simply make a full copy of the message for now.
 func (m *Message) Dup() *Message {
-	atomic.AddInt32(&m.refcnt, 1)
-	return m
-}
-
-// Expired returns true if the message has "expired".  This is used by
-// transport implementations to discard messages that have been
-// stuck in the write queue for too long, and should be discarded rather
-// than delivered across the transport.  This is only used on the TX
-// path, there is no sense of "expiration" on the RX path.
-func (m *Message) Expired() bool {
-	if m.expire.IsZero() {
-		return false
-	}
-	if m.expire.After(time.Now()) {
-		return false
-	}
-	return true
+	dup := NewMessage(len(m.Body))
+	dup.Body = append(dup.Body, m.Body...)
+	dup.Header = append(dup.Header, m.Header...)
+	dup.Pipe = m.Pipe
+	return dup
 }
 
 // NewMessage is the supported way to obtain a new Message.  This makes
@@ -165,7 +141,6 @@ func NewMessage(sz int) *Message {
 		m = newMsg(sz)
 	}
 
-	m.refcnt = 1
 	m.Body = m.bbuf
 	m.Header = m.hbuf
 	return m

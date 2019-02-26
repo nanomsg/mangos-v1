@@ -18,16 +18,15 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/bus"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/bus"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testBusNonBlock(addr string, tran mangos.Transport) {
+func testBusNonBlock(addr string) {
 	maxqlen := 2
-	timeout := time.Second / 10
 
 	Convey("Given a suitable Bus socket", func() {
 		rp, err := bus.NewSocket()
@@ -35,12 +34,8 @@ func testBusNonBlock(addr string, tran mangos.Transport) {
 		So(rp, ShouldNotBeNil)
 
 		defer rp.Close()
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
-		So(err, ShouldBeNil)
-
-		err = rp.SetOption(mangos.OptionSendDeadline, timeout)
 		So(err, ShouldBeNil)
 
 		err = rp.Listen(addr)
@@ -49,16 +44,19 @@ func testBusNonBlock(addr string, tran mangos.Transport) {
 		msg := []byte{'A', 'B', 'C'}
 
 		Convey("We don't block, even sending many messages", func() {
+			start := time.Now()
 			for i := 0; i < maxqlen*10; i++ {
 				err := rp.Send(msg)
 				So(err, ShouldBeNil)
 			}
+			end := time.Now()
+			So(end, ShouldHappenWithin, time.Second/10, start)
 		})
 	})
 }
 
 func TestBusNonBlockTCP(t *testing.T) {
 	Convey("Testing Bus Send (TCP) is Non-Blocking", t, func() {
-		testBusNonBlock(AddrTestTCP(), tcp.NewTransport())
+		testBusNonBlock(AddrTestTCP())
 	})
 }

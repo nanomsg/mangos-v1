@@ -33,11 +33,12 @@ import (
 	"os"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/pub"
-	"nanomsg.org/go-mangos/protocol/sub"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/pub"
+	"nanomsg.org/go/mangos/v2/protocol/sub"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func die(format string, v ...interface{}) {
@@ -55,8 +56,6 @@ func server(url string) {
 	if sock, err = pub.NewSocket(); err != nil {
 		die("can't get new pub socket: %s", err)
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Listen(url); err != nil {
 		die("can't listen on pub socket: %s", err.Error())
 	}
@@ -79,8 +78,6 @@ func client(url string, name string) {
 	if sock, err = sub.NewSocket(); err != nil {
 		die("can't get new sub socket: %s", err.Error())
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Dial(url); err != nil {
 		die("can't dial on sub socket: %s", err.Error())
 	}

@@ -31,19 +31,19 @@ import (
 
 import (
 	"github.com/droundy/goopt"
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/bus"
-	"nanomsg.org/go-mangos/protocol/pair"
-	"nanomsg.org/go-mangos/protocol/pub"
-	"nanomsg.org/go-mangos/protocol/pull"
-	"nanomsg.org/go-mangos/protocol/push"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
-	"nanomsg.org/go-mangos/protocol/respondent"
-	"nanomsg.org/go-mangos/protocol/star"
-	"nanomsg.org/go-mangos/protocol/sub"
-	"nanomsg.org/go-mangos/protocol/surveyor"
-	"nanomsg.org/go-mangos/transport/all"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/bus"
+	"nanomsg.org/go/mangos/v2/protocol/pair"
+	"nanomsg.org/go/mangos/v2/protocol/pub"
+	"nanomsg.org/go/mangos/v2/protocol/pull"
+	"nanomsg.org/go/mangos/v2/protocol/push"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/respondent"
+	"nanomsg.org/go/mangos/v2/protocol/star"
+	"nanomsg.org/go/mangos/v2/protocol/sub"
+	"nanomsg.org/go/mangos/v2/protocol/surveyor"
+	"nanomsg.org/go/mangos/v2/transport/all"
 )
 
 var verbose int
@@ -204,7 +204,7 @@ func setCaCert(path string) error {
 }
 
 func fatalf(format string, v ...interface{}) {
-	fmt.Fprintln(os.Stderr, fmt.Sprintf(format, v...))
+	fmt.Fprintf(os.Stderr, format, v...)
 	os.Exit(1)
 }
 
@@ -557,7 +557,7 @@ func main() {
 		fatalf("No address specified.")
 	}
 
-	if sock.GetProtocol().Number() != mangos.ProtoSub {
+	if sock.Info().Self != mangos.ProtoSub {
 		if len(subscriptions) > 0 {
 			fatalf("Subscription only valid with SUB protocol.")
 		}
@@ -617,7 +617,7 @@ func main() {
 	time.Sleep(time.Second * time.Duration(sendDelay))
 
 	// Start main processing
-	switch sock.GetProtocol().Number() {
+	switch sock.Info().Self {
 
 	case mangos.ProtoPull:
 		fallthrough

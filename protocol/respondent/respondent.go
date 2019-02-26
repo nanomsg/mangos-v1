@@ -12,274 +12,476 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package respondent implements the RESPONDENT protocol.  This protocol
-// receives SURVEYOR requests, and responds with an answer.
+// Package respondent implements the RESPONDENT protocol, which is the
+// response side of the survey pattern.
 package respondent
 
 import (
-	"encoding/binary"
 	"sync"
 	"time"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2/protocol"
 )
 
-type resp struct {
-	sock      mangos.ProtocolSocket
-	peers     map[uint32]*respPeer
-	raw       bool
-	ttl       int
-	backbuf   []byte
-	backtrace []byte
-	w         mangos.Waiter
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoRespondent
+	Peer     = protocol.ProtoSurveyor
+	SelfName = "respondent"
+	PeerName = "surveyor"
+)
+
+type pipe struct {
+	s      *socket
+	p      protocol.Pipe
+	closed bool
+	sendQ  chan *protocol.Message
+	closeQ chan struct{}
+}
+
+type socket struct {
+	sock     protocol.Socket
+	closed   bool
+	pipes    map[uint32]*pipe
+	ttl      int
+	sendQLen int
+	recvCond *sync.Cond
+	recvCtxs map[*context]struct{}
+	ctxs     map[*context]struct{}
+	defCtx   *context
 	sync.Mutex
 }
 
-type respPeer struct {
-	q  chan *mangos.Message
-	ep mangos.Endpoint
-	x  *resp
+type context struct {
+	s          *socket
+	closed     bool
+	recvWait   bool
+	recvExpire time.Duration
+	recvPipe   *pipe
+	recvQ      chan *protocol.Message
+	closeQ     chan struct{}
+
+	sendExpire time.Duration
+	sendWait   bool
+	sendMsg    *protocol.Message
+
+	bestEffort bool
+	backtrace  []byte
+	repMsg     *protocol.Message
+	pipeID     uint32 // using ID keeps GC from holding the pipe
+
+	cond *sync.Cond
 }
 
-func (x *resp) Init(sock mangos.ProtocolSocket) {
-	x.sock = sock
-	x.ttl = 8
-	x.peers = make(map[uint32]*respPeer)
-	x.w.Init()
-	x.backbuf = make([]byte, 0, 64)
-	x.sock.SetSendError(mangos.ErrProtoState)
-	x.w.Add()
-	go x.sender()
+// closedQ represents a nonblocking time channel.
+var closedQ <-chan time.Time
+
+// nilQ represents a nil time channel (blocks forever)
+var nilQ <-chan time.Time
+
+func init() {
+	tq := make(chan time.Time)
+	closedQ = tq
+	close(tq)
 }
 
-func (x *resp) Shutdown(expire time.Time) {
-	peers := make(map[uint32]*respPeer)
-	x.w.WaitAbsTimeout(expire)
-	x.Lock()
-	for id, peer := range x.peers {
-		delete(x.peers, id)
-		peers[id] = peer
+func (c *context) RecvMsg() (*protocol.Message, error) {
+	s := c.s
+	s.Lock()
+
+	if c.closed {
+		s.Unlock()
+		return nil, protocol.ErrClosed
 	}
-	x.Unlock()
-
-	for id, peer := range peers {
-		delete(peers, id)
-		mangos.DrainChannel(peer.q, expire)
-		close(peer.q)
+	if c.recvWait {
+		s.Unlock()
+		return nil, protocol.ErrProtoState
 	}
-}
+	c.recvWait = true
 
-func (x *resp) sender() {
-	// This is pretty easy because we have only one peer at a time.
-	// If the peer goes away, we'll just drop the message on the floor.
+	cq := c.closeQ
+	wq := nilQ
+	exptime := c.recvExpire
 
-	defer x.w.Done()
-	cq := x.sock.CloseChannel()
-	sq := x.sock.SendChannel()
-	for {
-		var m *mangos.Message
+	s.recvCtxs[c] = struct{}{}
+	s.recvCond.Signal()
+	s.Unlock()
+
+	if exptime > 0 {
+		wq = time.After(exptime * 10)
+	}
+
+	var err error
+	var m *protocol.Message
+
+	select {
+	case m = <-c.recvQ:
+		err = nil
+	case <-wq:
+		err = protocol.ErrRecvTimeout
+	case <-cq:
+		err = protocol.ErrClosed
+	}
+
+	s.Lock()
+	delete(s.recvCtxs, c)
+
+	// We got an error -- maybe.  Try to drain it just in case.
+	if err != nil {
 		select {
-		case m = <-sq:
-			if m == nil {
-				sq = x.sock.SendChannel()
-				continue
-			}
-		case <-cq:
-			return
-		}
-
-		// Lop off the 32-bit peer/pipe ID.  If absent, drop.
-		if len(m.Header) < 4 {
-			m.Free()
-			continue
-		}
-
-		id := binary.BigEndian.Uint32(m.Header)
-		m.Header = m.Header[4:]
-
-		x.Lock()
-		peer := x.peers[id]
-		x.Unlock()
-
-		if peer == nil {
-			m.Free()
-			continue
-		}
-
-		// Put it on the outbound queue
-		select {
-		case peer.q <- m:
+		case m = <-c.recvQ:
+			err = nil
 		default:
-			// Backpressure, drop it.
-			m.Free()
 		}
+	}
+	if m != nil {
+		c.backtrace = append([]byte{}, m.Header...)
+		m.Header = nil
+	}
+	c.recvWait = false
+	s.Unlock()
+	return m, err
+}
+
+func (c *context) SendMsg(m *protocol.Message) error {
+	r := c.s
+	r.Lock()
+
+	if r.closed || c.closed {
+		r.Unlock()
+		return protocol.ErrClosed
+	}
+	if c.backtrace == nil {
+		r.Unlock()
+		return protocol.ErrProtoState
+	}
+	p := c.recvPipe
+	c.recvPipe = nil
+
+	bestEffort := c.bestEffort
+	wq := nilQ
+	if bestEffort {
+		wq = closedQ
+	} else if c.sendExpire > 0 {
+		wq = time.After(c.sendExpire)
+	}
+
+	m.Header = c.backtrace
+	c.backtrace = nil
+	cq := c.closeQ
+	r.Unlock()
+
+	select {
+	case <-cq:
+		m.Header = nil
+		return protocol.ErrClosed
+	case <-p.closeQ:
+		// Pipe closed, so no way to get it to the recipient.
+		// Just discard the message.
+		m.Free()
+		return nil
+	case <-wq:
+		if bestEffort {
+			// No way to report to caller, so just discard
+			// the message.
+			m.Free()
+			return nil
+		}
+		m.Header = nil
+		return protocol.ErrSendTimeout
+
+	case p.sendQ <- m:
+		return nil
 	}
 }
 
-// When sending, we should have the survey ID in the header.
-func (peer *respPeer) sender() {
-	for {
-		m := <-peer.q
-		if m == nil {
-			break
-		}
-		if peer.ep.SendMsg(m) != nil {
-			m.Free()
-			break
-		}
+func (c *context) Close() error {
+	s := c.s
+	s.Lock()
+	if c.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	delete(s.recvCtxs, c)
+	delete(s.ctxs, c)
+	c.closed = true
+	close(c.closeQ)
+	s.Unlock()
+	return nil
+}
+
+func (c *context) GetOption(name string) (interface{}, error) {
+	switch name {
+	case protocol.OptionBestEffort:
+		c.s.Lock()
+		v := c.bestEffort
+		c.s.Unlock()
+		return v, nil
+
+	case protocol.OptionRecvDeadline:
+		c.s.Lock()
+		v := c.recvExpire
+		c.s.Unlock()
+		return v, nil
+
+	case protocol.OptionSendDeadline:
+		c.s.Lock()
+		v := c.sendExpire
+		c.s.Unlock()
+		return v, nil
+
+	default:
+		return nil, protocol.ErrBadOption
 	}
 }
 
-func (x *resp) receiver(ep mangos.Endpoint) {
+func (c *context) SetOption(name string, v interface{}) error {
+	switch name {
+	case protocol.OptionSendDeadline:
+		if val, ok := v.(time.Duration); ok && val.Nanoseconds() > 0 {
+			c.s.Lock()
+			c.sendExpire = val
+			c.s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
 
-	rq := x.sock.RecvChannel()
-	cq := x.sock.CloseChannel()
+	case protocol.OptionRecvDeadline:
+		if val, ok := v.(time.Duration); ok && val.Nanoseconds() > 0 {
+			c.s.Lock()
+			c.recvExpire = val
+			c.s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
 
-outer:
+	default:
+		return protocol.ErrBadOption
+	}
+}
+
+func (p *pipe) receiver() {
+	s := p.s
+getmsg:
 	for {
-		m := ep.RecvMsg()
+		m := p.p.RecvMsg()
 		if m == nil {
-			return
+			break
 		}
 
-		v := ep.GetID()
-		m.Header = append(m.Header,
-			byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+		// Move backtrace from body to header.
 		hops := 0
-
 		for {
-			if hops >= x.ttl {
+			if hops >= s.ttl {
 				m.Free() // ErrTooManyHops
-				continue outer
+				continue getmsg
 			}
 			hops++
 			if len(m.Body) < 4 {
-				m.Free()
-				continue outer
+				m.Free() // ErrGarbled
+				continue getmsg
 			}
 			m.Header = append(m.Header, m.Body[:4]...)
 			m.Body = m.Body[4:]
+			// Check for high order bit set (0x80000000, big endian)
 			if m.Header[len(m.Header)-4]&0x80 != 0 {
 				break
 			}
 		}
 
-		select {
-		case rq <- m:
-		case <-cq:
+		s.Lock()
+		for len(s.recvCtxs) == 0 && !s.closed && !p.closed {
+			s.recvCond.Wait()
+		}
+		if s.closed || p.closed {
+			s.Unlock()
 			m.Free()
+			break
+		}
+
+		for c := range s.recvCtxs {
+			delete(s.recvCtxs, c)
+			c.recvPipe = p
+			select {
+			case c.recvQ <- m:
+			default:
+				m.Free()
+			}
+			// We *only* want to do this loop once, as we just
+			// want to use a random element of recvCtxs.
+			break
+		}
+		s.Unlock()
+	}
+	go p.close()
+}
+
+func (p *pipe) sender() {
+	for {
+		select {
+		case m := <-p.sendQ:
+			if p.p.SendMsg(m) != nil {
+				p.close()
+				return
+			}
+		case <-p.closeQ:
 			return
 		}
 	}
 }
 
-func (x *resp) RecvHook(m *mangos.Message) bool {
-	if x.raw {
-		// Raw mode receivers get the message unadulterated.
-		return true
+func (p *pipe) close() {
+	// Avoid double close
+	p.s.Lock()
+	if !p.closed {
+		p.closed = true
+		p.p.Close()
+		close(p.closeQ)
 	}
-
-	if len(m.Header) < 4 {
-		return false
-	}
-
-	x.Lock()
-	x.backbuf = x.backbuf[0:0] // avoid allocations
-	x.backtrace = append(x.backbuf, m.Header...)
-	x.Unlock()
-	x.sock.SetSendError(nil)
-	return true
+	p.s.Unlock()
 }
 
-func (x *resp) SendHook(m *mangos.Message) bool {
-	if x.raw {
-		// Raw mode senders expected to have prepared header already.
-		return true
+func (s *socket) Close() error {
+
+	s.Lock()
+	defer s.Unlock()
+
+	if s.closed {
+		return protocol.ErrClosed
 	}
-	x.sock.SetSendError(mangos.ErrProtoState)
-	x.Lock()
-	m.Header = append(m.Header[0:0], x.backtrace...)
-	x.backtrace = nil
-	x.Unlock()
-	if len(m.Header) == 0 {
-		return false
+	s.closed = true
+	for c := range s.ctxs {
+		go c.Close()
 	}
-	return true
+	// close and remove each and every pipe
+	for _, p := range s.pipes {
+		go p.close()
+	}
+	return nil
 }
 
-func (x *resp) AddEndpoint(ep mangos.Endpoint) {
-	peer := &respPeer{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
-
-	x.Lock()
-	x.peers[ep.GetID()] = peer
-	x.Unlock()
-
-	go x.receiver(ep)
-	go peer.sender()
-}
-
-func (x *resp) RemoveEndpoint(ep mangos.Endpoint) {
-	id := ep.GetID()
-
-	x.Lock()
-	peer := x.peers[id]
-	delete(x.peers, id)
-	x.Unlock()
-
-	if peer != nil {
-		close(peer.q)
+func (*socket) Info() protocol.Info {
+	return protocol.Info{
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
 	}
 }
 
-func (*resp) Number() uint16 {
-	return mangos.ProtoRespondent
+func (s *socket) AddPipe(pp protocol.Pipe) error {
+
+	s.Lock()
+	p := &pipe{
+		p:      pp,
+		s:      s,
+		sendQ:  make(chan *protocol.Message, s.sendQLen),
+		closeQ: make(chan struct{}),
+	}
+	if s.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	s.pipes[pp.ID()] = p
+	go p.sender()
+	go p.receiver()
+	s.Unlock()
+	return nil
 }
 
-func (*resp) PeerNumber() uint16 {
-	return mangos.ProtoSurveyor
+func (s *socket) RemovePipe(pp protocol.Pipe) {
+
+	s.Lock()
+	if p, ok := s.pipes[pp.ID()]; ok {
+		delete(s.pipes, pp.ID())
+		go p.close()
+	}
+	s.Unlock()
 }
 
-func (*resp) Name() string {
-	return "respondent"
-}
-
-func (*resp) PeerName() string {
-	return "surveyor"
-}
-
-func (x *resp) SetOption(name string, v interface{}) error {
+func (s *socket) SetOption(name string, v interface{}) error {
 	switch name {
-	case mangos.OptionTTL:
-		if ttl, ok := v.(int); !ok {
-			return mangos.ErrBadValue
-		} else if ttl < 1 || ttl > 255 {
-			return mangos.ErrBadValue
-		} else {
-			x.ttl = ttl
+	case protocol.OptionWriteQLen:
+		if qlen, ok := v.(int); ok && qlen > 0 {
+			s.Lock()
+			s.sendQLen = qlen
+			s.Unlock()
+			return nil
 		}
-		return nil
-	default:
-		return mangos.ErrBadOption
+		return protocol.ErrBadValue
+
+	case protocol.OptionTTL:
+		if ttl, ok := v.(int); ok && ttl > 0 && ttl < 256 {
+			s.Lock()
+			s.ttl = ttl
+			s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
 	}
+	return s.defCtx.SetOption(name, v)
 }
 
-func (x *resp) GetOption(name string) (interface{}, error) {
+func (s *socket) GetOption(name string) (interface{}, error) {
 	switch name {
-	case mangos.OptionRaw:
-		return x.raw, nil
-	case mangos.OptionTTL:
-		return x.ttl, nil
-	default:
-		return nil, mangos.ErrBadOption
+	case protocol.OptionRaw:
+		return false, nil
+	case protocol.OptionTTL:
+		s.Lock()
+		v := s.ttl
+		s.Unlock()
+		return v, nil
+	case protocol.OptionWriteQLen:
+		s.Lock()
+		v := s.sendQLen
+		s.Unlock()
+		return v, nil
 	}
+
+	return s.defCtx.GetOption(name)
 }
 
-// NewSocket allocates a new Socket using the RESPONDENT protocol.
-func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&resp{raw: false}), nil
+func (s *socket) OpenContext() (protocol.Context, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return nil, protocol.ErrClosed
+	}
+	c := &context{
+		s:      s,
+		closeQ: make(chan struct{}),
+		recvQ:  make(chan *protocol.Message, 1),
+	}
+	return c, nil
 }
 
-// NewRawSocket allocates a raw Socket using the RESPONDENT protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&resp{raw: true}), nil
+func (s *socket) RecvMsg() (*protocol.Message, error) {
+	return s.defCtx.RecvMsg()
+}
+
+func (s *socket) SendMsg(m *protocol.Message) error {
+	return s.defCtx.SendMsg(m)
+}
+
+// NewProtocol allocates a protocol state for the RESPONDENT protocol.
+func NewProtocol() protocol.Protocol {
+	s := &socket{
+		ttl:      8,
+		pipes:    make(map[uint32]*pipe),
+		ctxs:     make(map[*context]struct{}),
+		recvCtxs: make(map[*context]struct{}),
+		defCtx: &context{
+			closeQ: make(chan struct{}),
+			recvQ:  make(chan *protocol.Message, 1),
+		},
+	}
+	s.defCtx.s = s
+	s.recvCond = sync.NewCond(s)
+	s.ctxs[s.defCtx] = struct{}{}
+	return s
+}
+
+// NewSocket allocates a new Socket using the REP protocol.
+func NewSocket() (protocol.Socket, error) {
+	return protocol.MakeSocket(NewProtocol()), nil
 }

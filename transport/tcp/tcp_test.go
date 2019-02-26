@@ -19,12 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
 )
 
-var tran = NewTransport()
+var tran = Transport
 var sockRep, _ = rep.NewSocket()
 var sockReq, _ = req.NewSocket()
 
@@ -56,11 +56,6 @@ func TestTCPListenAndAccept(t *testing.T) {
 		}
 		t.Logf("Connected client: %d (server %d)",
 			client.LocalProtocol(), client.RemoteProtocol())
-		t.Logf("Client open: %t", client.IsOpen())
-		if !client.IsOpen() {
-			t.Error("Client is closed")
-			return
-		}
 	}()
 
 	server, err := l.Accept()
@@ -72,11 +67,6 @@ func TestTCPListenAndAccept(t *testing.T) {
 
 	t.Logf("Connected server: %d (client %d)",
 		server.LocalProtocol(), server.RemoteProtocol())
-	t.Logf("Server open: %t", server.IsOpen())
-	if !server.IsOpen() {
-		t.Error("Server is closed")
-		return
-	}
 }
 
 func TestTCPAnonymousPort(t *testing.T) {
@@ -109,11 +99,6 @@ func TestTCPAnonymousPort(t *testing.T) {
 		}
 		t.Logf("Connected client: %d (server %d)",
 			client.LocalProtocol(), client.RemoteProtocol())
-		t.Logf("Client open: %t", client.IsOpen())
-		if !client.IsOpen() {
-			t.Error("Client is closed")
-			return
-		}
 	}()
 
 	server, err := l.Accept()
@@ -125,11 +110,6 @@ func TestTCPAnonymousPort(t *testing.T) {
 
 	t.Logf("Connected server: %d (client %d)",
 		server.LocalProtocol(), server.RemoteProtocol())
-	t.Logf("Server open: %t", server.IsOpen())
-	if !server.IsOpen() {
-		t.Error("Server is closed")
-		return
-	}
 }
 
 func TestTCPDuplicateListen(t *testing.T) {
@@ -200,13 +180,17 @@ func TestTCPSendRecv(t *testing.T) {
 		// Client side
 		t.Logf("Connecting")
 		d, err := tran.NewDialer(addr, sockReq)
+		if err != nil {
+			t.Errorf("Failed creating dialer: %v", err)
+			return
+		}
 
 		client, err := d.Dial()
 		if err != nil {
 			t.Errorf("Dial failed: %v", err)
 			return
 		}
-		t.Logf("Connected client: %t", client.IsOpen())
+		t.Logf("Connected client")
 		defer client.Close()
 
 		req := mangos.NewMessage(len(ping))
@@ -251,7 +235,6 @@ func TestTCPSendRecv(t *testing.T) {
 		t.Errorf("Accept failed: %v", err)
 		return
 	}
-	t.Logf("Connected server: %t", server.IsOpen())
 	defer server.Close()
 
 	// Now we can try to send and receive

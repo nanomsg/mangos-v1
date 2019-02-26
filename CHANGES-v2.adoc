@@ -1,0 +1,133 @@
+
+= Changes in Version 2
+
+mangos has been quite successful, but over the past several years we've
+worked on NNG and nanomsg, as well as mangos.  We wanted to make some
+improvements, using what we learned, and some of those required breaking
+changes.  Hence v2.
+
+Version 1 is still available, so feel free to keep using it for now.
+(Eventually we'll deprecate that in favor of v2, but until v2 fully
+stabilizes we're not ready.)
+
+The rest of this document is meant as a transition guide.
+
+Some of this is still in transition, so YMMV.
+
+== Import path changed
+
+Use `nanomsg.org/go/mangos/v2` as the base URL for imports.
+
+== Go v1.9 Or Better Required
+
+Some support for older Go versions is being removed.  Additionally,
+our adoption of new APIs means that older versions of Go won't work.
+
+== `compat` Package Removed
+
+Nobody was using, as it was a transition for a much older FFI based
+on nanomsg.  That FFI has been abandonware for a long time.
+
+== New Raw Mode Packages
+
+Raw mode sockets are now in their own packages, e.g. `xreq` instead of `req`.
+This is similar to the Martin's original libnanomsg library.
+
+The `OptionRawMode` option has transitioned to being read-only.
+
+== `Protocol` API mostly removed
+
+This API is being completely refactored, and should not be used.
+Don't rely on it, new style protocols don't implement it.  (Soon
+none of the protocols will.)
+
+== Removal of Some Irrelevant Options
+
+For some protocols, we have removed irrelevant options.  For example,
+tuning the send queue depth (`OptionWriteQLen`) makes no sense for
+the `REQ` protocol (not raw mode).  Likewise `OptionBestEffort` makes
+no sense with a broadcast protocol like `SURVEYOR`.  So those options
+will report an error now.
+
+== `errors` package
+
+To facilitate some uses, the errors have been moved into their own
+package.  There are still aliases left behind.
+
+== New Context Support
+
+Some protocols (e.g. REQ, REP, SURVEYOR, and RESPONDENT) support the
+notion of Contexts.  These can be opened on a socket, and each context
+maintains its own state, including outstanding request IDs, timers, and
+so forth.
+
+This makes it possible (for exmaple) for many synchronous go routines
+to share a single socket, each having it's own context.  See the
+`OpenContext()` function in the `protocol.ProtocolBase` interface.
+
+== Info API Changed
+
+Protocols now return their numeric and string IDs, as well as those of
+their APIs, via a new `Info()` API, which replaces the old `Number()`,
+`Name()`, and similar APIs.
+
+== Properties API Merged into Options
+
+The old `pipe.GetProp()` API is changed so that Properties are formalized
+as Options and a `pipe.GetOpt()` API is used to access them.
+
+== STAR Raw Mode Fixed
+
+The xstar protocol implicitly retransmits / forwards received messages
+just like the cooked protocol.  The fact that v1 did not do this was
+a bug.
+
+== Dial Now Synchronous
+
+When using vanilla `Dialer.Dial()`, the calling thread will normally
+be blocked until either a connection is established, or an error
+occurs on this first attempt.  If an error occurs, there will be no
+further retries.  However, the self-healing mode is used for subsequent
+connection attempts.
+
+This mode is intended to facilitate folks who are trying to fix the most
+common connection setup errors.
+
+An option, `OptionDialAsynch`, can be set on sockets or dialers to restore
+the old behavior, where a dialer will just run in the background
+from the beginning.
+
+== Port API changed to Pipe
+
+The `Message.Port` is changed to use a new `Pipe` interface, which has
+some differences but conversion should be straight-forward.  (Few
+applications used this API.)
+
+Also the `PortHook` API is now replaced with a `PipeEventHook` API,
+and a separate event is used for pre-attach and post-attach.  This
+turns out to be useful in circumstances where one wants to be certain
+that the pipe is connected before taking some action.
+
+Note that `Pipe.GetOption` will fallback to looking for the `Dialer` or
+`Listener` option if it doesn't have a local value.
+
+== `Message.Expired` removed
+
+This API turns out to be not very useful, and we have elected to just
+eliminate it entirely.  It was only intended for use by transports,
+and then only to cope with cases where a Message might have been stuck
+in a queue for a long time.
+
+== `Protocol.ProtocolName` removed
+
+The ability to lookup protocol names by their protocol number is removed.
+Each protocol instead has their identities (including name and string)
+as constants (`Self`, `Peer`, `SelfName`, and `PeerName`) in the package.
+
+== Simplified Transport registration
+
+To register a transport, just import the transport package.  (You can
+use an anonymous import (i.e. an underscore import) to bring transport
+packages in.  The `AddTransport()` method on sockets, and `NewTransport()`
+method for transport packages have been removed.  (Transport implementations
+can register themselves with transport.RegisterTransport().)

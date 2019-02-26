@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/transport/inproc"
+	"nanomsg.org/go/mangos/v2"
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
 )
 
 // SetTTLZero tests that a given socket fails to set a TTL of zero.
@@ -131,7 +131,6 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 	nhop := 3
 	clis := make([]mangos.Socket, 0, nhop)
 	srvs := make([]mangos.Socket, 0, nhop)
-	inp := inproc.NewTransport()
 	a := AddrTestInp()
 
 	for i := 0; i < nhop; i++ {
@@ -147,8 +146,6 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 			return
 		}
 		defer s.Close()
-
-		s.AddTransport(inp)
 
 		err = s.Listen(a + fmt.Sprintf("HOP%d", i))
 		if err != nil {
@@ -172,8 +169,6 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 			return
 		}
 		defer s.Close()
-
-		s.AddTransport(inp)
 
 		err = s.Dial(a + fmt.Sprintf("HOP%d", i))
 		if err != nil {
@@ -202,18 +197,18 @@ func TTLDropTest(t *testing.T, cli newSockFunc, srv newSockFunc,
 	rq := clis[0]
 	rp := srvs[nhop-1]
 
-	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond*20)
+	err := rp.SetOption(mangos.OptionRecvDeadline, time.Millisecond*100)
 	if err != nil {
 		t.Errorf("Failed set recv deadline")
 		return
 	}
 
-	t.Logf("Socket for sending is %s", rq.GetProtocol().Name())
+	t.Logf("Socket for sending is %s", rq.Info().SelfName)
 	if err = rq.Send([]byte("GOOD")); err != nil {
 		t.Errorf("Failed first send: %v", err)
 		return
 	}
-	t.Logf("Socket for receiving is %s", rp.GetProtocol().Name())
+	t.Logf("Socket for receiving is %s", rp.Info().SelfName)
 	v, err := rp.Recv()
 	if err != nil {
 		t.Errorf("Failed first recv: %v", err)

@@ -19,26 +19,24 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/pair"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
-	"nanomsg.org/go-mangos/transport/inproc"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
-	"nanomsg.org/go-mangos/transport/tlstcp"
-	"nanomsg.org/go-mangos/transport/ws"
-	"nanomsg.org/go-mangos/transport/wss"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/pair"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/xpair"
+	"nanomsg.org/go/mangos/v2/protocol/xrep"
+	"nanomsg.org/go/mangos/v2/protocol/xreq"
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func TestDeviceBadPair(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := xreq.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
-	s2, err := pair.NewRawSocket()
+	s2, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
@@ -59,7 +57,7 @@ func TestDeviceBadPair(t *testing.T) {
 }
 
 func TestDeviceBadSingle(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := xreq.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -80,7 +78,7 @@ func TestDeviceBadSingle(t *testing.T) {
 }
 
 func TestDeviceFirstNil(t *testing.T) {
-	s1, err := pair.NewRawSocket()
+	s1, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -98,7 +96,7 @@ func TestDeviceFirstNil(t *testing.T) {
 }
 
 func TestDeviceSecondNil(t *testing.T) {
-	s1, err := pair.NewRawSocket()
+	s1, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
@@ -156,13 +154,13 @@ func TestDeviceCooked(t *testing.T) {
 	}
 }
 func TestDeviceReqRep(t *testing.T) {
-	s1, err := req.NewRawSocket()
+	s1, err := xreq.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
-	s2, err := rep.NewRawSocket()
+	s2, err := xrep.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S2: %v", err)
 		return
@@ -220,18 +218,12 @@ func deviceCaseClient() []TestCase {
 }
 
 func testDevLoop(t *testing.T, addr string) {
-	s1, err := pair.NewRawSocket()
+	s1, err := xpair.NewSocket()
 	if err != nil {
 		t.Errorf("Failed to open S1: %v", err)
 		return
 	}
 	defer s1.Close()
-	s1.AddTransport(tcp.NewTransport())
-	s1.AddTransport(inproc.NewTransport())
-	s1.AddTransport(ipc.NewTransport())
-	s1.AddTransport(tlstcp.NewTransport())
-	s1.AddTransport(ws.NewTransport())
-	s1.AddTransport(wss.NewTransport())
 
 	options := make(map[string]interface{})
 	if strings.HasPrefix(addr, "wss://") || strings.HasPrefix(addr, "tls+tcp://") {
@@ -257,36 +249,31 @@ func testDevChain(t *testing.T, addr1 string, addr2 string, addr3 string) {
 	var err error
 	s := make([]mangos.Socket, 5)
 	for i := 0; i < 5; i++ {
-		if s[i], err = pair.NewRawSocket(); err != nil {
+		if s[i], err = xpair.NewSocket(); err != nil {
 			t.Errorf("Failed to open S1_1: %v", err)
 			return
 		}
 		defer s[i].Close()
-		s[i].AddTransport(tcp.NewTransport())
-		s[i].AddTransport(inproc.NewTransport())
-		s[i].AddTransport(tlstcp.NewTransport())
-		s[i].AddTransport(ipc.NewTransport())
-		s[i].AddTransport(ws.NewTransport())
 	}
 
 	if err = s[0].Listen(addr1); err != nil {
 		t.Errorf("s[0] Listen: %v", err)
 		return
 	}
-	if err = s[1].Dial(addr2); err != nil {
-		t.Errorf("s[1] Dial: %v", err)
-		return
-	}
 	if err = s[2].Listen(addr2); err != nil {
 		t.Errorf("s[2] Listen: %v", err)
 		return
 	}
-	if err = s[3].Dial(addr3); err != nil {
-		t.Errorf("s[3] Dial: %v", err)
-		return
-	}
 	if err = s[4].Listen(addr3); err != nil {
 		t.Errorf("s[4] Listen: %v", err)
+		return
+	}
+	if err = s[1].Dial(addr2); err != nil {
+		t.Errorf("s[1] Dial: %v", err)
+		return
+	}
+	if err = s[3].Dial(addr3); err != nil {
+		t.Errorf("s[3] Dial: %v", err)
 		return
 	}
 	if err = mangos.Device(s[0], s[1]); err != nil {

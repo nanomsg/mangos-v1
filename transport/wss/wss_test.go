@@ -17,10 +17,10 @@ package wss
 import (
 	"testing"
 
-	"nanomsg.org/go-mangos/test"
+	"nanomsg.org/go/mangos/v2/test"
 )
 
-var tt = test.NewTranTest(NewTransport(), "wss://127.0.0.1:3346/mysock")
+var tt = test.NewTranTest(Transport, "wss://127.0.0.1:3346/mysock")
 
 func TestWSSListenAndAccept(t *testing.T) {
 	tt.TestListenAndAccept(t)

@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -108,9 +108,9 @@ var rootTmpl = &x509.Certificate{
 		CommonName:   "root.mangos.example.com",
 		Organization: []string{"Mangos Root Org"},
 	},
-	NotBefore: time.Unix(1000, 0),
-	NotAfter:  time.Now().Add(time.Hour),
-	IsCA:      true,
+	NotBefore:             time.Unix(1000, 0),
+	NotAfter:              time.Now().Add(time.Hour),
+	IsCA:                  true,
 	BasicConstraintsValid: true,
 	OCSPServer:            []string{"ocsp.mangos.example.com"},
 	DNSNames:              []string{"root.mangos.example.com"},

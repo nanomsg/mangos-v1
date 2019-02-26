@@ -21,10 +21,11 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/xrep"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 // Our protocol is simple.  Request packet is empty.  The reply
@@ -61,11 +62,9 @@ func server(url string, nworkers int) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if sock, err = rep.NewRawSocket(); err != nil {
+	if sock, err = xrep.NewSocket(); err != nil {
 		die("can't get new rep socket: %s", err)
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Listen(url); err != nil {
 		die("can't listen on rep socket: %s", err.Error())
 	}

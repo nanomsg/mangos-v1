@@ -19,9 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/respondent"
-	"nanomsg.org/go-mangos/protocol/surveyor"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/respondent"
+	"nanomsg.org/go/mangos/v2/protocol/surveyor"
+	"nanomsg.org/go/mangos/v2/protocol/xrespondent"
+	"nanomsg.org/go/mangos/v2/protocol/xsurveyor"
 )
 
 type surveyTest struct {
@@ -122,7 +124,7 @@ func surveyCases() []TestCase {
 	surv.MsgSize = 8
 	surv.WantTx = 1
 	surv.WantRx = int32(nresp)
-	surv.txdelay = 1000 * time.Millisecond
+	surv.txdelay = time.Second / 7
 	surv.Synch = true
 	surv.NReply = int(nresp)
 	cases[0] = surv
@@ -164,26 +166,26 @@ func TestSurveyWSS(t *testing.T) {
 }
 
 func TestSurveyTTLZero(t *testing.T) {
-	SetTTLZero(t, respondent.NewRawSocket)
+	SetTTLZero(t, xrespondent.NewSocket)
 }
 
 func TestSurveyTTLNegative(t *testing.T) {
-	SetTTLNegative(t, respondent.NewRawSocket)
+	SetTTLNegative(t, xrespondent.NewSocket)
 }
 
 func TestSurveyTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, respondent.NewRawSocket)
+	SetTTLTooBig(t, xrespondent.NewSocket)
 }
 
 func TestSurveyTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, respondent.NewRawSocket)
+	SetTTLNotInt(t, xrespondent.NewSocket)
 }
 
 func TestSurveyTTLSet(t *testing.T) {
-	SetTTL(t, respondent.NewRawSocket)
+	SetTTL(t, xrespondent.NewSocket)
 }
 
 func TestSurveyTTLDrop(t *testing.T) {
 	TTLDropTest(t, surveyor.NewSocket, respondent.NewSocket,
-		surveyor.NewRawSocket, respondent.NewRawSocket)
+		xsurveyor.NewSocket, xrespondent.NewSocket)
 }

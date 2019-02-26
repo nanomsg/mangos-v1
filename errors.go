@@ -1,4 +1,4 @@
-// Copyright 2015 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -15,32 +15,32 @@
 package mangos
 
 import (
-	"errors"
+	"nanomsg.org/go/mangos/v2/errors"
 )
 
 // Various error codes.
-var (
-	ErrBadAddr     = errors.New("invalid address")
-	ErrBadHeader   = errors.New("invalid header received")
-	ErrBadVersion  = errors.New("invalid protocol version")
-	ErrTooShort    = errors.New("message is too short")
-	ErrTooLong     = errors.New("message is too long")
-	ErrClosed      = errors.New("connection closed")
-	ErrConnRefused = errors.New("connection refused")
-	ErrSendTimeout = errors.New("send time out")
-	ErrRecvTimeout = errors.New("receive time out")
-	ErrProtoState  = errors.New("incorrect protocol state")
-	ErrProtoOp     = errors.New("invalid operation for protocol")
-	ErrBadTran     = errors.New("invalid or unsupported transport")
-	ErrBadProto    = errors.New("invalid or unsupported protocol")
-	ErrPipeFull    = errors.New("pipe full")
-	ErrPipeEmpty   = errors.New("pipe empty")
-	ErrBadOption   = errors.New("invalid or unsupported option")
-	ErrBadValue    = errors.New("invalid option value")
-	ErrGarbled     = errors.New("message garbled")
-	ErrAddrInUse   = errors.New("address in use")
-	ErrBadProperty = errors.New("invalid property name")
-	ErrTLSNoConfig = errors.New("missing TLS configuration")
-	ErrTLSNoCert   = errors.New("missing TLS certificates")
-	ErrNotRaw      = errors.New("socket not raw")
+const (
+	ErrBadAddr     = errors.ErrBadAddr
+	ErrBadHeader   = errors.ErrBadHeader
+	ErrBadVersion  = errors.ErrBadVersion
+	ErrTooShort    = errors.ErrTooShort
+	ErrTooLong     = errors.ErrTooLong
+	ErrClosed      = errors.ErrClosed
+	ErrConnRefused = errors.ErrConnRefused
+	ErrSendTimeout = errors.ErrSendTimeout
+	ErrRecvTimeout = errors.ErrRecvTimeout
+	ErrProtoState  = errors.ErrProtoState
+	ErrProtoOp     = errors.ErrProtoOp
+	ErrBadTran     = errors.ErrBadTran
+	ErrBadProto    = errors.ErrBadProto
+	ErrBadOption   = errors.ErrBadOption
+	ErrBadValue    = errors.ErrBadValue
+	ErrGarbled     = errors.ErrGarbled
+	ErrAddrInUse   = errors.ErrAddrInUse
+	ErrBadProperty = errors.ErrBadProperty
+	ErrTLSNoConfig = errors.ErrTLSNoConfig
+	ErrTLSNoCert   = errors.ErrTLSNoCert
+	ErrNotRaw      = errors.ErrNotRaw
+	ErrCanceled    = errors.ErrCanceled
+	ErrNoContext   = errors.ErrNoContext
 )

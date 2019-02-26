@@ -17,9 +17,11 @@ package test
 import (
 	"testing"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/xrep"
+	"nanomsg.org/go/mangos/v2/protocol/xreq"
 )
 
 type reqTest struct {
@@ -150,25 +152,25 @@ func TestReqRepWSS(t *testing.T) {
 }
 
 func TestReqRepTTLZero(t *testing.T) {
-	SetTTLZero(t, rep.NewRawSocket)
+	SetTTLZero(t, xrep.NewSocket)
 }
 
 func TestReqRepTTLNegative(t *testing.T) {
-	SetTTLNegative(t, rep.NewRawSocket)
+	SetTTLNegative(t, xrep.NewSocket)
 }
 
 func TestReqRepTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, rep.NewRawSocket)
+	SetTTLTooBig(t, xrep.NewSocket)
 }
 
 func TestReqRepTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, rep.NewRawSocket)
+	SetTTLNotInt(t, xrep.NewSocket)
 }
 
 func TestReqRepTTLSet(t *testing.T) {
-	SetTTL(t, rep.NewRawSocket)
+	SetTTL(t, xrep.NewSocket)
 }
 
 func TestReqRepTTLDrop(t *testing.T) {
-	TTLDropTest(t, req.NewSocket, rep.NewSocket, req.NewRawSocket, rep.NewRawSocket)
+	TTLDropTest(t, req.NewSocket, rep.NewSocket, xreq.NewSocket, xrep.NewSocket)
 }

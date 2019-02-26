@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/transport/all"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport/all"
 )
 
 var cliCfg, _ = NewTLSConfig(false)
@@ -111,7 +111,7 @@ func (c *T) Init(t *testing.T, addr string) bool {
 	c.sdoneq = make(chan struct{})
 	c.rdoneq = make(chan struct{})
 	c.readyq = make(chan struct{})
-	c.timeout = time.Second * 3
+	c.timeout = time.Second * 30
 	c.txdelay = time.Millisecond * 7
 
 	all.AddTransports(c.Sock)
@@ -236,6 +236,7 @@ func (c *T) Dial() bool {
 		options[mangos.OptionTLSConfig] = cliCfg
 	}
 
+	options[mangos.OptionDialAsynch] = true
 	err := c.Sock.DialOptions(c.addr, options)
 	if err != nil {
 		c.Errorf("Dial (%s) failed: %v", c.addr, err)
@@ -316,16 +317,16 @@ func (c *T) RecvStart() bool {
 		return false
 	}
 	defer m.Free()
-	if addr := m.Port.Address(); addr != c.addr {
-		c.Errorf("Got unexpected message port address: %s", addr)
+	if addr := m.Pipe.Address(); addr != c.addr {
+		c.Errorf("Got unexpected message pipe address: %s", addr)
 		return false
 	}
-	if c.IsServer() && !m.Port.IsServer() {
-		c.Errorf("Expected message port server")
+	if c.IsServer() && m.Pipe.Listener() == nil {
+		c.Errorf("Expected message pipe listener")
 		return false
 	}
-	if !c.IsServer() && !m.Port.IsClient() {
-		c.Errorf("Expected message port client")
+	if !c.IsServer() && m.Pipe.Dialer() == nil {
+		c.Errorf("Expected message pipe dialer")
 		return false
 	}
 

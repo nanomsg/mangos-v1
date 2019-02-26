@@ -18,16 +18,15 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/star"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/star"
+	_ "nanomsg.org/go/mangos/v2/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testStarNonBlock(addr string, tran mangos.Transport) {
+func testStarNonBlock(addr string) {
 	maxqlen := 2
-	timeout := time.Second / 10
 
 	Convey("Given a suitable Star socket", func() {
 		rp, err := star.NewSocket()
@@ -35,12 +34,8 @@ func testStarNonBlock(addr string, tran mangos.Transport) {
 		So(rp, ShouldNotBeNil)
 
 		defer rp.Close()
-		rp.AddTransport(tran)
 
 		err = rp.SetOption(mangos.OptionWriteQLen, maxqlen)
-		So(err, ShouldBeNil)
-
-		err = rp.SetOption(mangos.OptionSendDeadline, timeout)
 		So(err, ShouldBeNil)
 
 		err = rp.Listen(addr)
@@ -49,17 +44,20 @@ func testStarNonBlock(addr string, tran mangos.Transport) {
 		msg := []byte{'A', 'B', 'C'}
 
 		Convey("We don't block, even sending many messages", func() {
+			start := time.Now()
 			for i := 0; i < maxqlen*10; i++ {
 
 				err := rp.Send(msg)
 				So(err, ShouldBeNil)
 			}
+			end := time.Now()
+			So(end, ShouldHappenWithin, time.Second/10, start)
 		})
 	})
 }
 
 func TestStarNonBlockTCP(t *testing.T) {
 	Convey("Testing STAR Send (TCP) is Non-Blocking", t, func() {
-		testStarNonBlock(AddrTestTCP(), tcp.NewTransport())
+		testStarNonBlock(AddrTestTCP())
 	})
 }

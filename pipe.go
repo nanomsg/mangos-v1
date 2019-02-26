@@ -14,143 +14,58 @@
 
 package mangos
 
-import (
-	"math/rand"
-	"sync"
-	"time"
+// Pipe represents the high level interface to a low level communications
+// channel.  There is one of these associated with a given TCP connection,
+// for example.  This interface is intended for application use.
+//
+// Note that applications cannot send or receive data on a Pipe directly.
+type Pipe interface {
+
+	// ID returns the numeric ID for this Pipe.  This will be a
+	// 31 bit (bit 32 is clear) value for the Pipe, which is unique
+	// across all other Pipe instances in the application, while
+	// this Pipe exists.  (IDs are recycled on Close, but only after
+	// all other Pipe values are used.)
+	ID() uint32
+
+	// Address returns the address (URL form) associated with the Pipe.
+	// This matches the string passed to Dial() or Listen().
+	Address() string
+
+	// GetOption returns an arbitrary option.  The details will vary
+	// for different transport types.
+	GetOption(name string) (interface{}, error)
+
+	// Listener returns the Listener for this Pipe, or nil if none.
+	Listener() Listener
+
+	// Dialer returns the Dialer for this Pipe, or nil if none.
+	Dialer() Dialer
+
+	// Close closes the Pipe.  This does a disconnect, or something similar.
+	// Note that if a dialer is present and active, it will redial.
+	Close() error
+}
+
+// PipeEvent determines what is actually transpiring on the Pipe.
+type PipeEvent int
+
+const (
+	// PipeEventAttaching is called before the Pipe is registered with the
+	// socket.  The intention is to permit the application to reject
+	// a pipe before it is attached.
+	PipeEventAttaching = iota
+
+	// PipeEventAttached occurs after the Pipe is attached.
+	// Consequently, it is possible to use the Pipe for delivering
+	// events to sockets, etc.
+	PipeEventAttached
+
+	// PipeEventDetached occurs after the Pipe has been detached
+	// from the socket.
+	PipeEventDetached
 )
 
-var pipes struct {
-	byid   map[uint32]*pipe
-	nextid uint32
-	sync.Mutex
-}
-
-// pipe wraps the Pipe data structure with the stuff we need to keep
-// for the core.  It implements the Endpoint interface.
-type pipe struct {
-	pipe    Pipe
-	closeq  chan struct{} // only closed, never passes data
-	id      uint32
-	l       *listener
-	d       *dialer
-	sock    *socket
-	closing bool // true if we were closed
-
-	sync.Mutex
-}
-
-func init() {
-	pipes.byid = make(map[uint32]*pipe)
-	pipes.nextid = uint32(rand.NewSource(time.Now().UnixNano()).Int63())
-}
-
-func newPipe(tranpipe Pipe) *pipe {
-	p := &pipe{pipe: tranpipe}
-	p.closeq = make(chan struct{})
-	for {
-		pipes.Lock()
-		p.id = pipes.nextid & 0x7fffffff
-		pipes.nextid++
-		if p.id != 0 && pipes.byid[p.id] == nil {
-			pipes.byid[p.id] = p
-			pipes.Unlock()
-			break
-		}
-		pipes.Unlock()
-	}
-	return p
-}
-
-func (p *pipe) GetID() uint32 {
-	return p.id
-}
-
-func (p *pipe) Close() error {
-	var hook PortHook
-	p.Lock()
-	sock := p.sock
-	if sock != nil {
-		hook = sock.porthook
-	}
-	if p.closing {
-		p.Unlock()
-		return nil
-	}
-	p.closing = true
-	p.Unlock()
-	close(p.closeq)
-	if sock != nil {
-		sock.remPipe(p)
-	}
-	p.pipe.Close()
-	pipes.Lock()
-	delete(pipes.byid, p.id)
-	pipes.Unlock()
-	if hook != nil {
-		hook(PortActionRemove, p)
-	}
-	return nil
-}
-
-func (p *pipe) SendMsg(msg *Message) error {
-
-	if err := p.pipe.Send(msg); err != nil {
-		p.Close()
-		return err
-	}
-	return nil
-}
-
-func (p *pipe) RecvMsg() *Message {
-
-	msg, err := p.pipe.Recv()
-	if err != nil {
-		p.Close()
-		return nil
-	}
-	msg.Port = p
-	return msg
-}
-
-func (p *pipe) Address() string {
-	switch {
-	case p.l != nil:
-		return p.l.Address()
-	case p.d != nil:
-		return p.d.Address()
-	}
-	return ""
-}
-
-func (p *pipe) GetProp(name string) (interface{}, error) {
-	return p.pipe.GetProp(name)
-}
-
-func (p *pipe) IsOpen() bool {
-	return p.pipe.IsOpen()
-}
-
-func (p *pipe) IsClient() bool {
-	return p.d != nil
-}
-
-func (p *pipe) IsServer() bool {
-	return p.l != nil
-}
-
-func (p *pipe) LocalProtocol() uint16 {
-	return p.pipe.LocalProtocol()
-}
-
-func (p *pipe) RemoteProtocol() uint16 {
-	return p.pipe.RemoteProtocol()
-}
-
-func (p *pipe) Dialer() Dialer {
-	return p.d
-}
-
-func (p *pipe) Listener() Listener {
-	return p.l
-}
+// PipeEventHook is an application supplied function to be called when
+// events occur relating to a Pipe.
+type PipeEventHook func(PipeEvent, Pipe)

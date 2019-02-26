@@ -15,13 +15,24 @@
 // limitations under the License.
 
 // Package ipc implements the IPC transport on top of UNIX domain sockets.
+// To enable it simply import it.
 package ipc
 
 import (
 	"net"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport"
 )
+
+const (
+	// Transport is a transport.Transport for IPC.
+	Transport = ipcTran(0)
+)
+
+func init() {
+	transport.RegisterTransport(Transport)
+}
 
 // options is used for shared GetOption/SetOption logic.
 type options map[string]interface{}
@@ -38,40 +49,49 @@ func (o options) get(name string) (interface{}, error) {
 	return v, nil
 }
 
-// SetOption sets an option.  We have none, so just ErrBadOption.
-func (o options) set(string, interface{}) error {
+// SetOption sets an option.
+func (o options) set(name string, val interface{}) error {
+	switch name {
+	case mangos.OptionMaxRecvSize:
+		if v, ok := val.(int); ok {
+			o[name] = v
+			return nil
+		}
+		return mangos.ErrBadValue
+	}
+
 	return mangos.ErrBadOption
 }
 
 type dialer struct {
-	addr *net.UnixAddr
-	sock mangos.Socket
-	opts options
+	addr  *net.UnixAddr
+	proto transport.ProtocolInfo
+	opts  options
 }
 
-// Dial implements the PipeDialer Dial method
-func (d *dialer) Dial() (mangos.Pipe, error) {
+// Dial implements the Dialer Dial method
+func (d *dialer) Dial() (transport.Pipe, error) {
 
 	conn, err := net.DialUnix("unix", nil, d.addr)
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipeIPC(conn, d.sock)
+	return transport.NewConnPipeIPC(conn, d.proto, d.opts)
 }
 
-// SetOption implements a stub PipeDialer SetOption method.
+// SetOption implements Dialer SetOption method.
 func (d *dialer) SetOption(n string, v interface{}) error {
 	return d.opts.set(n, v)
 }
 
-// GetOption implements a stub PipeDialer GetOption method.
+// GetOption implements Dialer GetOption method.
 func (d *dialer) GetOption(n string) (interface{}, error) {
 	return d.opts.get(n)
 }
 
 type listener struct {
 	addr     *net.UnixAddr
-	sock     mangos.Socket
+	proto    transport.ProtocolInfo
 	listener *net.UnixListener
 	opts     options
 }
@@ -91,13 +111,13 @@ func (l *listener) Address() string {
 }
 
 // Accept implements the the PipeListener Accept method.
-func (l *listener) Accept() (mangos.Pipe, error) {
+func (l *listener) Accept() (transport.Pipe, error) {
 
 	conn, err := l.listener.AcceptUnix()
 	if err != nil {
 		return nil, err
 	}
-	return mangos.NewConnPipeIPC(conn, l.sock)
+	return transport.NewConnPipeIPC(conn, l.proto, l.opts)
 }
 
 // Close implements the PipeListener Close method.
@@ -116,22 +136,26 @@ func (l *listener) GetOption(n string) (interface{}, error) {
 	return l.opts.get(n)
 }
 
-type ipcTran struct{}
+type ipcTran int
 
 // Scheme implements the Transport Scheme method.
-func (t *ipcTran) Scheme() string {
+func (ipcTran) Scheme() string {
 	return "ipc"
 }
 
 // NewDialer implements the Transport NewDialer method.
-func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
+func (t ipcTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
 	var err error
 
-	if addr, err = mangos.StripScheme(t, addr); err != nil {
+	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
-	d := &dialer{sock: sock, opts: nil}
+	d := &dialer{
+		proto: sock.Info(),
+		opts:  make(map[string]interface{}),
+	}
+	d.opts[mangos.OptionMaxRecvSize] = 0
 	if d.addr, err = net.ResolveUnixAddr("unix", addr); err != nil {
 		return nil, err
 	}
@@ -139,11 +163,15 @@ func (t *ipcTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 }
 
 // NewListener implements the Transport NewListener method.
-func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
+func (t ipcTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
 	var err error
-	l := &listener{sock: sock}
+	l := &listener{
+		proto: sock.Info(),
+		opts:  make(map[string]interface{}),
+	}
+	l.opts[mangos.OptionMaxRecvSize] = 0
 
-	if addr, err = mangos.StripScheme(t, addr); err != nil {
+	if addr, err = transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
 
@@ -152,9 +180,4 @@ func (t *ipcTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListe
 	}
 
 	return l, nil
-}
-
-// NewTransport allocates a new IPC transport.
-func NewTransport() mangos.Transport {
-	return &ipcTran{}
 }

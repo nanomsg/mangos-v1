@@ -42,10 +42,9 @@ func Device(s1 Socket, s2 Socket) error {
 		return ErrClosed
 	}
 
-	p1 := s1.GetProtocol()
-	p2 := s2.GetProtocol()
-
-	if !ValidPeers(p1, p2) {
+	info1 := s1.Info()
+	info2 := s2.Info()
+	if (info1.Self != info2.Peer) || (info2.Self != info1.Peer) {
 		return ErrBadProto
 	}
 
@@ -61,7 +60,9 @@ func Device(s1 Socket, s2 Socket) error {
 	}
 
 	go forwarder(s1, s2)
-	go forwarder(s2, s1)
+	if s2 != s1 {
+		go forwarder(s2, s1)
+	}
 	return nil
 }
 

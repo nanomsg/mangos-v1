@@ -19,16 +19,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
 	//"nanomsg.org/go-mangos/test"
 )
 
 func TestWebsockPath(t *testing.T) {
 	sockReq, _ := req.NewSocket()
 	sockRep, _ := rep.NewSocket()
-	tran := NewTransport()
+	tran := Transport
 	l, e := tran.NewListener("ws://127.0.0.1:3335/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
@@ -66,7 +67,7 @@ func bogusHandler(w http.ResponseWriter, r *http.Request) {
 func TestWebsockMux(t *testing.T) {
 	sockReq, _ := req.NewSocket()
 	sockRep, _ := rep.NewSocket()
-	tran := NewTransport()
+	tran := Transport
 	l, e := tran.NewListener("ws://127.0.0.1:3336/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
@@ -129,7 +130,7 @@ func TestWebsockMux(t *testing.T) {
 func TestWebsockHandler(t *testing.T) {
 	sockReq, _ := req.NewSocket()
 	sockRep, _ := rep.NewSocket()
-	tran := NewTransport()
+	tran := Transport
 	l, e := tran.NewListener("ws://127.0.0.1:3337/mysock", sockReq)
 	if e != nil {
 		t.Errorf("Failed new Listener: %v", e)
@@ -149,6 +150,9 @@ func TestWebsockHandler(t *testing.T) {
 	// program exits. There appears to be no way to shutdown http
 	// instances gracefully.
 	go http.ListenAndServe("127.0.0.1:3337", mux)
+
+	// Give the server a chance to startup, as we are running it asynch
+	time.Sleep(time.Second / 10)
 
 	d, e := tran.NewDialer("ws://127.0.0.1:3337/bogus", sockRep)
 	if e != nil {

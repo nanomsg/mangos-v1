@@ -17,9 +17,10 @@ package test
 import (
 	"encoding/binary"
 	"testing"
+	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/bus"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/bus"
 )
 
 type busTest struct {
@@ -142,6 +143,7 @@ func busCases() []TestCase {
 		bus.nbus = uint32(nbus)
 		bus.MsgSize = 8
 		bus.WantTx = int32(npkt)
+		bus.txdelay = time.Second / 7
 		// Only the server receives from all peers.  The clients
 		// only get packets sent by the server.
 		if i == 0 {

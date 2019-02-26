@@ -13,24 +13,30 @@
 // limitations under the License.
 
 // Package inproc implements an simple inproc transport for mangos.
+// To enable it simply import it.
 package inproc
 
 import (
 	"strings"
 	"sync"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport"
 )
+
+// Transport is a transport.Transport for intra-process communication.
+const Transport = inprocTran(0)
 
 // inproc implements the Pipe interface on top of channels.
 type inproc struct {
-	rq     chan *mangos.Message
-	wq     chan *mangos.Message
-	closeq chan struct{}
-	readyq chan struct{}
-	proto  mangos.Protocol
-	addr   addr
-	peer   *inproc
+	rq        chan *transport.Message
+	wq        chan *transport.Message
+	closeq    chan struct{}
+	readyq    chan struct{}
+	selfProto uint16
+	peerProto uint16
+	addr      addr
+	peer      *inproc
 	sync.Mutex
 }
 
@@ -50,11 +56,12 @@ func (addr) Network() string {
 
 type listener struct {
 	addr      string
-	proto     mangos.Protocol
+	selfProto uint16
+	peerProto uint16
 	accepters []*inproc
 }
 
-type inprocTran struct{}
+type inprocTran int
 
 var listeners struct {
 	// Who is listening, on which "address"?
@@ -66,9 +73,11 @@ var listeners struct {
 func init() {
 	listeners.byAddr = make(map[string]*listener)
 	listeners.cv.L = &listeners.mx
+
+	transport.RegisterTransport(Transport)
 }
 
-func (p *inproc) Recv() (*mangos.Message, error) {
+func (p *inproc) Recv() (*transport.Message, error) {
 
 	if p.peer == nil {
 		return nil, mangos.ErrClosed
@@ -96,11 +105,6 @@ func (p *inproc) Send(m *mangos.Message) error {
 		return mangos.ErrClosed
 	}
 
-	if m.Expired() {
-		m.Free()
-		return nil
-	}
-
 	// Upper protocols expect to have to pick header and body part.
 	// Also we need to have a fresh copy of the message for receiver, to
 	// break ownership.
@@ -120,36 +124,29 @@ func (p *inproc) Send(m *mangos.Message) error {
 }
 
 func (p *inproc) LocalProtocol() uint16 {
-	return p.proto.Number()
+	return p.selfProto
 }
 
 func (p *inproc) RemoteProtocol() uint16 {
-	return p.proto.PeerNumber()
+	return p.peerProto
 }
 
 func (p *inproc) Close() error {
 	p.Lock()
-	defer p.Unlock()
-	if p.IsOpen() {
+	select {
+	case <-p.closeq: // If already closed, don't do it again.
+	default:
 		close(p.closeq)
 	}
+	p.Unlock()
 	return nil
 }
 
-func (p *inproc) IsOpen() bool {
-	select {
-	case <-p.closeq:
-		return false
-	default:
-		return true
-	}
-}
-
-func (p *inproc) GetProp(name string) (interface{}, error) {
+func (p *inproc) GetOption(name string) (interface{}, error) {
 	switch name {
-	case mangos.PropRemoteAddr:
+	case mangos.OptionRemoteAddr:
 		return p.addr, nil
-	case mangos.PropLocalAddr:
+	case mangos.OptionLocalAddr:
 		return p.addr, nil
 	}
 	// We have no special properties
@@ -157,14 +154,19 @@ func (p *inproc) GetProp(name string) (interface{}, error) {
 }
 
 type dialer struct {
-	addr  string
-	proto mangos.Protocol
+	addr      string
+	selfProto uint16
+	peerProto uint16
 }
 
-func (d *dialer) Dial() (mangos.Pipe, error) {
+func (d *dialer) Dial() (transport.Pipe, error) {
 
 	var server *inproc
-	client := &inproc{proto: d.proto, addr: addr(d.addr)}
+	client := &inproc{
+		selfProto: d.selfProto,
+		peerProto: d.peerProto,
+		addr:      addr(d.addr),
+	}
 	client.readyq = make(chan struct{})
 	client.closeq = make(chan struct{})
 
@@ -179,7 +181,8 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 			return nil, mangos.ErrConnRefused
 		}
 
-		if !mangos.ValidPeers(client.proto, l.proto) {
+		if (client.selfProto != l.peerProto) ||
+			(client.peerProto != l.selfProto) {
 			return nil, mangos.ErrBadProto
 		}
 
@@ -195,8 +198,8 @@ func (d *dialer) Dial() (mangos.Pipe, error) {
 
 	listeners.mx.Unlock()
 
-	server.wq = make(chan *mangos.Message)
-	server.rq = make(chan *mangos.Message)
+	server.wq = make(chan *transport.Message)
+	server.rq = make(chan *transport.Message)
 	client.rq = server.wq
 	client.wq = server.rq
 	server.peer = client
@@ -221,6 +224,7 @@ func (l *listener) Listen() error {
 		listeners.mx.Unlock()
 		return mangos.ErrAddrInUse
 	}
+
 	listeners.byAddr[l.addr] = l
 	listeners.cv.Broadcast()
 	listeners.mx.Unlock()
@@ -231,8 +235,12 @@ func (l *listener) Address() string {
 	return l.addr
 }
 
-func (l *listener) Accept() (mangos.Pipe, error) {
-	server := &inproc{proto: l.proto, addr: addr(l.addr)}
+func (l *listener) Accept() (mangos.TranPipe, error) {
+	server := &inproc{
+		selfProto: l.selfProto,
+		peerProto: l.peerProto,
+		addr:      addr(l.addr),
+	}
 	server.readyq = make(chan struct{})
 	server.closeq = make(chan struct{})
 
@@ -274,26 +282,30 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func (t *inprocTran) Scheme() string {
+func (inprocTran) Scheme() string {
 	return "inproc"
 }
 
-func (t *inprocTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
-	if _, err := mangos.StripScheme(t, addr); err != nil {
+func (t inprocTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+	if _, err := transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
-	return &dialer{addr: addr, proto: sock.GetProtocol()}, nil
+	d := &dialer{
+		addr:      addr,
+		selfProto: sock.Info().Self,
+		peerProto: sock.Info().Peer,
+	}
+	return d, nil
 }
 
-func (t *inprocTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
-	if _, err := mangos.StripScheme(t, addr); err != nil {
+func (t inprocTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+	if _, err := transport.StripScheme(t, addr); err != nil {
 		return nil, err
 	}
-	l := &listener{addr: addr, proto: sock.GetProtocol()}
+	l := &listener{
+		addr:      addr,
+		selfProto: sock.Info().Self,
+		peerProto: sock.Info().Peer,
+	}
 	return l, nil
-}
-
-// NewTransport allocates a new inproc:// transport.
-func NewTransport() mangos.Transport {
-	return &inprocTran{}
 }

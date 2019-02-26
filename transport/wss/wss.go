@@ -13,32 +13,32 @@
 // limitations under the License.
 
 // Package wss implements a secure WebSocket transport for mangos.
-// This transport is considered EXPERIMENTAL.
+// To enable it simply import it.
 package wss
 
 import (
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/transport/ws"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/transport"
+	"nanomsg.org/go/mangos/v2/transport/ws"
 )
 
-type wssTran struct {
-	w mangos.Transport
+type wssTran int
+
+// Transport is a transport.Transport for WebSocket over TLS.
+const Transport = wssTran(0)
+
+func init() {
+	transport.RegisterTransport(Transport)
 }
 
 func (wssTran) Scheme() string {
 	return "wss"
 }
 
-func (w *wssTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer, error) {
-	return w.w.NewDialer(addr, sock)
+func (w wssTran) NewDialer(addr string, sock mangos.Socket) (transport.Dialer, error) {
+	return ws.Transport.NewDialer(addr, sock)
 }
 
-func (w *wssTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
-	return w.w.NewListener(addr, sock)
-}
-
-// NewTransport allocates a new wss:// transport.
-func NewTransport() mangos.Transport {
-	w := &wssTran{w: ws.NewTransport()}
-	return w
+func (w wssTran) NewListener(addr string, sock mangos.Socket) (transport.Listener, error) {
+	return ws.Transport.NewListener(addr, sock)
 }

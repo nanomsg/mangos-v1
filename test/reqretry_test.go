@@ -19,17 +19,16 @@ import (
 
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
-	"nanomsg.org/go-mangos/transport/inproc"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
+	_ "nanomsg.org/go/mangos/v2/transport/inproc"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestReqRetry(t *testing.T) {
 	Convey("Testing Req Retry", t, func() {
-		//addr := "inproc://port"
 		addr := AddrTestInp()
 
 		// Let's first try request issued with no connection, and
@@ -41,19 +40,19 @@ func TestReqRetry(t *testing.T) {
 			So(sockreq, ShouldNotBeNil)
 
 			defer sockreq.Close()
-			sockreq.AddTransport(inproc.NewTransport())
 
 			sockrep, err := rep.NewSocket()
 			So(err, ShouldBeNil)
 			So(sockrep, ShouldNotBeNil)
 			defer sockrep.Close()
-			sockrep.AddTransport(inproc.NewTransport())
 
 			d, err := sockreq.NewDialer(addr, nil)
 			So(err, ShouldBeNil)
 			So(d, ShouldNotBeNil)
 
 			err = sockreq.SetOption(mangos.OptionReconnectTime, time.Millisecond*100)
+			So(err, ShouldBeNil)
+			err = sockreq.SetOption(mangos.OptionDialAsynch, true)
 			So(err, ShouldBeNil)
 
 			l, err := sockrep.NewListener(addr, nil)
@@ -66,6 +65,7 @@ func TestReqRetry(t *testing.T) {
 			Convey("A request is issued on late server connect", func() {
 				m := mangos.NewMessage(0)
 				m.Body = append(m.Body, []byte("hello")...)
+				sockreq.SetOption(mangos.OptionBestEffort, true)
 				err = sockreq.SendMsg(m)
 				So(err, ShouldBeNil)
 
@@ -87,21 +87,19 @@ func TestReqRetry(t *testing.T) {
 				m.Free()
 			})
 
-			// Following is skipped for now because of the backout
-			// of e5e6478f44cda1eb8427b590755270e2704a990d
-			SkipConvey("A request is reissued on server re-connect", func() {
+			Convey("A request is reissued on server re-connect", func() {
 
 				rep2, err := rep.NewSocket()
 				So(err, ShouldBeNil)
 				So(rep2, ShouldNotBeNil)
 				defer rep2.Close()
-				rep2.AddTransport(inproc.NewTransport())
 
 				l2, err := rep2.NewListener(addr, nil)
 				So(err, ShouldBeNil)
 				So(l2, ShouldNotBeNil)
 
 				err = l.Listen()
+				So(err, ShouldBeNil)
 				time.Sleep(time.Millisecond * 50)
 
 				m := mangos.NewMessage(0)
@@ -121,6 +119,7 @@ func TestReqRetry(t *testing.T) {
 
 				// Open the new one on the other socket
 				err = l2.Listen()
+				So(err, ShouldBeNil)
 				m, err = rep2.RecvMsg()
 				So(m, ShouldNotBeNil)
 				So(err, ShouldBeNil)
@@ -135,7 +134,6 @@ func TestReqRetry(t *testing.T) {
 
 				m.Free()
 			})
-
 		})
 	})
 }

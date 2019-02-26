@@ -19,260 +19,429 @@ package surveyor
 import (
 	"encoding/binary"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"nanomsg.org/go-mangos"
+	"nanomsg.org/go/mangos/v2/protocol"
+)
+
+// Protocol identity information.
+const (
+	Self     = protocol.ProtoSurveyor
+	Peer     = protocol.ProtoRespondent
+	SelfName = "surveyor"
+	PeerName = "respondent"
 )
 
 const defaultSurveyTime = time.Second
 
-type surveyor struct {
-	sock     mangos.ProtocolSocket
-	peers    map[uint32]*surveyorP
-	raw      bool
-	nextID   uint32
-	surveyID uint32
-	duration time.Duration
-	timeout  time.Time
-	timer    *time.Timer
-	w        mangos.Waiter
-	init     sync.Once
-	ttl      int
+type pipe struct {
+	s      *socket
+	p      protocol.Pipe
+	closed bool
+	closeq chan struct{}
+	sendq  chan *protocol.Message
+}
 
+type context struct {
+	s          *socket
+	closed     bool
+	closeq     chan struct{}
+	recvq      chan *protocol.Message
+	recvQLen   int
+	recvExpire time.Duration
+	survExpire time.Duration
+	survID     uint32
+}
+
+type socket struct {
+	master   *context              // default context
+	ctxs     map[*context]struct{} // all contexts
+	surveys  map[uint32]*context   // contexts by survey ID
+	pipes    map[uint32]*pipe      // all pipes by pipe ID
+	nextID   uint32                // next survey ID
+	closed   bool                  // true if closed
+	sendQLen int                   // send Q depth
 	sync.Mutex
 }
 
-type surveyorP struct {
-	q  chan *mangos.Message
-	ep mangos.Endpoint
-	x  *surveyor
-}
+var (
+	nilQ <-chan time.Time
+)
 
-func (x *surveyor) Init(sock mangos.ProtocolSocket) {
-	x.sock = sock
-	x.peers = make(map[uint32]*surveyorP)
-	x.sock.SetRecvError(mangos.ErrProtoState)
-	x.timer = time.AfterFunc(x.duration,
-		func() { x.sock.SetRecvError(mangos.ErrProtoState) })
-	x.timer.Stop()
-	x.w.Init()
-	x.w.Add()
-	go x.sender()
-}
+const defaultQLen = 128
 
-func (x *surveyor) Shutdown(expire time.Time) {
+func (c *context) cancel() {
+	s := c.s
+	if id := c.survID; id != 0 {
+		delete(s.surveys, id)
+		c.survID = 0
+		oldrecvq := c.recvq
+		c.recvq = nil
 
-	x.w.WaitAbsTimeout(expire)
-	x.Lock()
-	peers := x.peers
-	x.peers = make(map[uint32]*surveyorP)
-	x.Unlock()
-
-	for id, peer := range peers {
-		delete(peers, id)
-		mangos.DrainChannel(peer.q, expire)
-		close(peer.q)
+		// drain and close the old queue
+		close(oldrecvq)
+		for {
+			if m := <-oldrecvq; m != nil {
+				m.Free()
+			} else {
+				break
+			}
+		}
 	}
 }
 
-func (x *surveyor) sender() {
-	defer x.w.Done()
-	cq := x.sock.CloseChannel()
-	sq := x.sock.SendChannel()
-	for {
-		var m *mangos.Message
+func (c *context) SendMsg(m *protocol.Message) error {
+	s := c.s
+
+	id := atomic.AddUint32(&s.nextID, 1)
+	id |= 0x80000000
+
+	m.Header = make([]byte, 4)
+	binary.BigEndian.PutUint32(m.Header, id)
+
+	s.Lock()
+	defer s.Unlock()
+	if s.closed || c.closed {
+		return protocol.ErrClosed
+	}
+	c.cancel()
+	c.survID = id
+	c.recvq = make(chan *protocol.Message, c.recvQLen)
+	s.surveys[id] = c
+	time.AfterFunc(c.survExpire, func() {
+		s.Lock()
+		if c.survID == id {
+			c.cancel()
+		}
+		s.Unlock()
+	})
+
+	// Best-effort broadcast on all pipes
+	for _, p := range s.pipes {
+		dm := m.Dup()
 		select {
-		case m = <-sq:
-			if m == nil {
-				sq = x.sock.SendChannel()
-				continue
-			}
-		case <-cq:
-			return
-		}
-
-		x.Lock()
-		for _, pe := range x.peers {
-			m := m.Dup()
-			select {
-			case pe.q <- m:
-			default:
-				m.Free()
-			}
-		}
-		x.Unlock()
-	}
-}
-
-// When sending, we should have the survey ID in the header.
-func (peer *surveyorP) sender() {
-	for {
-		if m := <-peer.q; m == nil {
-			break
-		} else {
-			if peer.ep.SendMsg(m) != nil {
-				m.Free()
-				return
-			}
+		case p.sendq <- dm:
+		default:
+			dm.Free()
 		}
 	}
+	m.Free()
+	return nil
 }
 
-func (peer *surveyorP) receiver() {
+func (c *context) RecvMsg() (*protocol.Message, error) {
+	s := c.s
 
-	rq := peer.x.sock.RecvChannel()
-	cq := peer.x.sock.CloseChannel()
+	s.Lock()
+	recvq := c.recvq
+	timeq := nilQ
+	if c.recvExpire > 0 {
+		timeq = time.After(c.recvExpire)
+	}
+	s.Unlock()
 
-	for {
-		m := peer.ep.RecvMsg()
+	if recvq == nil {
+		return nil, protocol.ErrProtoState
+	}
+
+	select {
+	case <-c.closeq:
+		return nil, protocol.ErrClosed
+
+	case m := <-recvq:
 		if m == nil {
-			return
+			return nil, protocol.ErrProtoState
+		}
+		return m, nil
+
+	case <-timeq:
+		return nil, protocol.ErrRecvTimeout
+	}
+}
+
+func (c *context) Close() error {
+	s := c.s
+	s.Lock()
+	if c.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	c.closed = true
+	close(c.closeq)
+	if id := c.survID; id != 0 {
+		c.recvq = nil
+		c.survID = 0
+		delete(s.surveys, id)
+		// Leave the recvq open, so that closeq wins
+	}
+	delete(s.ctxs, c)
+	s.Unlock()
+	return nil
+}
+
+func (c *context) SetOption(name string, value interface{}) error {
+	switch name {
+	case protocol.OptionSurveyTime:
+		if v, ok := value.(time.Duration); ok {
+			c.s.Lock()
+			c.survExpire = v
+			c.s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
+
+	case protocol.OptionRecvDeadline:
+		if v, ok := value.(time.Duration); ok {
+			c.s.Lock()
+			c.recvExpire = v
+			c.s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
+
+	case protocol.OptionReadQLen:
+		if v, ok := value.(int); ok {
+			newchan := make(chan *protocol.Message, v)
+			c.s.Lock()
+			c.recvq = newchan
+			c.recvQLen = v
+			c.s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
+	}
+
+	return protocol.ErrBadOption
+}
+
+func (c *context) GetOption(option string) (interface{}, error) {
+	switch option {
+	case protocol.OptionSurveyTime:
+		c.s.Lock()
+		v := c.survExpire
+		c.s.Unlock()
+		return v, nil
+	case protocol.OptionRecvDeadline:
+		c.s.Lock()
+		v := c.recvExpire
+		c.s.Unlock()
+		return v, nil
+	case protocol.OptionReadQLen:
+		c.s.Lock()
+		v := c.recvQLen
+		c.s.Unlock()
+		return v, nil
+	}
+
+	return nil, protocol.ErrBadOption
+}
+
+func (p *pipe) Close() error {
+	p.s.Lock()
+	if p.closed {
+		p.s.Unlock()
+		return protocol.ErrClosed
+	}
+	p.closed = true
+	delete(p.s.pipes, p.p.ID())
+	p.s.Unlock()
+
+	close(p.closeq)
+	p.p.Close()
+	return nil
+}
+
+func (p *pipe) sender() {
+outer:
+	for {
+		var m *protocol.Message
+		select {
+		case <-p.closeq:
+			break outer
+		case m = <-p.sendq:
+		}
+
+		if err := p.p.SendMsg(m); err != nil {
+			m.Free()
+			break
+		}
+	}
+	p.Close()
+}
+
+func (p *pipe) receiver() {
+	s := p.s
+	for {
+		m := p.p.RecvMsg()
+		if m == nil {
+			break
 		}
 		if len(m.Body) < 4 {
 			m.Free()
 			continue
 		}
-
-		// Get survery ID -- this will be passed in the header up
-		// to the application.  It should include that in the response.
 		m.Header = append(m.Header, m.Body[:4]...)
 		m.Body = m.Body[4:]
 
-		select {
-		case rq <- m:
-		case <-cq:
-			return
-		}
-	}
-}
+		id := binary.BigEndian.Uint32(m.Header)
 
-func (x *surveyor) AddEndpoint(ep mangos.Endpoint) {
-	peer := &surveyorP{ep: ep, x: x, q: make(chan *mangos.Message, 1)}
-	x.Lock()
-	x.peers[ep.GetID()] = peer
-	go peer.receiver()
-	go peer.sender()
-	x.Unlock()
-}
-
-func (x *surveyor) RemoveEndpoint(ep mangos.Endpoint) {
-	id := ep.GetID()
-
-	x.Lock()
-	peer := x.peers[id]
-	delete(x.peers, id)
-	x.Unlock()
-
-	if peer != nil {
-		close(peer.q)
-	}
-}
-
-func (*surveyor) Number() uint16 {
-	return mangos.ProtoSurveyor
-}
-
-func (*surveyor) PeerNumber() uint16 {
-	return mangos.ProtoRespondent
-}
-
-func (*surveyor) Name() string {
-	return "surveyor"
-}
-
-func (*surveyor) PeerName() string {
-	return "respondent"
-}
-
-func (x *surveyor) SendHook(m *mangos.Message) bool {
-
-	if x.raw {
-		return true
-	}
-
-	x.Lock()
-	x.surveyID = x.nextID | 0x80000000
-	x.nextID++
-	x.sock.SetRecvError(nil)
-	v := x.surveyID
-	m.Header = append(m.Header,
-		byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
-
-	if x.duration > 0 {
-		x.timer.Reset(x.duration)
-	}
-	x.Unlock()
-
-	return true
-}
-
-func (x *surveyor) RecvHook(m *mangos.Message) bool {
-	if x.raw {
-		return true
-	}
-
-	x.Lock()
-	defer x.Unlock()
-
-	if len(m.Header) < 4 {
-		return false
-	}
-	if binary.BigEndian.Uint32(m.Header) != x.surveyID {
-		return false
-	}
-	m.Header = m.Header[4:]
-	return true
-}
-
-func (x *surveyor) SetOption(name string, val interface{}) error {
-	var ok bool
-	switch name {
-	case mangos.OptionSurveyTime:
-		x.Lock()
-		x.duration, ok = val.(time.Duration)
-		x.Unlock()
-		if !ok {
-			return mangos.ErrBadValue
-		}
-		return nil
-	case mangos.OptionTTL:
-		// We don't do anything with this, but support it for
-		// symmetry with the respondent socket.
-		if ttl, ok := val.(int); !ok {
-			return mangos.ErrBadValue
-		} else if ttl < 1 || ttl > 255 {
-			return mangos.ErrBadValue
+		s.Lock()
+		if c, ok := s.surveys[id]; ok {
+			select {
+			case c.recvq <- m:
+			default:
+				m.Free()
+			}
 		} else {
-			x.ttl = ttl
+			m.Free()
 		}
-		return nil
-	default:
-		return mangos.ErrBadOption
+		s.Unlock()
 	}
 }
 
-func (x *surveyor) GetOption(name string) (interface{}, error) {
-	switch name {
-	case mangos.OptionRaw:
-		return x.raw, nil
-	case mangos.OptionSurveyTime:
-		x.Lock()
-		d := x.duration
-		x.Unlock()
-		return d, nil
-	case mangos.OptionTTL:
-		return x.ttl, nil
-	default:
-		return nil, mangos.ErrBadOption
+func (s *socket) OpenContext() (protocol.Context, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return nil, protocol.ErrClosed
+	}
+	c := &context{
+		s:          s,
+		closeq:     make(chan struct{}),
+		survExpire: s.master.survExpire,
+		recvExpire: s.master.recvExpire,
+	}
+	s.ctxs[c] = struct{}{}
+	return c, nil
+}
+
+func (s *socket) SendMsg(m *protocol.Message) error {
+	return s.master.SendMsg(m)
+}
+
+func (s *socket) RecvMsg() (*protocol.Message, error) {
+	return s.master.RecvMsg()
+}
+
+func (s *socket) AddPipe(pp protocol.Pipe) error {
+	p := &pipe{
+		p:      pp,
+		s:      s,
+		sendq:  make(chan *protocol.Message, s.sendQLen),
+		closeq: make(chan struct{}),
+	}
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return protocol.ErrClosed
+	}
+	s.pipes[p.p.ID()] = p
+	go p.receiver()
+	go p.sender()
+	return nil
+}
+
+func (s *socket) RemovePipe(pp protocol.Pipe) {
+	s.Lock()
+	defer s.Unlock()
+	p := s.pipes[pp.ID()]
+	if p != nil && p.p == pp && !p.closed {
+		p.closed = true
+		close(p.closeq)
+		pp.Close()
+		delete(s.pipes, pp.ID())
 	}
 }
 
-// NewSocket allocates a new Socket using the SURVEYOR protocol.
-func NewSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime, raw: false}), nil
+func (s *socket) Close() error {
+	s.Lock()
+	if s.closed {
+		s.Unlock()
+		return protocol.ErrClosed
+	}
+	s.closed = true
+	for c := range s.ctxs {
+		delete(s.ctxs, c)
+		if !c.closed {
+			c.closed = true
+			close(c.closeq)
+			if c.survID != 0 {
+				delete(s.surveys, c.survID)
+			}
+		}
+	}
+	pipes := make([]*pipe, 0, len(s.pipes))
+	for _, p := range s.pipes {
+		pipes = append(pipes, p)
+	}
+	s.Unlock()
+
+	// This allows synchronous close without the lock.
+	for _, p := range pipes {
+		p.Close()
+	}
+	return nil
 }
 
-// NewRawSocket allocates a raw Socket using the SURVEYOR protocol.
-func NewRawSocket() (mangos.Socket, error) {
-	return mangos.MakeSocket(&surveyor{duration: defaultSurveyTime, raw: true}), nil
+func (s *socket) GetOption(option string) (interface{}, error) {
+	switch option {
+	case protocol.OptionRaw:
+		return false, nil
+	case protocol.OptionWriteQLen:
+		s.Lock()
+		v := s.sendQLen
+		s.Unlock()
+		return v, nil
+
+	default:
+		return s.master.GetOption(option)
+	}
+}
+
+func (s *socket) SetOption(option string, value interface{}) error {
+	switch option {
+	case protocol.OptionWriteQLen:
+		if v, ok := value.(int); ok {
+			s.Lock()
+			s.sendQLen = v
+			s.Unlock()
+			return nil
+		}
+		return protocol.ErrBadValue
+	}
+	return s.master.SetOption(option, value)
+}
+
+func (*socket) Info() protocol.Info {
+	return protocol.Info{
+		Self:     Self,
+		Peer:     Peer,
+		SelfName: SelfName,
+		PeerName: PeerName,
+	}
+}
+
+// NewProtocol returns a new protocol implementation.
+func NewProtocol() protocol.Protocol {
+	s := &socket{
+		pipes:    make(map[uint32]*pipe),
+		surveys:  make(map[uint32]*context),
+		ctxs:     make(map[*context]struct{}),
+		sendQLen: defaultQLen,
+		nextID:   uint32(time.Now().UnixNano()), // quasi-random
+	}
+	s.master = &context{
+		s:          s,
+		recvq:      make(chan *protocol.Message, defaultQLen),
+		closeq:     make(chan struct{}),
+		recvQLen:   defaultQLen,
+		survExpire: defaultSurveyTime,
+	}
+	return s
+}
+
+// NewSocket allocates a new Socket using the RESPONDENT protocol.
+func NewSocket() (protocol.Socket, error) {
+	return protocol.MakeSocket(NewProtocol()), nil
 }

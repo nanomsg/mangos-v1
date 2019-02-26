@@ -1,0 +1,106 @@
+ifdef::env-github[]
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:warning-caption: :heavy_exclamation_mark:
+endif::[]
+= mangos v2
+
+image:https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux[Linux Status,link="https://circleci.com/gh/nanomsg/mangos-v2"]
+image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos-v2/blob/master/LICENSE"]
+image:https://img.shields.io/badge/gitter-join-brightgreen.svg[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
+image:https://codecov.io/gh/nanomsg/mangos-v2/branch/master/graph/badge.svg?label=coverage[Coverage,link="https://codecov.io/gh/nanomsg/mangos-v2"]
+image:https://img.shields.io/badge/godoc-reference-blue.svg[GoDoc,link="https://godoc.org/nanomsg.org/go/mangos/v2"]
+image:https://goreportcard.com/badge/nanomsg.org/go/mangos/v2[Go Report Card,link="https://goreportcard.com/report/nanomsg.org/go/mangos/v2"]
+//image:https://img.shields.io/appveyor/ci/nanomsg/mangos-v2.svg?label=windows[Windows Status,link="https://ci.appveyor.com/project/nanomsg/mangos-v2"]
+
+
+[cols="2",grid="none",frame="none",options="autowidth"]
+|===
+|_Mangos&trade;_ v2  is an implementation in pure Go of the *SP*
+("`Scalability Protocols`") messaging system.
+These are colloquially  known as a "`nanomsg`".
+a|image::mangos.jpg[float="right"]
+|===
+
+NOTE: This is version 2 of _mangos_, and contains breaking changes and
+rather different API in some circumstances relative to version 1.  To use the
+original version of _mangos_ please see https://github.com/nanomsg/mangos
+
+The modern C implemenation of the SP protocols is available as
+https://github.com/nanomsg/nng[__NNG&trade;__].
+
+The original implementation of the SP protocols is available as
+http://www.nanomsg.org[__nanomsg&trade;__].
+
+Generally (modulo a few caveats) all of these implementations can interoperate.
+
+The design is intended to make it easy to add new transports with almost
+trivial effort, as well as new topologies ("`protocols`" in SP parlance.)
+
+At present, all of the Req/Rep, Pub/Sub, Pair, Bus, Push/Pull, and
+Surveyor/Respondent patterns are supported.
+This project also supports an experimental protocol called Star.
+
+Supported transports include TCP, inproc, IPC, WebSocket, WebSocket/TLS and TLS.
+Forcing the local TCP port in Dial is not supported yet (this
+is rarely useful).
+
+Basic interoperability with nanomsg and NNG has been verified (you can do
+so yourself with `nanocat` and `macat`) for all protocols and transports
+that _NNG_ and _nanomsg_ support.
+Additionally there are a number of projects that use the two products together.
+
+// There is a third party experimental QUIC transport available at
+// [quic-mangos](https://github.com/lthibault/quic-mangos).
+// (An RFE to make this transport official exists.)
+
+// If you find this useful, I would appreciate knowing about it.  I can be reached
+// via my email address, garrett -at- damore -dot- org
+
+== Installing
+
+===  Using *go get*
+
+    $ go get -u nanomsg.org/go/mangos/v2
+
+You can use `go get -u -a` to update all installed packages.
+
+== Documentation
+
+For docs, see http://godoc.org/nanomsg.org/go-mangos or run:
+
+    $ godoc nanomsg.org/go/mangos/v2
+
+== Testing
+
+This package supports internal self tests, which can be run in
+the idiomatic Go way.
+(Note that most of the tests are in a test subdirectory.)
+
+    $ go test nanomsg.org/go/mangos/v2/...
+
+There are also internal benchmarks available:
+
+    $ go test -bench=. nanomsg.org/go/mangos/v2/test
+
+## Commercial Support
+
+mailto:info@staysail.tech[Staysail Systems, Inc.] offers
+http://staysail.tech/support/mangos[commercial support] for mangos.
+
+## Examples
+
+Some examples are posted in the directories under `examples/` in this project.
+
+These examples are rewrites (in Go) of Tim Dysinger's
+http://nanomsg.org/gettingstarted/index.html[Getting Started with Nanomsg].
+
+Running `godoc` in the example directories will yield information about how
+to run each example program.
+
+Enjoy!
+
+---
+Copyright 2018 The Mangos Authors
+
+mangos&trade;, Nanomsg&trade; and NNG&trade; are http://nanomsg.org/trademarks.html[trademarks] of Garrett D'Amore.

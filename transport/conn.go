@@ -12,25 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mangos
+package transport
 
 import (
 	"encoding/binary"
 	"io"
 	"net"
 	"sync"
+
+	"nanomsg.org/go/mangos/v2"
 )
 
 // conn implements the Pipe interface on top of net.Conn.  The
 // assumption is that transports using this have similar wire protocols,
 // and conn is meant to be used as a building block.
 type conn struct {
-	c     net.Conn
-	proto Protocol
-	sock  Socket
-	open  bool
-	props map[string]interface{}
-	maxrx int64
+	c       net.Conn
+	proto   ProtocolInfo
+	open    bool
+	options map[string]interface{}
+	maxrx   int
 	sync.Mutex
 }
 
@@ -41,8 +42,8 @@ type connipc struct {
 	conn
 }
 
-// Recv implements the Pipe Recv method.  The message received is expected as
-// a 64-bit size (network byte order) followed by the message itself.
+// Recv implements the TranPipe Recv method.  The message received is expected
+// as a 64-bit size (network byte order) followed by the message itself.
 func (p *conn) Recv() (*Message, error) {
 
 	var sz int64
@@ -55,10 +56,10 @@ func (p *conn) Recv() (*Message, error) {
 
 	// Limit messages to the maximum receive value, if not
 	// unlimited.  This avoids a potential denaial of service.
-	if sz < 0 || (p.maxrx > 0 && sz > p.maxrx) {
-		return nil, ErrTooLong
+	if sz < 0 || (p.maxrx > 0 && sz > int64(p.maxrx)) {
+		return nil, mangos.ErrTooLong
 	}
-	msg = NewMessage(int(sz))
+	msg = mangos.NewMessage(int(sz))
 	msg.Body = msg.Body[0:sz]
 	if _, err = io.ReadFull(p.c, msg.Body); err != nil {
 		msg.Free()
@@ -70,60 +71,50 @@ func (p *conn) Recv() (*Message, error) {
 // Send implements the Pipe Send method.  The message is sent as a 64-bit
 // size (network byte order) followed by the message itself.
 func (p *conn) Send(msg *Message) error {
+	var buff = net.Buffers{}
 
+	// Serialize the length header
 	l := uint64(len(msg.Header) + len(msg.Body))
+	lbyte := make([]byte, 8)
+	binary.BigEndian.PutUint64(lbyte, l)
 
-	if msg.Expired() {
-		msg.Free()
-		return nil
+	// Attach the length header along with the actual header and body
+	buff = append(buff, lbyte, msg.Header, msg.Body)
+
+	if _, err := buff.WriteTo(p.c); err != nil {
+		return err
 	}
 
-	// send length header
-	if err := binary.Write(p.c, binary.BigEndian, l); err != nil {
-		return err
-	}
-	if _, err := p.c.Write(msg.Header); err != nil {
-		return err
-	}
-	// hope this works
-	if _, err := p.c.Write(msg.Body); err != nil {
-		return err
-	}
 	msg.Free()
 	return nil
 }
 
 // LocalProtocol returns our local protocol number.
 func (p *conn) LocalProtocol() uint16 {
-	return p.proto.Number()
+	return p.proto.Self
 }
 
 // RemoteProtocol returns our peer's protocol number.
 func (p *conn) RemoteProtocol() uint16 {
-	return p.proto.PeerNumber()
+	return p.proto.Peer
 }
 
 // Close implements the Pipe Close method.
 func (p *conn) Close() error {
 	p.Lock()
 	defer p.Unlock()
-	if p.IsOpen() {
+	if p.open {
 		p.open = false
 		return p.c.Close()
 	}
 	return nil
 }
 
-// IsOpen implements the PipeIsOpen method.
-func (p *conn) IsOpen() bool {
-	return p.open
-}
-
-func (p *conn) GetProp(n string) (interface{}, error) {
-	if v, ok := p.props[n]; ok {
+func (p *conn) GetOption(n string) (interface{}, error) {
+	if v, ok := p.options[n]; ok {
 		return v, nil
 	}
-	return nil, ErrBadProperty
+	return nil, mangos.ErrBadProperty
 }
 
 // NewConnPipe allocates a new Pipe using the supplied net.Conn, and
@@ -135,10 +126,22 @@ func (p *conn) GetProp(n string) (interface{}, error) {
 // and the Transport enclosing structure.   Using this layered interface,
 // the implementation needn't bother concerning itself with passing actual
 // SP messages once the lower layer connection is established.
-func NewConnPipe(c net.Conn, sock Socket, props ...interface{}) (Pipe, error) {
-	p := &conn{c: c, proto: sock.GetProtocol(), sock: sock}
+func NewConnPipe(c net.Conn, proto ProtocolInfo, options map[string]interface{}) (Pipe, error) {
+	p := &conn{
+		c:       c,
+		proto:   proto,
+		options: make(map[string]interface{}),
+	}
 
-	if err := p.handshake(props); err != nil {
+	p.options[mangos.OptionMaxRecvSize] = int(0)
+	p.options[mangos.OptionLocalAddr] = p.c.LocalAddr()
+	p.options[mangos.OptionRemoteAddr] = p.c.RemoteAddr()
+	for n, v := range options {
+		p.options[n] = v
+	}
+	p.maxrx = p.options[mangos.OptionMaxRecvSize].(int)
+
+	if err := p.handshake(); err != nil {
 		return nil, err
 	}
 
@@ -159,29 +162,10 @@ type connHeader struct {
 // send the header, then both sides must wait for the peer's header.
 // As a side effect, the peer's protocol number is stored in the conn.
 // Also, various properties are initialized.
-func (p *conn) handshake(props []interface{}) error {
+func (p *conn) handshake() error {
 	var err error
 
-	p.props = make(map[string]interface{})
-	p.props[PropLocalAddr] = p.c.LocalAddr()
-	p.props[PropRemoteAddr] = p.c.RemoteAddr()
-
-	for len(props) >= 2 {
-		switch name := props[0].(type) {
-		case string:
-			p.props[name] = props[1]
-		default:
-			return ErrBadProperty
-		}
-		props = props[2:]
-	}
-
-	if v, e := p.sock.GetOption(OptionMaxRecvSize); e == nil {
-		// socket guarantees this is an integer
-		p.maxrx = int64(v.(int))
-	}
-
-	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Number()}
+	h := connHeader{S: 'S', P: 'P', Proto: p.proto.Self}
 	if err = binary.Write(p.c, binary.BigEndian, &h); err != nil {
 		return err
 	}
@@ -191,18 +175,18 @@ func (p *conn) handshake(props []interface{}) error {
 	}
 	if h.Zero != 0 || h.S != 'S' || h.P != 'P' || h.Rsvd != 0 {
 		p.c.Close()
-		return ErrBadHeader
+		return mangos.ErrBadHeader
 	}
 	// The only version number we support at present is "0", at offset 3.
 	if h.Version != 0 {
 		p.c.Close()
-		return ErrBadVersion
+		return mangos.ErrBadVersion
 	}
 
 	// The protocol number lives as 16-bits (big-endian) at offset 4.
-	if h.Proto != p.proto.PeerNumber() {
+	if h.Proto != p.proto.Peer {
 		p.c.Close()
-		return ErrBadProto
+		return mangos.ErrBadProto
 	}
 	p.open = true
 	return nil

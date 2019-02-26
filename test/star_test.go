@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/star"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/star"
+	"nanomsg.org/go/mangos/v2/protocol/xstar"
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 type starTester struct {
@@ -38,13 +39,19 @@ func starTestSender(t *testing.T, bt *starTester, cnt int) {
 		// Maximum is 10 msec.
 		d := time.Duration(rand.Uint32() % 10000)
 		time.Sleep(d * time.Microsecond)
-		t.Logf("Peer %d: Sending %d", bt.id, i)
+		start := time.Now()
+		tstr := start.Format(time.StampMilli)
+		t.Logf("%s: Peer %d: Sending %d", tstr, bt.id, i)
 		msg := mangos.NewMessage(2)
 		msg.Body = append(msg.Body, byte(bt.id), byte(i))
 		if err := bt.sock.SendMsg(msg); err != nil {
-			t.Errorf("Peer %d send %d fail: %v", bt.id, i, err)
+			tstr = time.Now().Format(time.StampMilli)
+			t.Errorf("%s: Peer %d send %d fail: %v", tstr, bt.id, i, err)
 			return
 		}
+		tstr = time.Now().Format(time.StampMilli)
+		t.Logf("%s: Peer %d: Sent %d (%v)", tstr, bt.id, i,
+			time.Since(start))
 	}
 }
 
@@ -54,37 +61,38 @@ func starTestReceiver(t *testing.T, bt *starTester, cnt int, numID int) {
 
 	for tot := 0; tot < (numID-1)*cnt; {
 		msg, err := bt.sock.RecvMsg()
+		now := time.Now().Format(time.StampMilli)
 		if err != nil {
-			t.Errorf("Peer %d: Recv fail: %v", bt.id, err)
+			t.Errorf("%s: Peer %d: Recv fail: %v", now, bt.id, err)
 			return
 		}
 
 		if len(msg.Body) != 2 {
-			t.Errorf("Peer %d: Received wrong length", bt.id)
+			t.Errorf("%s: Peer %d: Received wrong length", now, bt.id)
 			return
 		}
 		peer := int(msg.Body[0])
 		if peer == bt.id {
-			t.Errorf("Peer %d: Got its own message!", bt.id)
+			t.Errorf("%s: Peer %d: Got its own message!", now, bt.id)
 			return
 		}
 		if int(msg.Body[1]) != rcpt[peer] {
-			t.Errorf("Peer %d: Bad message from peer %d: %d s/b %d",
-				bt.id, peer, msg.Body[1], rcpt[peer])
+			t.Errorf("%s: Peer %d: Bad message from peer %d: %d s/b %d",
+				now, bt.id, peer, msg.Body[1], rcpt[peer])
 			return
 		}
 		if int(msg.Body[1]) >= cnt {
-			t.Errorf("Peer %d: Too many from peer %d", bt.id,
+			t.Errorf("%s: Peer %d: Too many from peer %d", now, bt.id,
 				peer)
 			return
 		}
-		t.Logf("Peer %d: Good rcv from peer %d (%d)", bt.id, peer,
+		t.Logf("%s: Peer %d: Good rcv from peer %d (%d)", now, bt.id, peer,
 			rcpt[peer])
 		rcpt[peer]++
 		tot++
 		msg.Free()
 	}
-	t.Logf("Peer %d: Finish", bt.id)
+	t.Logf("%s: Peer %d: Finish", time.Now().Format(time.StampMilli), bt.id)
 }
 
 func starTestNewServer(t *testing.T, addr string, id int) *starTester {
@@ -95,8 +103,6 @@ func starTestNewServer(t *testing.T, addr string, id int) *starTester {
 		t.Errorf("Failed getting server %d socket: %v", id, err)
 		return nil
 	}
-	bt.sock.AddTransport(tcp.NewTransport())
-
 	if err = bt.sock.Listen(addr); err != nil {
 		t.Errorf("Failed server %d listening: %v", id, err)
 		bt.sock.Close()
@@ -113,7 +119,6 @@ func starTestNewClient(t *testing.T, addr string, id int) *starTester {
 		t.Errorf("Failed getting client %d socket: %v", id, err)
 		return nil
 	}
-	bt.sock.AddTransport(tcp.NewTransport())
 	if err = bt.sock.Dial(addr); err != nil {
 		t.Errorf("Failed client %d dialing: %v", id, err)
 		bt.sock.Close()
@@ -123,6 +128,7 @@ func starTestNewClient(t *testing.T, addr string, id int) *starTester {
 }
 
 func starTestCleanup(t *testing.T, bts []*starTester) {
+	time.Sleep(time.Second / 2)
 	for id := 0; id < len(bts); id++ {
 		t.Logf("Cleanup %d", id)
 		if bts[id].sock != nil {
@@ -152,9 +158,6 @@ func TestStar(t *testing.T) {
 		}
 	}
 
-	// wait a little bit for connections to establish
-	time.Sleep(time.Microsecond * 500)
-
 	// start receivers first... avoids first missed dropped packet
 	t.Logf("Starting recv")
 	for id := 0; id < num; id++ {
@@ -162,7 +165,7 @@ func TestStar(t *testing.T) {
 	}
 
 	// wait a little just to be sure go routines are all running
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Second / 7)
 
 	// then start senders
 	t.Logf("Starting send")
@@ -177,7 +180,8 @@ func TestStar(t *testing.T) {
 		case <-bts[id].sdoneq:
 			continue
 		case <-tmout:
-			t.Errorf("Timeout waiting for sender id %d", id)
+			t.Errorf("%s: Timeout waiting for sender id %d",
+				time.Now().Format(time.StampMilli), id)
 			return
 		}
 	}
@@ -187,7 +191,8 @@ func TestStar(t *testing.T) {
 		case <-bts[id].rdoneq:
 			continue
 		case <-tmout:
-			t.Errorf("Timeout waiting for receiver id %d", id)
+			t.Errorf("%s: Timeout waiting for receiver id %d",
+				time.Now().Format(time.StampMilli), id)
 			return
 		}
 	}
@@ -195,25 +200,25 @@ func TestStar(t *testing.T) {
 }
 
 func TestStarTTLZero(t *testing.T) {
-	SetTTLZero(t, star.NewRawSocket)
+	SetTTLZero(t, xstar.NewSocket)
 }
 
 func TestStarTTLNegative(t *testing.T) {
-	SetTTLNegative(t, star.NewRawSocket)
+	SetTTLNegative(t, xstar.NewSocket)
 }
 
 func TestStarTTLTooBig(t *testing.T) {
-	SetTTLTooBig(t, star.NewRawSocket)
+	SetTTLTooBig(t, xstar.NewSocket)
 }
 
 func TestStarTTLNotInt(t *testing.T) {
-	SetTTLNotInt(t, star.NewRawSocket)
+	SetTTLNotInt(t, xstar.NewSocket)
 }
 
 func TestStarTTLSet(t *testing.T) {
-	SetTTL(t, star.NewRawSocket)
+	SetTTL(t, xstar.NewSocket)
 }
 
 func TestStarTTLDrop(t *testing.T) {
-	TTLDropTest(t, star.NewSocket, star.NewSocket, star.NewRawSocket, star.NewRawSocket)
+	TTLDropTest(t, star.NewSocket, star.NewSocket, xstar.NewSocket, xstar.NewSocket)
 }

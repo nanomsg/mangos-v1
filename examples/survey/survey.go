@@ -33,11 +33,12 @@ import (
 	"os"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/respondent"
-	"nanomsg.org/go-mangos/protocol/surveyor"
-	"nanomsg.org/go-mangos/transport/ipc"
-	"nanomsg.org/go-mangos/transport/tcp"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/respondent"
+	"nanomsg.org/go/mangos/v2/protocol/surveyor"
+
+	// register transports
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 func die(format string, v ...interface{}) {
@@ -56,8 +57,6 @@ func server(url string) {
 	if sock, err = surveyor.NewSocket(); err != nil {
 		die("can't get new surveyor socket: %s", err)
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Listen(url); err != nil {
 		die("can't listen on surveyor socket: %s", err.Error())
 	}
@@ -90,8 +89,6 @@ func client(url string, name string) {
 	if sock, err = respondent.NewSocket(); err != nil {
 		die("can't get new respondent socket: %s", err.Error())
 	}
-	sock.AddTransport(ipc.NewTransport())
-	sock.AddTransport(tcp.NewTransport())
 	if err = sock.Dial(url); err != nil {
 		die("can't dial on respondent socket: %s", err.Error())
 	}

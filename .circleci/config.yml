@@ -1,27 +1,18 @@
 version: 2
 jobs:
+  build-1.11:
+    docker:
+      - image: circleci/golang:1.11
+    working_directory: /go/src/nanomsg.org/go/mangos/v2
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
+
   build-1.10:
     docker:
       - image: circleci/golang:1.10
-    working_directory: ~/go/src/nanomsg.org/go-mangos
-    steps:
-      - checkout
-      - run: go get -v -t -d ./...
-      - run: go test -v ./...
-
-  build-1.9:
-    docker:
-      - image: circleci/golang:1.9
-    working_directory: ~/go/src/nanomsg.org/go-mangos
-    steps:
-      - checkout
-      - run: go get -v -t -d ./...
-      - run: go test -v ./...
-
-  build-1.8:
-    docker:
-      - image: circleci/golang:1.8
-    working_directory: ~/go/src/nanomsg.org/go-mangos
+    working_directory: /go/src/nanomsg.org/go/mangos/v2
     steps:
       - checkout
       - run: go get -v -t -d ./...
@@ -29,20 +20,19 @@ jobs:
 
   build-coverage:
     docker:
-      - image: circleci/golang:1.10
-    working_directory: ~/go/src/nanomsg.org/go-mangos
+      - image: circleci/golang:1.11
+    working_directory: /go/src/nanomsg.org/go/mangos/v2
     steps:
       - checkout
       - run: echo "$GOPATH"
       - run: go get -v -t -d ./...
-      - run: bash .circleci/coverage.sh
+      - run: go test -v -coverpkg=nanomsg.org/go/mangos/v2/... -covermode=count -coverprofile=coverage.txt ./...
       - run: bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
 
 workflows:
   version: 2
   build_and_test:
     jobs:
+      - build-1.11
       - build-1.10
-      - build-1.9
-      - build-1.8
       - build-coverage

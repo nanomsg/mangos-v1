@@ -1,4 +1,4 @@
-// Copyright 2016 The Mangos Authors
+// Copyright 2018 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -14,19 +14,18 @@
 
 package mangos
 
-import (
-	"net"
-	"strings"
-)
+// XXX: The interfaces listed here will eventually move to the Transport
+// package, to be named without the Tran prefix, and then this file will
+// go away.
 
-// Pipe behaves like a full-duplex message-oriented connection between two
+// TranPipe behaves like a full-duplex message-oriented connection between two
 // peers.  Callers may call operations on a Pipe simultaneously from
 // different goroutines.  (These are different from net.Conn because they
 // provide message oriented semantics.)
 //
 // Pipe is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type Pipe interface {
+type TranPipe interface {
 
 	// Send sends a complete message.  In the event of a partial send,
 	// the Pipe will be closed, and an error is returned.  For reasons
@@ -58,24 +57,21 @@ type Pipe interface {
 	// connection establishment.
 	RemoteProtocol() uint16
 
-	// IsOpen returns true if the underlying connection is open.
-	IsOpen() bool
-
-	// GetProp returns an arbitrary transport specific property.
-	// These are like options, but are read-only and specific to a single
-	// connection.  If the property doesn't exist, then ErrBadProperty
-	// should be returned.
-	GetProp(string) (interface{}, error)
+	// GetOption returns an arbitrary transport specific option on a
+	// pipe.  Options for pipes are read-only and specific to that
+	// particular connection. If the property doesn't exist, then
+	// ErrBadOption should be returned.
+	GetOption(string) (interface{}, error)
 }
 
-// PipeDialer represents the client side of a connection.  Clients initiate
+// TranDialer represents the client side of a connection.  Clients initiate
 // the connection.
 //
-// PipeDialer is only intended for use by transport implementors, and should
+// TranDialer is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type PipeDialer interface {
+type TranDialer interface {
 	// Dial is used to initiate a connection to a remote peer.
-	Dial() (Pipe, error)
+	Dial() (TranPipe, error)
 
 	// SetOption sets a local option on the dialer.
 	// ErrBadOption can be returned for unrecognized options.
@@ -87,12 +83,12 @@ type PipeDialer interface {
 	GetOption(name string) (value interface{}, err error)
 }
 
-// PipeListener represents the server side of a connection.  Servers respond
+// TranListener represents the server side of a connection.  Servers respond
 // to a connection request from clients.
 //
-// PipeListener is only intended for use by transport implementors, and should
+// TranListener is only intended for use by transport implementors, and should
 // not be directly used in applications.
-type PipeListener interface {
+type TranListener interface {
 
 	// Listen actually begins listening on the interface.  It is
 	// called just prior to the Accept() routine normally. It is
@@ -102,7 +98,7 @@ type PipeListener interface {
 	// Accept completes the server side of a connection.  Once the
 	// connection is established and initial handshaking is complete,
 	// the resulting connection is returned to the client.
-	Accept() (Pipe, error)
+	Accept() (TranPipe, error)
 
 	// Close ceases any listening activity, and will specifically close
 	// any underlying file descriptor.  Once this is done, the only way
@@ -133,30 +129,11 @@ type Transport interface {
 	Scheme() string
 
 	// NewDialer creates a new Dialer for this Transport.
-	NewDialer(url string, sock Socket) (PipeDialer, error)
+	NewDialer(url string, sock Socket) (TranDialer, error)
 
 	// NewListener creates a new PipeListener for this Transport.
 	// This generally also arranges for an OS-level file descriptor to be
 	// opened, and bound to the the given address, as well as establishing
 	// any "listen" backlog.
-	NewListener(url string, sock Socket) (PipeListener, error)
-}
-
-// StripScheme removes the leading scheme (such as "http://") from an address
-// string.  This is mostly a utility for benefit of transport providers.
-func StripScheme(t Transport, addr string) (string, error) {
-	if !strings.HasPrefix(addr, t.Scheme()+"://") {
-		return addr, ErrBadTran
-	}
-	return addr[len(t.Scheme()+"://"):], nil
-}
-
-// ResolveTCPAddr is like net.ResolveTCPAddr, but it handles the
-// wildcard used in nanomsg URLs, replacing it with an empty
-// string to indicate that all local interfaces be used.
-func ResolveTCPAddr(addr string) (*net.TCPAddr, error) {
-	if strings.HasPrefix(addr, "*") {
-		addr = addr[1:]
-	}
-	return net.ResolveTCPAddr("tcp", addr)
+	NewListener(url string, sock Socket) (TranListener, error)
 }

@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/rep"
-	"nanomsg.org/go-mangos/protocol/req"
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/rep"
+	"nanomsg.org/go/mangos/v2/protocol/req"
 )
 
 // TranTest provides a common test structure for transports, so that they
@@ -94,23 +94,18 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 			t.Errorf("Dial failed: %v", err)
 			return
 		}
-		if v, err := client.GetProp(mangos.PropLocalAddr); err == nil {
+		if v, err := client.GetOption(mangos.OptionLocalAddr); err == nil {
 			addr := v.(net.Addr)
 			t.Logf("Dialed on local net %s addr %s", addr.Network(), addr.String())
 		} else {
 			t.Logf("err is %v", err.Error())
 		}
-		if v, err := client.GetProp(mangos.PropRemoteAddr); err == nil {
+		if v, err := client.GetOption(mangos.OptionRemoteAddr); err == nil {
 			addr := v.(net.Addr)
 			t.Logf("Dialed remote peer %s addr %s", addr.Network(), addr.String())
 		}
 		t.Logf("Connected client: %d (server %d)",
 			client.LocalProtocol(), client.RemoteProtocol())
-		t.Logf("Client open: %t", client.IsOpen())
-		if !client.IsOpen() {
-			t.Error("Client is closed")
-			return
-		}
 	}()
 
 	server, err := l.Accept()
@@ -118,11 +113,11 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 		t.Errorf("Accept failed: %v", err)
 		return
 	}
-	if v, err := server.GetProp(mangos.PropLocalAddr); err == nil {
+	if v, err := server.GetOption(mangos.OptionLocalAddr); err == nil {
 		addr := v.(net.Addr)
 		t.Logf("Accepted on local net %s addr %s", addr.Network(), addr.String())
 	}
-	if v, err := server.GetProp(mangos.PropRemoteAddr); err == nil {
+	if v, err := server.GetOption(mangos.OptionRemoteAddr); err == nil {
 		addr := v.(net.Addr)
 		t.Logf("Accepted remote peer %s addr %s", addr.Network(), addr.String())
 	}
@@ -130,10 +125,6 @@ func (tt *TranTest) TestListenAndAccept(t *testing.T) {
 
 	t.Logf("Connected server: %d (client %d)",
 		server.LocalProtocol(), server.RemoteProtocol())
-	t.Logf("Server open: %t", server.IsOpen())
-	if !server.IsOpen() {
-		t.Error("Server is closed")
-	}
 	wg.Wait()
 }
 
@@ -233,6 +224,9 @@ func (tt *TranTest) TestSendRecv(t *testing.T) {
 		// Client side
 		t.Logf("Connecting REQ on %s", tt.addr)
 		d, err := tt.tran.NewDialer(tt.addr, tt.sockReq)
+		if err != nil {
+			t.Errorf("Failed creating Dialer: %v", err)
+		}
 		if tt.cliCfg != nil {
 			if err = d.SetOption(mangos.OptionTLSConfig, tt.cliCfg); err != nil {
 				t.Errorf("Failed setting TLS config: %v", err)
@@ -245,7 +239,7 @@ func (tt *TranTest) TestSendRecv(t *testing.T) {
 			t.Errorf("Dial failed: %v", err)
 			return
 		}
-		t.Logf("Connected client: %t", client.IsOpen())
+		t.Logf("Connected client")
 		defer client.Close()
 
 		req := mangos.NewMessage(len(ping))
@@ -290,7 +284,7 @@ func (tt *TranTest) TestSendRecv(t *testing.T) {
 		t.Errorf("Accept failed: %v", err)
 		return
 	}
-	t.Logf("Connected server: %t", server.IsOpen())
+	t.Logf("Connected server")
 	defer server.Close()
 
 	// Now we can try to send and receive
