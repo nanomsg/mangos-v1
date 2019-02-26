@@ -3,28 +3,29 @@ ifdef::env-github[]
 :important-caption: :heavy_exclamation_mark:
 :warning-caption: :heavy_exclamation_mark:
 endif::[]
-= mangos v2
+= mangos
 
-image:https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux[Linux Status,link="https://circleci.com/gh/nanomsg/mangos-v2"]
-image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos-v2/blob/master/LICENSE"]
-image:https://img.shields.io/badge/gitter-join-brightgreen.svg[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
-image:https://codecov.io/gh/nanomsg/mangos-v2/branch/master/graph/badge.svg?label=coverage[Coverage,link="https://codecov.io/gh/nanomsg/mangos-v2"]
-image:https://img.shields.io/badge/godoc-reference-blue.svg[GoDoc,link="https://godoc.org/nanomsg.org/go/mangos/v2"]
-image:https://goreportcard.com/badge/nanomsg.org/go/mangos/v2[Go Report Card,link="https://goreportcard.com/report/nanomsg.org/go/mangos/v2"]
-//image:https://img.shields.io/appveyor/ci/nanomsg/mangos-v2.svg?label=windows[Windows Status,link="https://ci.appveyor.com/project/nanomsg/mangos-v2"]
+image:https://img.shields.io/circleci/project/github/nanomsg/mangos/v3.svg?logo=circleci[link="https://circleci.com/gh/nanomsg/mangos/tree/v3"]
+image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos/blob/v3/LICENSE"]
+image:https://img.shields.io/badge/gitter-join-brightgreen.svg?logo=gitter[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
+image:https://img.shields.io/codecov/c/github/nanomsg/mangos/v3.svg?logo=codecov[Coverage,link="https://codecov.io/gh/nanomsg/mangos/branch/v3"]
+image:https://img.shields.io/badge/godoc-reference-blue.svg[GoDoc,link="https://godoc.org/nanomsg.org/go/mangos/v3"]
+image:https://goreportcard.com/badge/nanomsg.org/go/mangos/v3[Go Report Card,link="https://goreportcard.com/report/nanomsg.org/go/mangos/v3"]
+//image:https://img.shields.io/appveyor/ci/nanomsg/mangos.svg?label=windows[Windows Status,link="https://ci.appveyor.com/project/nanomsg/mangos"]
 
 
 [cols="2",grid="none",frame="none",options="autowidth"]
 |===
-|_Mangos&trade;_ v2  is an implementation in pure Go of the *SP*
+|_Mangos&trade;_  is an implementation in pure Go of the *SP*
 ("`Scalability Protocols`") messaging system.
 These are colloquially  known as a "`nanomsg`".
 a|image::mangos.jpg[float="right"]
 |===
 
-NOTE: This is version 2 of _mangos_, and contains breaking changes and
-rather different API in some circumstances relative to version 1.  To use the
-original version of _mangos_ please see https://github.com/nanomsg/mangos
+NOTE: This is version 3 of _mangos_, and contains breaking changes and
+rather different API in some circumstances relative to earlier versions.
+Tags are available in the repository to access earlier versions.
+This project observes https://semver.org[semantic versioning].
 
 The modern C implemenation of the SP protocols is available as
 https://github.com/nanomsg/nng[__NNG&trade;__].
@@ -61,7 +62,7 @@ Additionally there are a number of projects that use the two products together.
 
 ===  Using *go get*
 
-    $ go get -u nanomsg.org/go/mangos/v2
+    $ go get -u nanomsg.org/go/mangos/v3
 
 You can use `go get -u -a` to update all installed packages.
 
@@ -69,7 +70,7 @@ You can use `go get -u -a` to update all installed packages.
 
 For docs, see http://godoc.org/nanomsg.org/go-mangos or run:
 
-    $ godoc nanomsg.org/go/mangos/v2
+    $ godoc nanomsg.org/go/mangos/v3
 
 == Testing
 
@@ -77,11 +78,11 @@ This package supports internal self tests, which can be run in
 the idiomatic Go way.
 (Note that most of the tests are in a test subdirectory.)
 
-    $ go test nanomsg.org/go/mangos/v2/...
+    $ go test nanomsg.org/go/mangos/v3/...
 
 There are also internal benchmarks available:
 
-    $ go test -bench=. nanomsg.org/go/mangos/v2/test
+    $ go test -bench=. nanomsg.org/go/mangos/v3/test
 
 ## Commercial Support
 

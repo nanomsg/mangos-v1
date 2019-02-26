@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2019 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -17,8 +17,8 @@
 package pull
 
 import (
-	"nanomsg.org/go/mangos/v2/protocol"
-	"nanomsg.org/go/mangos/v2/protocol/xpull"
+	"nanomsg.org/go/mangos/v3/protocol"
+	"nanomsg.org/go/mangos/v3/protocol/xpull"
 )
 
 type socket struct {

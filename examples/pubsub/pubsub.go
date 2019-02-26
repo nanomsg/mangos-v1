@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2019 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -33,12 +33,12 @@ import (
 	"os"
 	"time"
 
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/pub"
-	"nanomsg.org/go/mangos/v2/protocol/sub"
+	"nanomsg.org/go/mangos/v3"
+	"nanomsg.org/go/mangos/v3/protocol/pub"
+	"nanomsg.org/go/mangos/v3/protocol/sub"
 
 	// register transports
-	_ "nanomsg.org/go/mangos/v2/transport/all"
+	_ "nanomsg.org/go/mangos/v3/transport/all"
 )
 
 func die(format string, v ...interface{}) {

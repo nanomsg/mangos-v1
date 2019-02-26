@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2019 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,10 +19,10 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go/mangos/v2/errors"
+	"nanomsg.org/go/mangos/v3/errors"
 
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/transport"
+	"nanomsg.org/go/mangos/v3"
+	"nanomsg.org/go/mangos/v3/transport"
 )
 
 type dialer struct {

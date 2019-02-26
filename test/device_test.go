@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2019 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -19,14 +19,14 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/pair"
-	"nanomsg.org/go/mangos/v2/protocol/rep"
-	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/protocol/xpair"
-	"nanomsg.org/go/mangos/v2/protocol/xrep"
-	"nanomsg.org/go/mangos/v2/protocol/xreq"
-	_ "nanomsg.org/go/mangos/v2/transport/all"
+	"nanomsg.org/go/mangos/v3"
+	"nanomsg.org/go/mangos/v3/protocol/pair"
+	"nanomsg.org/go/mangos/v3/protocol/rep"
+	"nanomsg.org/go/mangos/v3/protocol/req"
+	"nanomsg.org/go/mangos/v3/protocol/xpair"
+	"nanomsg.org/go/mangos/v3/protocol/xrep"
+	"nanomsg.org/go/mangos/v3/protocol/xreq"
+	_ "nanomsg.org/go/mangos/v3/transport/all"
 )
 
 func TestDeviceBadPair(t *testing.T) {

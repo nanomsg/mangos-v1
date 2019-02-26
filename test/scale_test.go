@@ -1,5 +1,5 @@
 // +build !race
-// Copyright 2018 The Mangos Authors
+// Copyright 2019 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -30,10 +30,10 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/rep"
-	"nanomsg.org/go/mangos/v2/protocol/req"
-	_ "nanomsg.org/go/mangos/v2/transport/inproc"
+	"nanomsg.org/go/mangos/v3"
+	"nanomsg.org/go/mangos/v3/protocol/rep"
+	"nanomsg.org/go/mangos/v3/protocol/req"
+	_ "nanomsg.org/go/mangos/v3/transport/inproc"
 )
 
 func scalabilityClient(errp *error, loops int, wg *sync.WaitGroup) {

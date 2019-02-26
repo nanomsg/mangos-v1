@@ -1,4 +1,4 @@
-// Copyright 2018 The Mangos Authors
+// Copyright 2019 The Mangos Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use file except in compliance with the License.
@@ -31,19 +31,19 @@ import (
 
 import (
 	"github.com/droundy/goopt"
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/bus"
-	"nanomsg.org/go/mangos/v2/protocol/pair"
-	"nanomsg.org/go/mangos/v2/protocol/pub"
-	"nanomsg.org/go/mangos/v2/protocol/pull"
-	"nanomsg.org/go/mangos/v2/protocol/push"
-	"nanomsg.org/go/mangos/v2/protocol/rep"
-	"nanomsg.org/go/mangos/v2/protocol/req"
-	"nanomsg.org/go/mangos/v2/protocol/respondent"
-	"nanomsg.org/go/mangos/v2/protocol/star"
-	"nanomsg.org/go/mangos/v2/protocol/sub"
-	"nanomsg.org/go/mangos/v2/protocol/surveyor"
-	"nanomsg.org/go/mangos/v2/transport/all"
+	"nanomsg.org/go/mangos/v3"
+	"nanomsg.org/go/mangos/v3/protocol/bus"
+	"nanomsg.org/go/mangos/v3/protocol/pair"
+	"nanomsg.org/go/mangos/v3/protocol/pub"
+	"nanomsg.org/go/mangos/v3/protocol/pull"
+	"nanomsg.org/go/mangos/v3/protocol/push"
+	"nanomsg.org/go/mangos/v3/protocol/rep"
+	"nanomsg.org/go/mangos/v3/protocol/req"
+	"nanomsg.org/go/mangos/v3/protocol/respondent"
+	"nanomsg.org/go/mangos/v3/protocol/star"
+	"nanomsg.org/go/mangos/v3/protocol/sub"
+	"nanomsg.org/go/mangos/v3/protocol/surveyor"
+	"nanomsg.org/go/mangos/v3/transport/all"
 )
 
 var verbose int
