@@ -34,7 +34,7 @@ func ReqRepLatencyServer(addr string, msgSize int, roundTrips int) {
 	if err != nil {
 		log.Fatalf("Failed to make new pair socket: %v", err)
 	}
-	defer s.Close()
+	defer func() { time.Sleep(10 * time.Microsecond); s.Close() }()
 
 	all.AddTransports(s)
 	l, err := s.NewListener(addr, nil)

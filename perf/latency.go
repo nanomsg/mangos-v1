@@ -34,7 +34,7 @@ func LatencyServer(addr string, msgSize int, roundTrips int) {
 	if err != nil {
 		log.Fatalf("Failed to make new pair socket: %v", err)
 	}
-	defer s.Close()
+	defer func() { time.Sleep(10 * time.Microsecond); s.Close() }()
 
 	all.AddTransports(s)
 	l, err := s.NewListener(addr, nil)
@@ -44,12 +44,6 @@ func LatencyServer(addr string, msgSize int, roundTrips int) {
 
 	// TCP no delay, please!
 	l.SetOption(mangos.OptionNoDelay, true)
-
-	// Make sure we linger a bit on close...
-	err = s.SetOption(mangos.OptionLinger, time.Second)
-	if err != nil {
-		log.Fatalf("Failed set Linger: %v", err)
-	}
 
 	err = l.Listen()
 	if err != nil {
@@ -86,12 +80,6 @@ func LatencyClient(addr string, msgSize int, roundTrips int) {
 
 	// TCP no delay, please!
 	d.SetOption(mangos.OptionNoDelay, true)
-
-	// Make sure we linger a bit on close...
-	err = s.SetOption(mangos.OptionLinger, time.Second)
-	if err != nil {
-		log.Fatalf("Failed set Linger: %v", err)
-	}
 
 	err = d.Dial()
 	if err != nil {
