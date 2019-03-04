@@ -45,12 +45,6 @@ func ThroughputServer(addr string, msgSize int, count int) {
 	// Disable TCP no delay, please! - only valid for TCP
 	l.SetOption(mangos.OptionNoDelay, false)
 
-	// Make sure we linger a bit on close...
-	err = s.SetOption(mangos.OptionLinger, time.Second)
-	if err != nil {
-		log.Fatalf("Failed set Linger: %v", err)
-	}
-
 	err = l.Listen()
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
@@ -106,12 +100,6 @@ func ThroughputClient(addr string, msgSize int, count int) {
 
 	// Disable TCP no delay, please!
 	d.SetOption(mangos.OptionNoDelay, false)
-
-	// Make sure we linger a bit on close...
-	err = s.SetOption(mangos.OptionLinger, time.Second)
-	if err != nil {
-		log.Fatalf("Failed set Linger: %v", err)
-	}
 
 	err = d.Dial()
 	if err != nil {
