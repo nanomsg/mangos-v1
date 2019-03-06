@@ -17,11 +17,11 @@ package test
 import (
 	"testing"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/rep"
-	"nanomsg.org/go/mangos/v3/protocol/req"
-	"nanomsg.org/go/mangos/v3/protocol/xrep"
-	"nanomsg.org/go/mangos/v3/protocol/xreq"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/rep"
+	"go.nanomsg.org/mangos/v3/protocol/req"
+	"go.nanomsg.org/mangos/v3/protocol/xrep"
+	"go.nanomsg.org/mangos/v3/protocol/xreq"
 )
 
 type reqTest struct {

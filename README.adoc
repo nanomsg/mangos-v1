@@ -9,8 +9,8 @@ image:https://img.shields.io/circleci/project/github/nanomsg/mangos/v3.svg?logo=
 image:https://img.shields.io/badge/license-APACHE2-blue.svg[Apache License,link="https://github.com/nanomsg/mangos/blob/v3/LICENSE"]
 image:https://img.shields.io/badge/gitter-join-brightgreen.svg?logo=gitter[Gitter,link="https://gitter.im/nanomsg/nanomsg",align=left]
 image:https://img.shields.io/codecov/c/github/nanomsg/mangos/v3.svg?logo=codecov[Coverage,link="https://codecov.io/gh/nanomsg/mangos/branch/v3"]
-image:https://img.shields.io/badge/godoc-reference-blue.svg[GoDoc,link="https://godoc.org/nanomsg.org/go/mangos/v3"]
-image:https://goreportcard.com/badge/nanomsg.org/go/mangos/v3[Go Report Card,link="https://goreportcard.com/report/nanomsg.org/go/mangos/v3"]
+image:https://img.shields.io/badge/godoc-reference-blue.svg[GoDoc,link="https://godoc.org/go.nanomsg.org/mangos/v3"]
+image:https://goreportcard.com/badge/go.nanomsg.org/mangos/v3[Go Report Card,link="https://goreportcard.com/report/go.nanomsg.org/mangos/v3"]
 //image:https://img.shields.io/appveyor/ci/nanomsg/mangos.svg?label=windows[Windows Status,link="https://ci.appveyor.com/project/nanomsg/mangos"]
 
 
@@ -62,7 +62,7 @@ Additionally there are a number of projects that use the two products together.
 
 ===  Using *go get*
 
-    $ go get -u nanomsg.org/go/mangos/v3
+    $ go get -u go.nanomsg.org/mangos/v3
 
 You can use `go get -u -a` to update all installed packages.
 
@@ -70,7 +70,7 @@ You can use `go get -u -a` to update all installed packages.
 
 For docs, see http://godoc.org/nanomsg.org/go-mangos or run:
 
-    $ godoc nanomsg.org/go/mangos/v3
+    $ godoc go.nanomsg.org/mangos/v3
 
 == Testing
 
@@ -78,11 +78,11 @@ This package supports internal self tests, which can be run in
 the idiomatic Go way.
 (Note that most of the tests are in a test subdirectory.)
 
-    $ go test nanomsg.org/go/mangos/v3/...
+    $ go test go.nanomsg.org/mangos/v3/...
 
 There are also internal benchmarks available:
 
-    $ go test -bench=. nanomsg.org/go/mangos/v3/test
+    $ go test -bench=. go.nanomsg.org/mangos/v3/test
 
 ## Commercial Support
 

@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go/mangos/v3/protocol"
+	"go.nanomsg.org/mangos/v3/protocol"
 )
 
 // Protocol identity information.

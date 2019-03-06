@@ -31,19 +31,19 @@ import (
 
 import (
 	"github.com/droundy/goopt"
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/bus"
-	"nanomsg.org/go/mangos/v3/protocol/pair"
-	"nanomsg.org/go/mangos/v3/protocol/pub"
-	"nanomsg.org/go/mangos/v3/protocol/pull"
-	"nanomsg.org/go/mangos/v3/protocol/push"
-	"nanomsg.org/go/mangos/v3/protocol/rep"
-	"nanomsg.org/go/mangos/v3/protocol/req"
-	"nanomsg.org/go/mangos/v3/protocol/respondent"
-	"nanomsg.org/go/mangos/v3/protocol/star"
-	"nanomsg.org/go/mangos/v3/protocol/sub"
-	"nanomsg.org/go/mangos/v3/protocol/surveyor"
-	"nanomsg.org/go/mangos/v3/transport/all"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/bus"
+	"go.nanomsg.org/mangos/v3/protocol/pair"
+	"go.nanomsg.org/mangos/v3/protocol/pub"
+	"go.nanomsg.org/mangos/v3/protocol/pull"
+	"go.nanomsg.org/mangos/v3/protocol/push"
+	"go.nanomsg.org/mangos/v3/protocol/rep"
+	"go.nanomsg.org/mangos/v3/protocol/req"
+	"go.nanomsg.org/mangos/v3/protocol/respondent"
+	"go.nanomsg.org/mangos/v3/protocol/star"
+	"go.nanomsg.org/mangos/v3/protocol/sub"
+	"go.nanomsg.org/mangos/v3/protocol/surveyor"
+	"go.nanomsg.org/mangos/v3/transport/all"
 )
 
 var verbose int

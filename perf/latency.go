@@ -22,9 +22,9 @@ import (
 	"log"
 	"time"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/pair"
-	"nanomsg.org/go/mangos/v3/transport/all"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/pair"
+	"go.nanomsg.org/mangos/v3/transport/all"
 )
 
 // LatencyServer is the server side -- very much equivalent to local_lat in

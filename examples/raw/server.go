@@ -21,11 +21,11 @@ import (
 	"sync"
 	"time"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/xrep"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/xrep"
 
 	// register transports
-	_ "nanomsg.org/go/mangos/v3/transport/all"
+	_ "go.nanomsg.org/mangos/v3/transport/all"
 )
 
 // Our protocol is simple.  Request packet is empty.  The reply

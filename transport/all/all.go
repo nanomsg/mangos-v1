@@ -18,15 +18,15 @@
 package all
 
 import (
-	"nanomsg.org/go/mangos/v3"
+	"go.nanomsg.org/mangos/v3"
 
 	// import transports
-	_ "nanomsg.org/go/mangos/v3/transport/inproc"
-	_ "nanomsg.org/go/mangos/v3/transport/ipc"
-	_ "nanomsg.org/go/mangos/v3/transport/tcp"
-	_ "nanomsg.org/go/mangos/v3/transport/tlstcp"
-	_ "nanomsg.org/go/mangos/v3/transport/ws"
-	_ "nanomsg.org/go/mangos/v3/transport/wss"
+	_ "go.nanomsg.org/mangos/v3/transport/inproc"
+	_ "go.nanomsg.org/mangos/v3/transport/ipc"
+	_ "go.nanomsg.org/mangos/v3/transport/tcp"
+	_ "go.nanomsg.org/mangos/v3/transport/tlstcp"
+	_ "go.nanomsg.org/mangos/v3/transport/ws"
+	_ "go.nanomsg.org/mangos/v3/transport/wss"
 )
 
 // AddTransports adds all known transports to the given socket.

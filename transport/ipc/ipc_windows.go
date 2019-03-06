@@ -22,8 +22,8 @@ import (
 	"net"
 
 	"github.com/Microsoft/go-winio"
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/transport"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/transport"
 )
 
 // Transport is transport.Transport for IPC over named pipes.

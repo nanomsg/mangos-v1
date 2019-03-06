@@ -17,9 +17,9 @@ package test
 import (
 	"testing"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/pull"
-	"nanomsg.org/go/mangos/v3/protocol/push"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/pull"
+	"go.nanomsg.org/mangos/v3/protocol/push"
 )
 
 type PushTest struct {

@@ -17,8 +17,8 @@ package test
 import (
 	"testing"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/pair"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/pair"
 )
 
 type pairTest struct {

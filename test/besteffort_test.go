@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/pair"
-	_ "nanomsg.org/go/mangos/v3/transport/tcp"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/pair"
+	_ "go.nanomsg.org/mangos/v3/transport/tcp"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

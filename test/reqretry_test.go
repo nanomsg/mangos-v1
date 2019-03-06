@@ -19,10 +19,10 @@ import (
 
 	"time"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/rep"
-	"nanomsg.org/go/mangos/v3/protocol/req"
-	_ "nanomsg.org/go/mangos/v3/transport/inproc"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/rep"
+	"go.nanomsg.org/mangos/v3/protocol/req"
+	_ "go.nanomsg.org/mangos/v3/transport/inproc"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

@@ -18,7 +18,7 @@ import (
 	"runtime"
 	"testing"
 
-	"nanomsg.org/go/mangos/v3/test"
+	"go.nanomsg.org/mangos/v3/test"
 )
 
 var tt = test.NewTranTest(Transport, "ipc://test1234")

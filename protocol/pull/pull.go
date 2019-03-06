@@ -17,8 +17,8 @@
 package pull
 
 import (
-	"nanomsg.org/go/mangos/v3/protocol"
-	"nanomsg.org/go/mangos/v3/protocol/xpull"
+	"go.nanomsg.org/mangos/v3/protocol"
+	"go.nanomsg.org/mangos/v3/protocol/xpull"
 )
 
 type socket struct {

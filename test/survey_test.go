@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"nanomsg.org/go/mangos/v3"
-	"nanomsg.org/go/mangos/v3/protocol/respondent"
-	"nanomsg.org/go/mangos/v3/protocol/surveyor"
-	"nanomsg.org/go/mangos/v3/protocol/xrespondent"
-	"nanomsg.org/go/mangos/v3/protocol/xsurveyor"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/respondent"
+	"go.nanomsg.org/mangos/v3/protocol/surveyor"
+	"go.nanomsg.org/mangos/v3/protocol/xrespondent"
+	"go.nanomsg.org/mangos/v3/protocol/xsurveyor"
 )
 
 type surveyTest struct {

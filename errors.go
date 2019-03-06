@@ -15,7 +15,7 @@
 package mangos
 
 import (
-	"nanomsg.org/go/mangos/v3/errors"
+	"go.nanomsg.org/mangos/v3/errors"
 )
 
 // Various error codes.

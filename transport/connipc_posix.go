@@ -21,7 +21,7 @@ import (
 	"io"
 	"net"
 
-	"nanomsg.org/go/mangos/v3"
+	"go.nanomsg.org/mangos/v3"
 )
 
 // NewConnPipeIPC allocates a new Pipe using the IPC exchange protocol.
