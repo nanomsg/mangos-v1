@@ -28,7 +28,7 @@ import (
 	"nanomsg.org/go-mangos/transport/all"
 )
 
-// LatencyServer is the server side -- very much equivalent to local_lat in
+// ReqRepLatencyServer is the server side -- very much equivalent to local_lat in
 // nanomsg/perf.  It does no measurement at all, just sends packets on the wire.
 func ReqRepLatencyServer(addr string, msgSize int, roundTrips int) {
 	s, err := rep.NewSocket()
@@ -64,7 +64,7 @@ func ReqRepLatencyServer(addr string, msgSize int, roundTrips int) {
 	}
 }
 
-// LatencyClient is the client side of the latency test.  It measures round
+// ReqRepLatencyClient is the client side of the latency test.  It measures round
 // trip times, and is the equivalent to nanomsg/perf/remote_lat.
 func ReqRepLatencyClient(addr string, msgSize int, roundTrips int) {
 	s, err := req.NewSocket()
