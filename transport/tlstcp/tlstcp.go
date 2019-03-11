@@ -216,7 +216,7 @@ func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 	return d, nil
 }
 
-// NewAccepter implements the Transport NewAccepter method.
+// NewListener implements the Transport NewAccepter method.
 func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	var err error
 	l := &listener{sock: sock, opts: newOptions(t)}
