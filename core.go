@@ -46,8 +46,9 @@ type socket struct {
 	recverr    error // error to return on attempts to Recv()
 	senderr    error // error to return on attempts to Send()
 
-	rdeadline  time.Duration
-	wdeadline  time.Duration
+	rdeadline  time.Duration // mangos socket read deadline
+	wdeadline  time.Duration // mangos socket write deadline
+	iodeadline time.Duration // IO timeout for connection used by pipe
 	reconntime time.Duration // reconnect time after error or disconnect
 	reconnmax  time.Duration // max reconnect interval
 	linger     time.Duration
@@ -437,6 +438,11 @@ func (sock *socket) SetOption(name string, value interface{}) error {
 		sock.wdeadline = value.(time.Duration)
 		sock.Unlock()
 		return nil
+	case OptionNetworkIoDeadline:
+		sock.Lock()
+		sock.iodeadline = value.(time.Duration)
+		sock.Unlock()
+		return nil
 	case OptionLinger:
 		sock.Lock()
 		sock.linger = value.(time.Duration)
@@ -523,6 +529,10 @@ func (sock *socket) GetOption(name string) (interface{}, error) {
 		sock.Lock()
 		defer sock.Unlock()
 		return sock.wdeadline, nil
+	case OptionNetworkIoDeadline:
+		sock.Lock()
+		defer sock.Unlock()
+		return sock.iodeadline, nil
 	case OptionLinger:
 		sock.Lock()
 		defer sock.Unlock()
