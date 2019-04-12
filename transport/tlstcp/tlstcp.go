@@ -92,6 +92,8 @@ func (o options) configTCP(conn *net.TCPConn) error {
 func newOptions(t *tlsTran) options {
 	o := make(map[string]interface{})
 	o[mangos.OptionTLSConfig] = t.config
+	o[mangos.OptionNoDelay] = true
+	o[mangos.OptionKeepAlive] = true
 	return options(o)
 }
 
