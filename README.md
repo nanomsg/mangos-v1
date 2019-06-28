@@ -13,17 +13,13 @@ messaging system.
 This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.
 
-> TIP: This is mangos version 1, but
+> NOTE: This is mangos version 1, but
 > [mangos v2](http://github.com/nanomsg/mangos-v2) is available.
 > Version 2 has some API breaking changes relative to version 1,
 > but introduces new and
 > useful features, and is recommended for new development.
-
-> NOTE: The repository has moved from github.com/go-mangos/mangos.
-> Please import using nanomsg.org/go-mangos.  Also, be advised that
-> the master branch of this repository may contain breaking changes.
-> Therefore, consider using a tag, such as v1, to ensure that you have
-> the latest stable version.
+> Migration to mangos v2 is strongly encouraged, as no further
+> development is taking place on v1.
 
 The reference implementation of the SP protocols is available as
 [nanomsg&trade;](http://www.nanomsg.org); there is also an effort to implement
