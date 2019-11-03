@@ -3,23 +3,20 @@
 
 [![Linux Status](https://img.shields.io/circleci/project/github/nanomsg/mangos.svg?label=linux)](https://circleci.com/gh/nanomsg/mangos)
 [![Apache License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/nanomsg/mangos/blob/master/LICENSE)
-[![Gitter](https://img.shields.io/badge/gitter-join-brightgreen.svg)](https://gitter.im/go-mangos/mangos)
+[![Discord](https://img.shields.io/discord/639573728212156478?label=discord)](https://discord.gg/wewTkby)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/nanomsg.org/go-mangos)
 [![Go Report Card](https://goreportcard.com/badge/nanomsg.org/go-mangos)](https://goreportcard.com/report/nanomsg.org/go-mangos)
+
+> NOTE: This is the legacy version of mangos (v1).
+> Users are encouraged to use [mangos v2](http://github.com/nanomsg/mangos)
+> instead if possible.
+> No further development is taking place on v1.
 
 Package mangos is an implementation in pure Go of the SP
 ("Scalability Protocols")
 messaging system.
 This makes heavy use of go channels, internally, but it can operate
 on systems that lack support for cgo.
-
-> NOTE: This is mangos version 1, but
-> [mangos v2](http://github.com/nanomsg/mangos-v2) is available.
-> Version 2 has some API breaking changes relative to version 1,
-> but introduces new and
-> useful features, and is recommended for new development.
-> Migration to mangos v2 is strongly encouraged, as no further
-> development is taking place on v1.
 
 The reference implementation of the SP protocols is available as
 [nanomsg&trade;](http://www.nanomsg.org); there is also an effort to implement
