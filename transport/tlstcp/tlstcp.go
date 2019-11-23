@@ -85,15 +85,28 @@ func (o options) configTCP(conn *net.TCPConn) error {
 			return err
 		}
 	}
+	if v, ok := o[mangos.OptionNetworkIoDeadline]; ok {
+		if err := conn.SetDeadline(time.Now().Add(v.(time.Duration))); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
-func newOptions(t *tlsTran) options {
-	o := make(map[string]interface{})
-	o[mangos.OptionTLSConfig] = t.config
-	o[mangos.OptionNoDelay] = true
-	o[mangos.OptionKeepAlive] = true
+func newOptions(sock mangos.Socket, t *tlsTran) options {
+	var o = map[string]interface{}{
+		mangos.OptionTLSConfig: t.config,
+		mangos.OptionNoDelay: true,
+		mangos.OptionKeepAlive: true,
+	}
+
+	// I/O timeout is needed to avoid blocking on the initial TLS handshake (#339).
+	if v, err := sock.GetOption(mangos.OptionNetworkIoDeadline); err == nil {
+		if iotimeout := v.(time.Duration); iotimeout > 0 {
+			o[mangos.OptionNetworkIoDeadline] = iotimeout
+		}
+	}
 	return options(o)
 }
 
@@ -235,7 +248,7 @@ func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 		return nil, err
 	}
 
-	d := &dialer{sock: sock, opts: newOptions(t), addr: addr}
+	d := &dialer{sock: sock, opts: newOptions(sock, t), addr: addr}
 
 	return d, nil
 }
@@ -243,7 +256,7 @@ func (t *tlsTran) NewDialer(addr string, sock mangos.Socket) (mangos.PipeDialer,
 // NewListener implements the Transport NewAccepter method.
 func (t *tlsTran) NewListener(addr string, sock mangos.Socket) (mangos.PipeListener, error) {
 	var err error
-	l := &listener{sock: sock, opts: newOptions(t)}
+	l := &listener{sock: sock, opts: newOptions(sock, t)}
 
 	if addr, err = mangos.StripScheme(t, addr); err != nil {
 		return nil, err
